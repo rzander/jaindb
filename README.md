@@ -52,8 +52,6 @@ at the end, the hash value of the inventory data that contains all the hash refe
 ```
 If something changes on the asset data, a new block with a reference to the list of all hashed inventory data ("data" attribute) will be added to the blockchain.
 
-##REST API
-Storing data in hashed blocks may be great to save disk space but it requies an API to convert the data back into a readable format.
 
-### UploadFullInv
-`http://<URL>/UploadFullInv/{ID}` where ID is the unique identifier of the object (e.g. AssetID, SerialNr etc.)
+> Storing data in hashed blocks may be great to save disk space but it requies an API to convert the data back into a readable format. JainDB provides a REST API to upload and query data.
+
