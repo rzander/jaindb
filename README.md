@@ -29,9 +29,9 @@ at the end, the hash value of the inventory data that contains all the hash refe
   "Chain": [
     {
       "index": 0,
-      "timestamp": 636471452136111166,
+      "timestamp": 636471513240444298,
       "previous_hash": "",
-      "hash": "RlrXzG3HCjiYyy6wm7WbheREl1Zx2xfamQl8p22fOyo=",
+      "hash": "x3gVMwVt+Snzj8b9Gln8sp4Ujw/E2jtX6KfcEzWluhA=",
       "nonce": 1,
       "data": "",
       "signature": "",
@@ -39,11 +39,21 @@ at the end, the hash value of the inventory data that contains all the hash refe
     },
     {
       "index": 1,
-      "timestamp": 636471452136451307,
-      "previous_hash": "RlrXzG3HCjiYyy6wm7WbheREl1Zx2xfamQl8p22fOyo=",
-      "hash": "Qa69Fi/d2FyyUj3HO5V5Cb4IU9Nr1t/tyBclF0dfEwE=",
+      "timestamp": 636471513242139314,
+      "previous_hash": "x3gVMwVt+Snzj8b9Gln8sp4Ujw/E2jtX6KfcEzWluhA=",
+      "hash": "/mJCe9E/OukY3udxiMt6yLpFQ79dNn66qc5iHCT1AUU=",
       "nonce": 2,
-      "data": "9qZj5d4UN1PcwfDiY13UCTWSV",
+      "data": "9qZNqUJ2H3Jso71NEPc6FCQyS",
+      "signature": "",
+      "blocktype": "INV"
+    },
+    {
+      "index": 2,
+      "timestamp": 636472149162185683,
+      "previous_hash": "/mJCe9E/OukY3udxiMt6yLpFQ79dNn66qc5iHCT1AUU=",
+      "hash": "Tst3z3gdq2krnDzj4R6DpeAUwFbN1GzbmrSe5il0NSc=",
+      "nonce": 3,
+      "data": "9qZQ2AxdCqkz15nyMTLxyGkii",
       "signature": "",
       "blocktype": "INV"
     }
