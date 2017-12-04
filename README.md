@@ -1,4 +1,4 @@
- # jaindb
+# jaindb
 JainDB is a blockchain based data archive for JSON data. It provides a REST API to interact with the data store. Jaindb is using REDIS, CosmosDB or just the File-System to store the data by using hashing and deduplication technologies.
 
 Jaindb was initially created to store inventory data of computers in an auditable way with the history of all changes. But as jaindb is schema-less, it can store everything you want... 
@@ -63,5 +63,5 @@ at the end, the hash value of the inventory data that contains all the hash refe
 If something changes on the asset data, a new block with a reference to the list of all hashed inventory data ("data" attribute) will be added to the blockchain.
 
 
-> Storing data in hashed blocks is great to save disk space but it requies an API to convert the data back into a readable format. JainDB provides a REST API to upload and query data.
+> Storing data in hashed blocks is great to save disk space but it requies an API to convert the data back into a readable format. JainDB provides a REST API to upload and query data. https://github.com/rzander/jaindb/wiki/REST-API
 
