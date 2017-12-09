@@ -65,3 +65,4 @@ If something changes on the asset data, a new block with a reference to the list
 
 > Storing data in hashed blocks is great to save disk space but it requies an API to convert the data back into a readable format. JainDB provides a REST API to upload and query data. https://github.com/rzander/jaindb/wiki/REST-API
 
+Docker Image: https://hub.docker.com/r/zanderr/jaindb/
