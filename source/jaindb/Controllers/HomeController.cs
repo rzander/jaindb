@@ -1,19 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 using System.IO;
-using Microsoft.OData.UriParser;
-using Microsoft.OData.Json;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
+using Newtonsoft.Json.Linq;
 
 namespace jaindb.Controllers
 {
+    [Produces("application/json")]
     public class HomeController : Controller
     {
         private readonly IConfiguration _config;
@@ -113,13 +111,13 @@ namespace jaindb.Controllers
         [Route("GetPS")]
         public string GetPS()
         {
-            string sFile = System.IO.File.ReadAllText("GetAsset.ps1");
+            string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
             return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL"));
         }
 
         [HttpGet]
         [Route("full")]
-        public string Full()
+        public JObject Full()
         {
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
             string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
@@ -141,7 +139,7 @@ namespace jaindb.Controllers
 
         [HttpGet]
         [Route("diff")]
-        public string Diff()
+        public JObject Diff()
         {
             this.Url.ToString();
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
@@ -179,7 +177,7 @@ namespace jaindb.Controllers
 
         [HttpGet]
         [Route("query")]
-        public string Query()
+        public JArray Query()
         {
             DateTime dStart = DateTime.Now;
 
@@ -197,7 +195,7 @@ namespace jaindb.Controllers
 
         [HttpGet]
         [Route("queryAll")]
-        public string QueryAll()
+        public JArray QueryAll()
         {
             this.Url.ToString();
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
@@ -214,7 +212,7 @@ namespace jaindb.Controllers
 
         [HttpGet]
         [Route("history")]
-        public string History()
+        public JObject History()
         {
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
             string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
@@ -226,7 +224,7 @@ namespace jaindb.Controllers
                 if (string.IsNullOrEmpty(sKey))
                     sKey = Inv.LookupID(query.First().Key, query.First().Value);
 
-                return Inv.GetHistory(sKey).ToString();
+                return Inv.GetHistory(sKey);
             }
             return null;
         }

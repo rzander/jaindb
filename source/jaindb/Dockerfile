@@ -7,7 +7,7 @@ COPY ${source:-obj/Docker/publish} .
 ENTRYPOINT ["dotnet", "jaindb.dll"]
 RUN apt-get update
 RUN apt-get install -y make gcc wget
-RUN	apt-get install -y --no-install-recommends ca-certificates
+RUN apt-get install -y --no-install-recommends ca-certificates
 RUN mkdir -p /app/wwwroot/redis
 RUN wget -O redis.tar.gz http://download.redis.io/releases/redis-4.0.6.tar.gz
 RUN tar -xzf redis.tar.gz -C /app/wwwroot/redis --strip-components=1

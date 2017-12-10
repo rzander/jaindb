@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// ************************************************************************************
+//          jaindb (c) Copyright 2017 by Roger Zander
+// ************************************************************************************
+
+using System;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using System.Diagnostics;
-using System.Threading;
 
 namespace jaindb
 {
@@ -20,6 +20,11 @@ namespace jaindb
                     if(!File.Exists("/app/wwwroot/redis.conf"))
                     {
                         File.Copy("/app/redis.conf", "/app/wwwroot/redis.conf", true);
+                    }
+
+                    if (!File.Exists("/app/wwwroot/inventory.ps1"))
+                    {
+                        File.Copy("/app/inventory.ps1", "/app/wwwroot/inventory.ps1", true);
                     }
 
                     ProcessStartInfo psi = new ProcessStartInfo

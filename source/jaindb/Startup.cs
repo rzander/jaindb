@@ -1,7 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿// ************************************************************************************
+//          jaindb (c) Copyright 2017 by Roger Zander
+// ************************************************************************************
+
+using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -36,10 +37,19 @@ namespace jaindb
 
             // Add framework services.
             //services.AddMvc();
-            services.AddMvc(options => options.OutputFormatters.RemoveType<StringOutputFormatter>()).AddJsonOptions(options =>
+            services.AddMvc(options =>
+            {
+                options.OutputFormatters.RemoveType<StringOutputFormatter>();
+                options.RespectBrowserAcceptHeader = true;
+            }
+                ).AddJsonOptions(options =>
             {
                 options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+                options.SerializerSettings.Formatting = Newtonsoft.Json.Formatting.Indented;
+                options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
             });
+
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

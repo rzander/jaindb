@@ -1,4 +1,8 @@
-﻿using Microsoft.Azure.Documents;
+﻿// ************************************************************************************
+//          jaindb (c) Copyright 2017 by Roger Zander
+// ************************************************************************************
+
+using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -104,127 +108,6 @@ namespace jaindb
             return Encode58(mhash);
         }
 
-        public static string ByteArrayToString(byte[] input)
-        {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < input.Length; i++)
-            {
-                sb.Append(input[i].ToString("X2"));
-            }
-            return sb.ToString();
-        }
-
-        public static byte[] StringToByteArray(String hex)
-        {
-            int NumberChars = hex.Length;
-            byte[] bytes = new byte[NumberChars / 2];
-            for (int i = 0; i < NumberChars; i += 2)
-                bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
-            return bytes;
-        }
-
-
-
-        /*public static bool WriteHash(string Hash, string Data, string Collection)
-        {
-            try
-            {
-                if (!Directory.Exists("wwwroot\\" + Collection))
-                    Directory.CreateDirectory("wwwroot\\" + Collection);
-
-                if (!File.Exists("wwwroot\\" + Collection + "\\" + Hash + ".json")) //We do not have to create the same hash file twice...
-                {
-                    lock (locker) //only one write operation
-                    {
-                        File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
-                    }
-                }
-
-                return true;
-            }
-            catch { }
-
-            return false;
-        }*/
-
-        /*public static void WriteJ(JObject JSON)
-        {
-            //IList<string> keys = JSON.Properties().Select(p => p.Name).ToList();
-            //keys.ToString();
-
-            foreach (var x in JSON)
-            {
-                try
-                {
-                    string name = x.Key;
-                    if (x.Value.Count() > 0)
-                    {
-                        if (x.Value.Type != JTokenType.Array)
-                        {
-                            if(x.Value.Type == JTokenType.Object)
-                                WriteJ(x.Value as JObject);
-                            else
-                            {
-                                foreach(var oVal in x.Value)
-                                {
-                                    if (!string.IsNullOrEmpty(oVal.ToString()))
-                                    {
-                                        File.AppendAllText("wwwroot\\test.json", JSON.Path + "/" + name + ";" + oVal.ToString() + "" + Environment.NewLine);
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            int i = 0;
-                            foreach (var oVal in x.Value)
-                            {
-                                if (oVal.Type == JTokenType.Object)
-                                {
-                                    WriteJ(oVal as JObject);
-                                }
-                                else
-                                {
-                                    if (!string.IsNullOrEmpty(oVal.ToString()))
-                                    {
-                                        File.AppendAllText("wwwroot\\test.json", JSON.Path + "/" + name + "/[" + i + "];" + oVal.ToString() + Environment.NewLine);
-                                        i++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (!string.IsNullOrEmpty(JSON.Path))
-                        {
-                            if (!string.IsNullOrEmpty(x.Value.ToString()))
-                            {
-                                File.AppendAllText("wwwroot\\test.json", JSON.Path.Replace("[", "/[") + "/" + name + ";" + x.Value.ToString() + Environment.NewLine);
-                            }
-                        }
-                    }
-                }
-                catch
-                { }
-            }
-        }*/
-
-        public static string LookupID(string query)
-        {
-            try
-            {
-                if (UseRedis)
-                {
-                    var cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
-                    return cache1.StringGet(query.TrimStart('?').Split('&')[0].Replace("=", "/"));
-                }
-            }
-            catch { }
-
-            return "";
-        }
-
         public static string LookupID(string name, string value)
         {
             try
@@ -232,7 +115,7 @@ namespace jaindb
                 if (UseRedis)
                 {
                     var cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
-                    return cache1.StringGet(name.TrimStart('#','@') + "/" + value);
+                    return cache1.StringGet(name.TrimStart('#', '@') + "/" + value);
                 }
             }
             catch { }
@@ -365,7 +248,7 @@ namespace jaindb
                     return true;
 
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 ex.ToString();
                 if (!Directory.Exists("wwwroot\\" + Collection))
@@ -560,7 +443,7 @@ namespace jaindb
             return "";
         }
 
-        public static string GetFull(string DeviceID, int Index = -1)
+        public static JObject GetFull(string DeviceID, int Index = -1)
         {
             try
             {
@@ -572,7 +455,7 @@ namespace jaindb
                         string sFull = cache0.StringGet(DeviceID);
                         if (!string.IsNullOrEmpty(sFull))
                         {
-                            return sFull;
+                            return JObject.Parse(sFull);
                         }
                     }
 
@@ -584,7 +467,7 @@ namespace jaindb
                         JObject oInv = JObject.Parse(sData);
                         try
                         {
-                            if(oInv["_index"] == null)
+                            if (oInv["_index"] == null)
                                 oInv.Add(new JProperty("_index", oRaw["_index"]));
                             if (oInv["_inventoryDate"] == null)
                                 oInv.Add(new JProperty("_inventoryDate", oRaw["_inventoryDate"]));
@@ -635,61 +518,13 @@ namespace jaindb
                         }
 
 
-                        return oInv.ToString();
+                        return oInv;
                     }
                 }
             }
             catch { }
 
-            return "";
-        }
-
-        public static string GetFull(Blockchain oChain, int Index = -1)
-        {
-            try
-            {
-                block lBlock = null;
-                if (Index == -1)
-                {
-                    lBlock = oChain.GetLastBlock();
-                }
-                else
-                {
-                    lBlock = oChain.GetBlock(Index);
-                }
-
-                int index = lBlock.index;
-                DateTime dInvDate = new DateTime(lBlock.timestamp);
-                string InvHash = lBlock.data;
-                string sData = ReadHash(InvHash, "Assets");
-                if (!string.IsNullOrEmpty(sData))
-                {
-                    JObject oInv = JObject.Parse(sData);
-                    oInv.Add(new JProperty("_index", index));
-                    oInv.Add(new JProperty("_inventoryDate", dInvDate));
-                    oInv.Add(new JProperty("_hash", InvHash));
-                    JSort(oInv);
-
-                    //Load hashed values
-                    foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
-                    {
-                        string sH = oTok.Value.ToString();
-                        string sRoot = oTok.Path.Split('.')[0].Split('[')[0];
-                        string sObj = ReadHash(sH, sRoot);
-                        if (!string.IsNullOrEmpty(sObj))
-                        {
-                            var jStatic = JObject.Parse(sObj);
-                            oTok.Parent.Merge(jStatic);
-                            oTok.Remove();
-                        }
-                    }
-
-                    return oInv.ToString();
-                }
-            }
-            catch { }
-
-            return "";
+            return new JObject();
         }
 
         public static JObject GetRawId(string DeviceID, int Index = -1)
@@ -807,25 +642,47 @@ namespace jaindb
             return jResult;
         }
 
-        public static string GetDiff(string DeviceId, int IndexLeft, int IndexRight = -1)
+        public static JObject GetDiff(string DeviceId, int IndexLeft, int IndexRight = -1)
         {
             try
             {
-                var right = JObject.Parse(GetFull(DeviceId, IndexRight));
-                var left = JObject.Parse(GetFull(DeviceId, IndexLeft));
+                var right = GetFull(DeviceId, IndexRight);
+                var left = GetFull(DeviceId, IndexLeft);
+
+                foreach (var oTok in right.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
+                {
+                    oTok.Remove();
+                }
+                foreach (var oTok in left.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
+                {
+                    oTok.Remove();
+                }
+
+                //Remove NULL values
+                foreach (var oTok in left.Descendants().Where(t => t.Parent.Type == (JTokenType.Property) && t.Type == JTokenType.Null).ToList())
+                {
+                    oTok.Parent.Remove();
+                }
+                foreach (var oTok in right.Descendants().Where(t => t.Parent.Type == (JTokenType.Property) && t.Type == JTokenType.Null).ToList())
+                {
+                    oTok.Parent.Remove();
+                }
 
                 JSort(right);
                 JSort(left);
 
-                var jpf = new JsonDiffPatchDotNet.JsonDiffPatch();
+                var jpf = new JsonDiffPatchDotNet.JsonDiffPatch(new JsonDiffPatchDotNet.Options() { ArrayDiff = JsonDiffPatchDotNet.ArrayDiffMode.Simple, TextDiff = JsonDiffPatchDotNet.TextDiffMode.Simple });
                 var oDiff = jpf.Diff(left, right);
 
-                return oDiff.ToString();
+                if (oDiff == null)
+                    return new JObject();
+
+                return JObject.Parse(oDiff.ToString());
 
             }
             catch { }
 
-            return "";
+            return new JObject();
         }
 
         /// <summary>
@@ -932,18 +789,14 @@ namespace jaindb
             if (KeyID.Contains(','))
                 KeyID = KeyID.Split(',')[0];
 
-            DateTime dStart = DateTime.Now;
             List<string> lNames = new List<string>();
 
             lNames = FindLatestAsync(System.Net.WebUtility.UrlDecode(searchkey), "#" + KeyID.TrimStart('?').TrimStart('#')).Result;
-
-            TimeSpan tDur = DateTime.Now - dStart;
-            tDur.TotalMilliseconds.ToString();
             lNames.Sort();
             return lNames.Union(lNames).ToList();
         }
 
-        public static string query(string paths, string select)
+        public static JArray query(string paths, string select)
         {
             paths = System.Net.WebUtility.UrlDecode(paths);
             select = System.Net.WebUtility.UrlDecode(select);
@@ -960,7 +813,7 @@ namespace jaindb
             {
                 try
                 {
-                    var jObj = JObject.Parse(GetFull(sHash));
+                    var jObj = GetFull(sHash);
 
                     JObject oRes = new JObject();
                     foreach (string sAttrib in select.Split(','))
@@ -1009,13 +862,11 @@ namespace jaindb
                 catch { }
             }
 
-            TimeSpan tDur = DateTime.Now - dStart;
-            tDur.TotalMilliseconds.ToString();
-            return aRes.ToString();
-            //return lRes.ToString();
+            return aRes;
+
         }
 
-        public static string queryAllold(string paths, string select)
+        public static JArray queryAll(string paths, string select)
         {
             paths = System.Net.WebUtility.UrlDecode(paths);
             select = System.Net.WebUtility.UrlDecode(select);
@@ -1023,75 +874,6 @@ namespace jaindb
             if (string.IsNullOrEmpty(select))
                 select = "#Id"; //,#Name,_inventoryDate
 
-            int i = 0;
-            DateTime dStart = DateTime.Now;
-            JObject lRes = new JObject();
-            List<string> lLatestHash = GetAllChainsAsync().Result;
-            foreach (string sHash in lLatestHash)
-            {
-                try
-                {
-                    Blockchain bc = GetChain(sHash);
-                    JObject jPrev = new JObject();
-                    foreach (block bl in bc.Chain)
-                    {
-                        try
-                        {
-                            if (bl.index == 0) //skip root
-                                continue; 
-                            var jObj = JObject.Parse(GetFull(bc, bl.index));
-
-                            JObject oRes = new JObject();
-                            foreach (string sAttrib in select.Split(','))
-                            {
-                                oRes.Add(sAttrib, jObj[sAttrib]);
-                            }
-                            foreach (string path in paths.Split(','))
-                            {
-                                var oToks = jObj.SelectTokens(path, false);
-                                foreach (JToken oTok in oToks)
-                                {
-                                    oRes.Add(oTok.Parent);
-                                }
-                                if (oToks.Count() == 0)
-                                    oRes = null;
-                            }
-
-                            JObject oTemp = oRes.ToObject<JObject>(); //Clone
-                            oTemp.Remove("_inventoryDate");
-
-                            if (oTemp.ToString() == jPrev.ToString())
-                                continue; //skip iv previous is the same
-
-                            jPrev = oTemp;
-
-                            if (oRes != null)
-                            {
-                                lRes.Add(i.ToString(), oRes);
-                                i++;
-                            }
-                        }
-                        catch { }
-                    }
-                }
-                catch { }
-            }
-
-            TimeSpan tDur = DateTime.Now - dStart;
-            tDur.TotalMilliseconds.ToString();
-
-            return lRes.ToString();
-        }
-
-        public static string queryAll(string paths, string select)
-        {
-            paths = System.Net.WebUtility.UrlDecode(paths);
-            select = System.Net.WebUtility.UrlDecode(select);
-
-            if (string.IsNullOrEmpty(select))
-                select = "#Id"; //,#Name,_inventoryDate
-
-            string sResult = "";
             //JObject lRes = new JObject();
             JArray aRes = new JArray();
             try
@@ -1103,7 +885,7 @@ namespace jaindb
                     {
                         JObject jObj = GetRaw(cache4.StringGet(oObj), paths);
                         JObject oRes = new JObject();
-                        
+
                         foreach (string sAttrib in select.Split(','))
                         {
                             oRes.Add(sAttrib, jObj[sAttrib]);
@@ -1147,12 +929,12 @@ namespace jaindb
                         }
                     }
 
-                    return aRes.ToString();
+                    return aRes;
                 }
             }
             catch { }
 
-            return sResult;
+            return new JArray();
         }
 
         /// <summary>
@@ -1168,7 +950,6 @@ namespace jaindb
                 {
                     if (UseRedis)
                     {
-                        var srv = RedisConnectorHelper.Connection.GetServer("localhost", 6379);
                         foreach (var oObj in srv.Keys(3, "*"))
                         {
                             lResult.Add(oObj.ToString());
@@ -1225,28 +1006,6 @@ namespace jaindb
                 catch { }
                 return lResult;
             });
-        }
-
-        public static List<string> GetLatestRawAsync()
-        {
-            List<string> lResult = new List<string>();
-            try
-            {
-                if (UseRedis)
-                {
-                    var cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
-                    foreach (string sRawID in GetLatestBlocksAsync().Result)
-                    {
-                        Task.Run(() =>
-                        {
-                            cache4.StringGet(sRawID);
-                        });
-                    }
-                }
-            }
-            catch { }
-
-            return lResult;
         }
 
         public static async Task<List<string>> FindHashOnContentAsync(string searchstring)
@@ -1309,7 +1068,7 @@ namespace jaindb
             {
                 if (UseRedis)
                 {
-                   var tFind = await FindHashOnContentAsync(searchstring);
+                    var tFind = await FindHashOnContentAsync(searchstring);
 
                     tFind.AsParallel().ForAll(t =>
                     {
@@ -1325,6 +1084,87 @@ namespace jaindb
             return lResult;
         }
 
+        /*
+        public static string GetFull(Blockchain oChain, int Index = -1)
+        {
+            try
+            {
+                block lBlock = null;
+                if (Index == -1)
+                {
+                    lBlock = oChain.GetLastBlock();
+                }
+                else
+                {
+                    lBlock = oChain.GetBlock(Index);
+                }
+
+                int index = lBlock.index;
+                DateTime dInvDate = new DateTime(lBlock.timestamp);
+                string InvHash = lBlock.data;
+                string sData = ReadHash(InvHash, "Assets");
+                if (!string.IsNullOrEmpty(sData))
+                {
+                    JObject oInv = JObject.Parse(sData);
+                    oInv.Add(new JProperty("_index", index));
+                    oInv.Add(new JProperty("_inventoryDate", dInvDate));
+                    oInv.Add(new JProperty("_hash", InvHash));
+                    JSort(oInv);
+
+                    //Load hashed values
+                    foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
+                    {
+                        string sH = oTok.Value.ToString();
+                        string sRoot = oTok.Path.Split('.')[0].Split('[')[0];
+                        string sObj = ReadHash(sH, sRoot);
+                        if (!string.IsNullOrEmpty(sObj))
+                        {
+                            var jStatic = JObject.Parse(sObj);
+                            oTok.Parent.Merge(jStatic);
+                            oTok.Remove();
+                        }
+                    }
+
+                    return oInv.ToString();
+                }
+            }
+            catch { }
+
+            return "";
+        }
+        public static string ByteArrayToString(byte[] input)
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < input.Length; i++)
+            {
+                sb.Append(input[i].ToString("X2"));
+            }
+            return sb.ToString();
+        }
+
+        public static byte[] StringToByteArray(String hex)
+        {
+            int NumberChars = hex.Length;
+            byte[] bytes = new byte[NumberChars / 2];
+            for (int i = 0; i < NumberChars; i += 2)
+                bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
+            return bytes;
+        }
+        public static string LookupID(string query)
+        {
+            try
+            {
+                if (UseRedis)
+                {
+                    var cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
+                    return cache1.StringGet(query.TrimStart('?').Split('&')[0].Replace("=", "/"));
+                }
+            }
+            catch { }
+
+            return "";
+        }
+        
         public static async Task<List<string>> FindLatestPathAsync(string path)
         {
             List<string> lResult = new List<string>();
@@ -1551,6 +1391,114 @@ namespace jaindb
 
             return sResult;
         }
+
+        public static List<string> GetLatestRawAsync()
+        {
+            List<string> lResult = new List<string>();
+            try
+            {
+                if (UseRedis)
+                {
+                    var cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
+                    foreach (string sRawID in GetLatestBlocksAsync().Result)
+                    {
+                        Task.Run(() =>
+                        {
+                            cache4.StringGet(sRawID);
+                        });
+                    }
+                }
+            }
+            catch { }
+
+            return lResult;
+        }
+        */
+
+        /*public static bool WriteHash(string Hash, string Data, string Collection)
+{
+try
+{
+    if (!Directory.Exists("wwwroot\\" + Collection))
+        Directory.CreateDirectory("wwwroot\\" + Collection);
+
+    if (!File.Exists("wwwroot\\" + Collection + "\\" + Hash + ".json")) //We do not have to create the same hash file twice...
+    {
+        lock (locker) //only one write operation
+        {
+            File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
+        }
+    }
+
+    return true;
+}
+catch { }
+
+return false;
+}*/
+
+        /*public static void WriteJ(JObject JSON)
+        {
+            //IList<string> keys = JSON.Properties().Select(p => p.Name).ToList();
+            //keys.ToString();
+
+            foreach (var x in JSON)
+            {
+                try
+                {
+                    string name = x.Key;
+                    if (x.Value.Count() > 0)
+                    {
+                        if (x.Value.Type != JTokenType.Array)
+                        {
+                            if(x.Value.Type == JTokenType.Object)
+                                WriteJ(x.Value as JObject);
+                            else
+                            {
+                                foreach(var oVal in x.Value)
+                                {
+                                    if (!string.IsNullOrEmpty(oVal.ToString()))
+                                    {
+                                        File.AppendAllText("wwwroot\\test.json", JSON.Path + "/" + name + ";" + oVal.ToString() + "" + Environment.NewLine);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            int i = 0;
+                            foreach (var oVal in x.Value)
+                            {
+                                if (oVal.Type == JTokenType.Object)
+                                {
+                                    WriteJ(oVal as JObject);
+                                }
+                                else
+                                {
+                                    if (!string.IsNullOrEmpty(oVal.ToString()))
+                                    {
+                                        File.AppendAllText("wwwroot\\test.json", JSON.Path + "/" + name + "/[" + i + "];" + oVal.ToString() + Environment.NewLine);
+                                        i++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(JSON.Path))
+                        {
+                            if (!string.IsNullOrEmpty(x.Value.ToString()))
+                            {
+                                File.AppendAllText("wwwroot\\test.json", JSON.Path.Replace("[", "/[") + "/" + name + ";" + x.Value.ToString() + Environment.NewLine);
+                            }
+                        }
+                    }
+                }
+                catch
+                { }
+            }
+        }*/
 
         public static void JSort(JObject jObj)
         {
