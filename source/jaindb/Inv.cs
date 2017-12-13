@@ -146,23 +146,6 @@ namespace jaindb
                 if (string.IsNullOrEmpty(Data) || Data == "null")
                     return true;
 
-                if (UseCosmosDB)
-                {
-                    if (database == null)
-                    {
-                        database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
-                        if (database == null)
-                            database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
-                    }
-
-                    CosmosDB.CreateDocumentCollectionIfNotExistsAsync(database.SelfLink, new DocumentCollection { Id = Collection }).Wait();
-
-                    //string sJ = "{ \"Id\" : \"" + Hash + "\"," + Data.TrimStart('{');
-                    var jObj = JObject.Parse(Data);
-                    jObj.Add("id", Hash);
-                    CosmosDB.CreateDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseId, Collection), jObj).Wait();
-                }
-
                 if (UseRedis)
                 {
                     switch (Collection.ToLower())
@@ -244,6 +227,30 @@ namespace jaindb
 
                 }
 
+                if (UseCosmosDB)
+                {
+                    string sColl = Collection;
+                    if (Collection == "_full")
+                        sColl = "Full";
+
+                    if (database == null)
+                    {
+                        database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
+                        if (database == null)
+                            database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
+                    }
+
+                    CosmosDB.CreateDocumentCollectionIfNotExistsAsync(database.SelfLink, new DocumentCollection { Id = sColl }).Wait();
+
+                    //string sJ = "{ \"Id\" : \"" + Hash + "\"," + Data.TrimStart('{');
+                    var jObj = JObject.Parse(Data);
+                    jObj.Add("id", Hash);
+                    jObj.Remove("#Id");
+                    CosmosDB.CreateDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseId, sColl), jObj).Wait();
+                }
+
+
+
                 if (UseCosmosDB || UseRedis)
                     return true;
 
@@ -272,6 +279,24 @@ namespace jaindb
         {
             try
             {
+                if (UseRedis)
+                {
+                    switch (Collection.ToLower())
+                    {
+                        case "_full":
+                            return cache0.StringGet(Hash);
+
+                        case "chain":
+                            return cache3.StringGet(Hash);
+
+                        case "assets":
+                            return cache4.StringGet(Hash);
+
+                        default:
+                            return cache2.StringGet(Hash);
+                    }
+                }
+
                 if (UseCosmosDB)
                 {
                     if (database == null)
@@ -292,25 +317,6 @@ namespace jaindb
 
                     return jRes.ToString(Newtonsoft.Json.Formatting.None);
                 }
-
-                if (UseRedis)
-                {
-                    switch (Collection.ToLower())
-                    {
-                        case "_full":
-                            return cache0.StringGet(Hash);
-
-                        case "chain":
-                            return cache3.StringGet(Hash);
-
-                        case "assets":
-                            return cache4.StringGet(Hash);
-
-                        default:
-                            return cache2.StringGet(Hash);
-                    }
-                }
-
 
                 return File.ReadAllText("wwwroot\\" + Collection + "\\" + Hash + ".json");
             }
@@ -447,80 +453,60 @@ namespace jaindb
         {
             try
             {
-                if (UseRedis)
+
+                //Chech if we have the full data in cache0
+                if (Index == -1)
                 {
-                    //Chech if we have the full data in cache0
-                    if (Index == -1)
+                    string sFull = ReadHash(DeviceID, "_full");
+                    //string sFull = cache0.StringGet(DeviceID);
+                    if (!string.IsNullOrEmpty(sFull))
                     {
-                        string sFull = cache0.StringGet(DeviceID);
-                        if (!string.IsNullOrEmpty(sFull))
-                        {
-                            return JObject.Parse(sFull);
-                        }
-                    }
-
-                    JObject oRaw = GetRawId(DeviceID, Index);
-                    string sData = ReadHash(oRaw["_hash"].ToString(), "Assets");
-
-                    if (!string.IsNullOrEmpty(sData))
-                    {
-                        JObject oInv = JObject.Parse(sData);
-                        try
-                        {
-                            if (oInv["_index"] == null)
-                                oInv.Add(new JProperty("_index", oRaw["_index"]));
-                            if (oInv["_inventoryDate"] == null)
-                                oInv.Add(new JProperty("_inventoryDate", oRaw["_inventoryDate"]));
-                            if (oInv["_hash"] == null)
-                                oInv.Add(new JProperty("_hash", oRaw["_hash"]));
-                        }
-                        catch { }
-                        JSort(oInv);
-
-                        //Load hashed values
-                        foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
-                        {
-                            string sH = oTok.Value.ToString();
-                            string sRoot = oTok.Path.Split('.')[0].Split('[')[0];
-                            string sObj = ReadHash(sH, sRoot);
-                            if (!string.IsNullOrEmpty(sObj))
-                            {
-                                var jStatic = JObject.Parse(sObj);
-                                oTok.Parent.Merge(jStatic);
-                                oTok.Remove();
-                            }
-                        }
-
-                        if (Index == -1)
-                        {
-                            if (UseRedis)
-                            {
-                                cache0.StringSetAsync(DeviceID, oInv.ToString());
-                            }
-
-                            if (UseCosmosDB)
-                            {
-                                string Collection = "Full";
-                                if (database == null)
-                                {
-                                    database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
-                                    if (database == null)
-                                        database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
-                                }
-
-                                CosmosDB.CreateDocumentCollectionIfNotExistsAsync(database.SelfLink, new DocumentCollection { Id = Collection }).Wait();
-
-                                var jObj = JObject.Parse(oInv.ToString());
-                                jObj.Add("id", DeviceID);
-                                jObj.Remove("#Id");
-                                CosmosDB.CreateDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseId, Collection), jObj).Wait();
-                            }
-                        }
-
-
-                        return oInv;
+                        return JObject.Parse(sFull);
                     }
                 }
+
+                JObject oRaw = GetRawId(DeviceID, Index);
+                string sData = ReadHash(oRaw["_hash"].ToString(), "Assets");
+
+                if (!string.IsNullOrEmpty(sData))
+                {
+                    JObject oInv = JObject.Parse(sData);
+                    try
+                    {
+                        if (oInv["_index"] == null)
+                            oInv.Add(new JProperty("_index", oRaw["_index"]));
+                        if (oInv["_inventoryDate"] == null)
+                            oInv.Add(new JProperty("_inventoryDate", oRaw["_inventoryDate"]));
+                        if (oInv["_hash"] == null)
+                            oInv.Add(new JProperty("_hash", oRaw["_hash"]));
+                    }
+                    catch { }
+
+                    //Load hashed values
+                    foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
+                    {
+                        string sH = oTok.Value.ToString();
+                        string sRoot = oTok.Path.Split('.')[0].Split('[')[0];
+                        string sObj = ReadHash(sH, sRoot);
+                        if (!string.IsNullOrEmpty(sObj))
+                        {
+                            var jStatic = JObject.Parse(sObj);
+                            oTok.Parent.Merge(jStatic);
+                            oTok.Remove();
+                        }
+                    }
+
+                    JSort(oInv);
+
+                    if (Index == -1)
+                    {
+                        WriteHash(DeviceID, oInv.ToString(), "_full");
+                    }
+
+
+                    return oInv;
+                }
+
             }
             catch { }
 
@@ -876,11 +862,11 @@ namespace jaindb
 
             //JObject lRes = new JObject();
             JArray aRes = new JArray();
+            List<string> lHashes = new List<string>();
             try
             {
                 if (UseRedis)
                 {
-                    int i = 0;
                     foreach (var oObj in srv.Keys(4, "*"))
                     {
                         JObject jObj = GetRaw(cache4.StringGet(oObj), paths);
@@ -925,7 +911,12 @@ namespace jaindb
 
                         if (oRes != null)
                         {
-                            aRes.Add(oRes);
+                            string sHa = CalculateHash(oRes.ToString(Formatting.None));
+                            if (!lHashes.Contains(sHa))
+                            {
+                                aRes.Add(oRes);
+                                lHashes.Add(sHa);
+                            }
                         }
                     }
 

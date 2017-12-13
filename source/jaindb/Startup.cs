@@ -59,6 +59,7 @@ namespace jaindb
             loggerFactory.AddDebug();
 
             applicationLifetime.ApplicationStopping.Register(OnShutdown);
+            applicationLifetime.ApplicationStarted.Register(OnStartup);
 
             if (env.IsDevelopment())
             {
@@ -96,6 +97,16 @@ namespace jaindb
                 oInit.WaitForExit(2000);
                 Console.WriteLine("... Done.");
             }
+        }
+
+        private void OnStartup()
+        {
+            Console.WriteLine(" ");
+            Console.WriteLine("-------------------------------------------------------------------");
+            Console.WriteLine("PowerShell Inventory:");
+            Console.WriteLine(Environment.ExpandEnvironmentVariables("Invoke-RestMethod -Uri '%localURL%/getps' | iex"));
+            Console.WriteLine("-------------------------------------------------------------------");
+            Console.WriteLine(" ");
         }
     }
 }
