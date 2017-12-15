@@ -5,6 +5,10 @@ Jaindb was initially created to store inventory data of computers in an auditabl
 
 It's using blockchain technology, but data data is not distributed and no CPU power for a proof of work is required.
 
+## Overview
+![overview](https://github.com/rzander/jaindb/blob/master/docs/images/Overview.png  "jaindb Overview"   )
+
+
 ## Data Store
 Jaindb can store data fragments on:
 - File System (slow but simple)
