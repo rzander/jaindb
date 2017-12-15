@@ -3,7 +3,7 @@ JainDB is a blockchain based data archive for JSON data. It provides a [REST API
 
 Jaindb was initially created to store inventory data of computers in an auditable way with the history of all changes. But as jaindb is schema-less, it can store everything you want... 
 
-It's using blockchain technology, but data data is not distributed and no CPU power for a proof of work is required.
+It's using blockchain technology, but data data is not distributed and no CPU power for a "proof of work" is required.
 
 ## Overview
 ![overview](https://github.com/rzander/jaindb/blob/master/docs/images/Overview.png  "jaindb Overview"   )
