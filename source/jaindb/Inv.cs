@@ -348,7 +348,8 @@ namespace jaindb
             try
             {
                 JObject oObj = JObject.Parse(JSON);
-                JSort(oObj);
+                JSort(oObj, true);
+
                 JObject oStatic = oObj.ToObject<JObject>();
                 JObject jTemp = oObj.ToObject<JObject>();
 
@@ -1491,7 +1492,7 @@ return false;
             }
         }*/
 
-        public static void JSort(JObject jObj)
+        public static void JSort(JObject jObj, bool deep = false)
         {
             var props = jObj.Properties().ToList();
             foreach (var prop in props)
@@ -1502,6 +1503,17 @@ return false;
             foreach (var prop in props.OrderBy(p => p.Name))
             {
                 jObj.Add(prop);
+
+                if (deep) //Deep Sort
+                {
+                    var child = prop.Descendants().Where(t => t.Type == (JTokenType.Object)).ToList();
+
+                    foreach (JObject cChild in child)
+                    {
+                        JSort(cChild, false);
+                    }
+                }
+
                 if (prop.Value is JObject)
                     JSort((JObject)prop.Value);
             }

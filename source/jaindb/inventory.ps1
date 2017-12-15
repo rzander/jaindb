@@ -167,7 +167,7 @@ $CSP = getinv -Name "Computer" -WMIClass "win32_ComputerSystemProduct" -Properti
 $CS = getinv -Name "Computer" -WMIClass "win32_ComputerSystem" -Properties @("Domain", "HypervisorPresent", "InfraredSupported", "Manufacturer", "Model", "PartOfDomain", "Roles", "SystemFamily", "SystemSKUNumber", "#UserName", "WakeUpType", "TotalPhysicalMemory", "#Name") -AppendProperties $CSP 
 getinv -Name "Computer" -WMIClass "win32_SystemEnclosure" -Properties @("ChassisTypes", "Model", "#SMBIOSAssetTag", "#SerialNumber") -AppendProperties $CS -AppendObject ([ref]$object)
 
-getinv -Name "DiskDrive" -WMIClass "Win32_DiskDrive" -Properties @("Capabilities", "Caption", "DeviceID", "@FirmwareRevision", "@Index", "InterfaceType", "MediaType", "Model", "@Partitions", "PNPDeviceID", "Size", "#SerialNumber" ) -AppendObject ([ref]$object)
+getinv -Name "DiskDrive" -WMIClass "Win32_DiskDrive" -Properties @("@Capabilities", "Caption", "DeviceID", "@FirmwareRevision", "@Index", "InterfaceType", "MediaType", "Model", "@Partitions", "PNPDeviceID", "Size", "#SerialNumber" ) -AppendObject ([ref]$object)
 getinv -Name "DiskPartition" -WMIClass "Win32_DiskPartition" -Properties @("BlockSize", "Bootable", "BootPartition", "DeviceID", "DiskIndex", "Index", "Size", "Type") -AppendObject ([ref]$object)
 
 $ld = getinv -Name "LogicalDisk" -WMIClass "Win32_LogicalDisk" -Properties @("DeviceID", "DriveType", "FileSystem", "MediaType", "Size", "VolumeName", "@FreeSpace", "#VolumeSerialNumber") # -AppendObject ([ref]$object)
