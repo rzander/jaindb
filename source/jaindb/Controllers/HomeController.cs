@@ -66,31 +66,6 @@ namespace jaindb.Controllers
 
         }
 
-        /*
-        public IActionResult Index()
-        {
-            return View();
-        }
-
-        public IActionResult About()
-        {
-            ViewData["Message"] = "Your application description page.";
-
-            return View();
-        }
-
-        public IActionResult Contact()
-        {
-            ViewData["Message"] = "Your contact page.";
-
-            return View();
-        }
-
-        public IActionResult Error()
-        {
-            return View();
-        } */
-
         [HttpGet]
         public string get()
         {
@@ -124,12 +99,12 @@ namespace jaindb.Controllers
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
-                string sKey = query.FirstOrDefault(t => t.Key == "id").Key;
+                string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
 
                 if (string.IsNullOrEmpty(sKey))
                     sKey = Inv.LookupID(query.First().Key, query.First().Value);
                 //int index = -1;
-                if (!int.TryParse(query.FirstOrDefault(t => t.Key == "index").Value, out int index))
+                if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
                     index = -1;
 
                 return Inv.GetFull(sKey, index);
@@ -147,15 +122,18 @@ namespace jaindb.Controllers
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
-                string sKey = query.FirstOrDefault(t => t.Key == "id").Key;
+                string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
 
                 if (string.IsNullOrEmpty(sKey))
                     sKey = Inv.LookupID(query.First().Key, query.First().Value);
 
-                if (!int.TryParse(query.FirstOrDefault(t => t.Key == "index").Value, out int index))
+                if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
                     index = 1;
 
-                return Inv.GetDiff(sKey, index);
+                if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "mode").Value, out int mode))
+                    mode = 0;
+
+                return Inv.GetDiff(sKey, index, mode);
             }
             return null;
         }
@@ -170,7 +148,7 @@ namespace jaindb.Controllers
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
-                return Json(Inv.search(query.FirstOrDefault(t => string.IsNullOrEmpty(t.Value)).Key, query.FirstOrDefault(t => t.Key == "$select").Value));
+                return Json(Inv.search(query.FirstOrDefault(t => string.IsNullOrEmpty(t.Value)).Key, query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value));
             }
             return null;
         }
@@ -188,7 +166,7 @@ namespace jaindb.Controllers
                 //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
                 var query = QueryHelpers.ParseQuery(sQuery);
 
-                return Inv.query(string.Join(",", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key == "$select").Value);
+                return Inv.query(string.Join(",", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value);
             }
             return null;
         }
@@ -205,7 +183,7 @@ namespace jaindb.Controllers
                 //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
                 var query = QueryHelpers.ParseQuery(sQuery);
 
-                return Inv.queryAll(string.Join(",", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key == "$select").Value);
+                return Inv.queryAll(string.Join(",", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value);
             }
             return null;
         }
@@ -219,7 +197,7 @@ namespace jaindb.Controllers
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
-                string sKey = query.FirstOrDefault(t => t.Key == "id").Key;
+                string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
 
                 if (string.IsNullOrEmpty(sKey))
                     sKey = Inv.LookupID(query.First().Key, query.First().Value);

@@ -219,11 +219,7 @@ namespace jaindb
             {
                 if (!string.IsNullOrEmpty(input))
                 {
-                    using (var sha256 = SHA256.Create())
-                    {
-                        var bIn = Encoding.ASCII.GetBytes(input);
-                        return sha256.ComputeHash(bIn);
-                    }
+                    return Hash.CalculateSHA2_256Hash(input);
                 }
 
                 return null;
@@ -233,10 +229,9 @@ namespace jaindb
             {
                 try
                 {
-                    byte[] bHash = new byte[32];
                     string sData = index.ToString() + timestamp.ToString() + previous_hash.ToString() + data.ToString() + nonce.ToString() + blocktype;
 
-                    bHash = GetHash(sData);
+                    byte[] bHash = GetHash(sData);
 
                     
                     if (_complexity > 0)
@@ -247,12 +242,12 @@ namespace jaindb
                             nonce++;
                             bHash = GetHash(sData + nonce.ToString());
 
-                        } while (bHash.Skip(32 - _complexity).Sum(x => (long)x) != 0);
+                        } while (bHash.Skip(bHash.Length - _complexity).Sum(x => (long)x) != 0);
                     }
                     
                     hash = bHash;
 
-                    signature = Sign(hash, "");
+                    signature = Sign(hash, ""); //Add CertSubject as Parameter
                 }
                 catch { }
             }
@@ -318,13 +313,12 @@ namespace jaindb
 
                 //Validate nonce...
                 byte[] bHash2 = block.GetHash((Previous_nonce + nonce).ToString() + blocktype);
-                if (bHash2.Skip(32 - _complexity).Sum(x => (long)x) != 0)
+                if (bHash2.Skip(bHash2.Length - _complexity).Sum(x => (long)x) != 0)
                     return false;
 
                 return true;
             }
         }
-
 
         public class Base32Encoding
         {

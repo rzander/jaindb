@@ -8,6 +8,12 @@ function GetMD5([string]$txt) {
     return Base58(@(0xd5, 0x10) + $md5.ComputeHash($utf8.GetBytes($txt))) #To store hash in Miltihash format, we add a 0xD5 to make it an MD5 and an 0x10 means 10Bytes length
 }
 
+function GetSHA2_256([string]$txt) {
+    $sha = new-object -TypeName System.Security.Cryptography.SHA256CryptoServiceProvider
+    $utf8 = new-object -TypeName System.Text.ASCIIEncoding
+    return Base58(@(0x12, 0x20) + $sha.ComputeHash($utf8.GetBytes($txt))) #To store hash in Miltihash format, we add a 0x12 to make it an SHA256 and an 0x20 means 32Bytes length
+}
+
 function Base58([byte[]]$data) {
     $Digits = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     [bigint]$intData = 0
@@ -144,7 +150,7 @@ function SetID {
         $AppendObject )
 
     if ($AppendObject.Value -ne $null) {
-        $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#Id" -Value (GetMyID) -ea SilentlyContinue
+        $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#id" -Value (GetMyID) -ea SilentlyContinue
         #$AppendObject.Value | Add-Member -MemberType NoteProperty -Name "@InvDate" -Value ([System.DateTime]((Get-Date).ToUniversalTime())) -ea SilentlyContinue
         $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#UUID" -Value (getinv -Name "Computer" -WMIClass "win32_ComputerSystemProduct" -Properties @("#UUID"))."#UUID" -ea SilentlyContinue
         $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#Name" -Value (getinv -Name "Computer" -WMIClass "win32_ComputerSystem" -Properties @("Name"))."Name" -ea SilentlyContinue
@@ -208,7 +214,7 @@ $object | Add-Member -MemberType NoteProperty -Name "LocalGroups" -Value ($locGr
 #$upd += $objResults.Updates | Select-Object -Property @{n='@IsInstalled';e={$_.IsInstalled}},@{n='KB';e={$_.KBArticleIDs}},@{n='Bulletin';e={$_.SecurityBulletinIDs.Item(0)}},@{n='Title';e={$_.Title}},@{n='UpdateID';e={$_.Identity.UpdateID}},@{n='Revision';e={$_.Identity.RevisionNumber}},@{n='LastChange';e={$_.LastDeploymentChangeTime}}
 #$object | Add-Member -MemberType NoteProperty -Name "Update" -Value ($upd)
 
-
+#Get Installed Software
 $SW = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* -ea SilentlyContinue | ? { $_.DisplayName -ne $null -and $_.SystemComponent -ne 0x1 -and $_.ParentDisplayName -eq $null } | Select DisplayName, DisplayVersion, Publisher, @{N = '@InstallDate'; E = {$_.InstallDate}}, HelpLink, UninstallString
 $SW += Get-ItemProperty HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* -ea SilentlyContinue | ? { $_.DisplayName -ne $null -and $_.SystemComponent -ne 0x1 -and $_.ParentDisplayName -eq $null } | Select DisplayName, DisplayVersion, Publisher, @{N = '@InstallDate'; E = {$_.InstallDate}}, HelpLink, UninstallString
 $object | Add-Member -MemberType NoteProperty -Name "Software" -Value ($SW | Sort-Object -Property DisplayName )
@@ -222,7 +228,7 @@ $object.Computer."TotalPhysicalMemory" = normalize($object.Computer."TotalPhysic
 
 SetID([ref] $object)
 
-$id = $object."#Id"
+$id = $object."#id"
 $con = $object | ConvertTo-Json -Compress
 Write-Host "Device ID: $($id)"
 

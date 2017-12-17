@@ -11,9 +11,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Numerics;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using static jaindb.BlockChain;
 
@@ -42,13 +39,12 @@ namespace jaindb
 
     public static class Inv
     {
+        public enum hashType { MD5, SHA2_256 } //Implemented Hash types
         private static readonly object locker = new object();
 
         public static bool UseCosmosDB;
         public static bool UseRedis;
         public static bool UseFileStore;
-
-        private const string Digits = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
         internal static string databaseId;
         internal static string endpointUrl;
@@ -63,49 +59,21 @@ namespace jaindb
         internal static IDatabase cache4;
         internal static IServer srv;
 
-        public static string Encode58(byte[] data)
-        {
-            // Decode byte[] to BigInteger
-            BigInteger intData = 0;
-            for (int i = 0; i < data.Length; i++)
-            {
-                intData = intData * 256 + data[i];
-            }
+        public static hashType HashType = hashType.MD5;
 
-            // Encode BigInteger to Base58 string
-            string result = "";
-            while (intData > 0)
-            {
-                int remainder = (int)(intData % 58);
-                intData /= 58;
-                result = Digits[remainder] + result;
-            }
-
-            // Append `1` for each leading 0 byte
-            for (int i = 0; i < data.Length && data[i] == 0; i++)
-            {
-                result = '1' + result;
-            }
-
-            return result;
-        }
+        public static string BlockType = "INV";
 
         public static string CalculateHash(string input)
         {
-            return CalculateMD5Hash(input);
-        }
-        public static string CalculateMD5Hash(string input)
-        {
-            // step 1, calculate MD5 hash from input
-            MD5 md5 = System.Security.Cryptography.MD5.Create();
-            byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(input);
-            byte[] hash = md5.ComputeHash(inputBytes);
-            byte[] mhash = new byte[hash.Length + 2];
-            hash.CopyTo(mhash, 2);
-            //Add Multihash identifier
-            mhash[0] = 0xD5; //MD5
-            mhash[1] = Convert.ToByte(hash.Length); //Hash legth
-            return Encode58(mhash);
+            switch(HashType)
+            {
+                case hashType.MD5:
+                    return Hash.CalculateMD5HashString(input);
+                case hashType.SHA2_256:
+                    return Hash.CalculateSHA2_256HashString(input);
+                default:
+                    return Hash.CalculateMD5HashString(input); ;
+            }
         }
 
         public static string LookupID(string name, string value)
@@ -115,7 +83,7 @@ namespace jaindb
                 if (UseRedis)
                 {
                     var cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
-                    return cache1.StringGet(name.TrimStart('#', '@') + "/" + value);
+                    return cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
                 }
             }
             catch { }
@@ -125,18 +93,23 @@ namespace jaindb
 
         public static void WriteHash(JToken oRoot, ref JObject oStatic, string Collection)
         {
-            JSort(oStatic);
+            //JSort(oStatic);
             string sHash = CalculateHash(oRoot.ToString(Newtonsoft.Json.Formatting.None));
             if (string.IsNullOrEmpty(sHash))
                 return;
             string sPath = oRoot.Path;
 
-            JObject oClass = oStatic.SelectToken(sPath) as JObject;
+            var oClass = oStatic.SelectToken(sPath);// as JObject;
 
             if (oClass != null)
-                oClass.Add("##hash", sHash);
+            {
+                if (oClass.Type == JTokenType.Object)
+                {
+                    ((JObject)oClass).Add("##hash", sHash);
 
-            WriteHash(sHash, oRoot.ToString(Newtonsoft.Json.Formatting.None), Collection);
+                    WriteHash(sHash, oRoot.ToString(Newtonsoft.Json.Formatting.None), Collection);
+                }
+            }
         }
 
         public static bool WriteHash(string Hash, string Data, string Collection)
@@ -155,7 +128,7 @@ namespace jaindb
                             var jObj = JObject.Parse(Data);
                             JSort(jObj);
 
-                            string sID = jObj["#Id"].ToString();
+                            string sID = jObj["#id"].ToString();
 
                             //Store FullContent for 30Days
                             cache0.StringSetAsync(sID, jObj.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(30, 0, 0, 0));
@@ -171,7 +144,8 @@ namespace jaindb
                                         {
                                             if (oSubSub.ToString() != sID)
                                             {
-                                                cache1.StringSetAsync(oSub.Name.TrimStart('#') + "/" + oSubSub.ToString(), sID, new TimeSpan(90, 0, 0, 0));
+                                                //Store Keys in lower case
+                                                cache1.StringSetAsync(oSub.Name.ToLower().TrimStart('#') + "/" + oSubSub.ToString().ToLower(), sID, new TimeSpan(90, 0, 0, 0));
                                             }
                                         }
                                     }
@@ -181,7 +155,8 @@ namespace jaindb
                                         {
                                             if (oSub.Value.ToString() != sID)
                                             {
-                                                cache1.StringSetAsync(oSub.Name.TrimStart('#') + "/" + oSub.Value.ToString(), sID, new TimeSpan(90, 0, 0, 0));
+                                                //Store Keys in lower case
+                                                cache1.StringSetAsync(oSub.Name.ToLower().TrimStart('#') + "/" + oSub.Value.ToString().ToLower(), sID, new TimeSpan(90, 0, 0, 0));
                                             }
                                         }
                                     }
@@ -245,7 +220,7 @@ namespace jaindb
                     //string sJ = "{ \"Id\" : \"" + Hash + "\"," + Data.TrimStart('{');
                     var jObj = JObject.Parse(Data);
                     jObj.Add("id", Hash);
-                    jObj.Remove("#Id");
+                    jObj.Remove("#id");
                     CosmosDB.CreateDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseId, sColl), jObj).Wait();
                 }
 
@@ -348,7 +323,7 @@ namespace jaindb
             try
             {
                 JObject oObj = JObject.Parse(JSON);
-                JSort(oObj, true);
+                JSort(oObj, true); //Enforce full sort
 
                 JObject oStatic = oObj.ToObject<JObject>();
                 JObject jTemp = oObj.ToObject<JObject>();
@@ -393,7 +368,8 @@ namespace jaindb
                         {
                             foreach (var oItem in oRoot.First.Children())
                             {
-                                WriteHash(oItem, ref oStatic, ((Newtonsoft.Json.Linq.JProperty)oRoot).Name);
+                                if(oItem.Type == JTokenType.Object)
+                                    WriteHash(oItem, ref oStatic, ((Newtonsoft.Json.Linq.JProperty)oRoot).Name);
                             }
                         }
                         else
@@ -408,12 +384,10 @@ namespace jaindb
                 JSort(oStatic);
                 string sResult = CalculateHash(oStatic.ToString(Newtonsoft.Json.Formatting.None));
 
-
-
                 var oBlock = oChain.GetLastBlock();
                 if (oBlock.data != sResult)
                 {
-                    var oNew = oChain.MineNewBlock(oBlock, "INV");
+                    var oNew = oChain.MineNewBlock(oBlock, BlockType);
                     oChain.UseBlock(sResult, oNew);
 
                     if (oChain.ValidateChain())
@@ -422,11 +396,18 @@ namespace jaindb
                         Console.WriteLine("Blockchain is valid... " + DeviceID);
                         WriteHash(DeviceID, JsonConvert.SerializeObject(oChain), "Chain");
 
+                        //Add an #id if missing
+                        if (oStatic["#id"] == null)
+                        {
+                            oStatic.Add(new JProperty("#id", DeviceID));
+                            jTemp.Add(new JProperty("#id", DeviceID));
+                        }
+
                         oStatic.Add(new JProperty("_index", oNew.index));
-                        oStatic.Add(new JProperty("_inventoryDate", new DateTime(oNew.timestamp).ToUniversalTime()));
+                        oStatic.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
 
                         jTemp.Add(new JProperty("_index", oNew.index));
-                        jTemp.Add(new JProperty("_inventoryDate", new DateTime(oNew.timestamp).ToUniversalTime()));
+                        jTemp.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
                         jTemp.Add(new JProperty("_hash", oNew.data));
                         JSort(jTemp);
 
@@ -454,7 +435,6 @@ namespace jaindb
         {
             try
             {
-
                 //Chech if we have the full data in cache0
                 if (Index == -1)
                 {
@@ -629,7 +609,7 @@ namespace jaindb
             return jResult;
         }
 
-        public static JObject GetDiff(string DeviceId, int IndexLeft, int IndexRight = -1)
+        public static JObject GetDiff(string DeviceId, int IndexLeft, int mode = -1, int IndexRight = -1)
         {
             try
             {
@@ -658,14 +638,26 @@ namespace jaindb
                 JSort(right);
                 JSort(left);
 
-                var jpf = new JsonDiffPatchDotNet.JsonDiffPatch(new JsonDiffPatchDotNet.Options() { ArrayDiff = JsonDiffPatchDotNet.ArrayDiffMode.Simple, TextDiff = JsonDiffPatchDotNet.TextDiffMode.Simple });
+                var optipons = new JsonDiffPatchDotNet.Options();
+                if (mode == 0)
+                {
+                    optipons.ArrayDiff = JsonDiffPatchDotNet.ArrayDiffMode.Simple;
+                    optipons.TextDiff = JsonDiffPatchDotNet.TextDiffMode.Simple;
+                }
+                if (mode == 1)
+                {
+                    optipons.ArrayDiff = JsonDiffPatchDotNet.ArrayDiffMode.Efficient;
+                    optipons.TextDiff = JsonDiffPatchDotNet.TextDiffMode.Efficient;
+                }
+
+                var jpf = new JsonDiffPatchDotNet.JsonDiffPatch(optipons);
+
                 var oDiff = jpf.Diff(left, right);
 
                 if (oDiff == null)
                     return new JObject();
 
                 return JObject.Parse(oDiff.ToString());
-
             }
             catch { }
 
@@ -765,13 +757,13 @@ namespace jaindb
         /// <param name="searchkey"></param>
         /// <param name="KeyID"></param>
         /// <returns></returns>
-        public static List<string> search(string searchkey, string KeyID = "#Id")
+        public static List<string> search(string searchkey, string KeyID = "#id")
         {
             if (string.IsNullOrEmpty(searchkey))
                 return new List<string>();
 
             if (string.IsNullOrEmpty(KeyID))
-                KeyID = "#Id";
+                KeyID = "#id";
 
             if (KeyID.Contains(','))
                 KeyID = KeyID.Split(',')[0];
@@ -789,7 +781,7 @@ namespace jaindb
             select = System.Net.WebUtility.UrlDecode(select);
 
             if (string.IsNullOrEmpty(select))
-                select = "#Id"; //,#Name,_inventoryDate
+                select = "#id"; //,#Name,_inventoryDate
 
             //int i = 0;
             DateTime dStart = DateTime.Now;
@@ -805,13 +797,13 @@ namespace jaindb
                     JObject oRes = new JObject();
                     foreach (string sAttrib in select.Split(','))
                     {
-                        oRes.Add(sAttrib, jObj[sAttrib]);
+                        oRes.Add(sAttrib.Trim(), jObj[sAttrib]);
                     }
                     foreach (string path in paths.Split(','))
                     {
                         try
                         {
-                            var oToks = jObj.SelectTokens(path, false);
+                            var oToks = jObj.SelectTokens(path.Trim(), false);
                             foreach (JToken oTok in oToks)
                             {
                                 if (oTok.Type == JTokenType.Object)
@@ -859,7 +851,7 @@ namespace jaindb
             select = System.Net.WebUtility.UrlDecode(select);
 
             if (string.IsNullOrEmpty(select))
-                select = "#Id"; //,#Name,_inventoryDate
+                select = "#id"; //,#Name,_inventoryDate
 
             //JObject lRes = new JObject();
             JArray aRes = new JArray();
@@ -875,13 +867,13 @@ namespace jaindb
 
                         foreach (string sAttrib in select.Split(','))
                         {
-                            oRes.Add(sAttrib, jObj[sAttrib]);
+                            oRes.Add(sAttrib.Trim(), jObj[sAttrib]);
                         }
                         foreach (string path in paths.Split(','))
                         {
                             try
                             {
-                                var oToks = jObj.SelectTokens(path, false);
+                                var oToks = jObj.SelectTokens(path.Trim(), false);
                                 foreach (JToken oTok in oToks)
                                 {
                                     if (oTok.Type == JTokenType.Object)
@@ -1025,7 +1017,7 @@ namespace jaindb
             });
         }
 
-        public static List<string> FindLatestRawWithHash(List<string> HashList, string KeyID = "#Id")
+        public static List<string> FindLatestRawWithHash(List<string> HashList, string KeyID = "#id")
         {
             List<string> lResult = new List<string>();
             try
@@ -1053,7 +1045,7 @@ namespace jaindb
             return lResult;
         }
 
-        public static async Task<List<string>> FindLatestAsync(string searchstring, string KeyID = "#Id")
+        public static async Task<List<string>> FindLatestAsync(string searchstring, string KeyID = "#id")
         {
             List<string> lResult = new List<string>();
             try
