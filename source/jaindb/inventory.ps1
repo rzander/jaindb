@@ -60,7 +60,8 @@ function GetInv {
         $AppendProperties
     )
 
-    $obj = Get-WmiObject -Namespace $Namespace -ClassName $WMIClass
+    if($Namespace) {} else { $Namespace = "root\cimv2"}
+    $obj = Get-CimInstance -Namespace $Namespace -ClassName $WMIClass
 
     if ($Properties -eq $null) { $Properties = $obj.Properties.Name | Sort-Object }
     if ($Namespace -eq $null) { $Namespace = "root\cimv2"}
@@ -118,9 +119,6 @@ function GetInv {
     
     $res.psobject.TypeNames.Insert(0, $Name) 
 
-    $res | Add-Member -MemberType ScriptMethod -Name HashAll -Value { GetHash($this | ConvertTo-Json -Compress) }
-    $res | Add-Member -MemberType ScriptMethod -Name HashStatic -Value { GetHash($this | Select-Object * -ExcludeProperty "#*", "@*" | ConvertTo-Json -Compress) }
-
     if ($AppendProperties -ne $null) {
         $AppendProperties.PSObject.Properties | ForEach-Object {
             if ($_.Value) {
@@ -151,11 +149,9 @@ function SetID {
 
     if ($AppendObject.Value -ne $null) {
         $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#id" -Value (GetMyID) -ea SilentlyContinue
-        #$AppendObject.Value | Add-Member -MemberType NoteProperty -Name "@InvDate" -Value ([System.DateTime]((Get-Date).ToUniversalTime())) -ea SilentlyContinue
         $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#UUID" -Value (getinv -Name "Computer" -WMIClass "win32_ComputerSystemProduct" -Properties @("#UUID"))."#UUID" -ea SilentlyContinue
         $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#Name" -Value (getinv -Name "Computer" -WMIClass "win32_ComputerSystem" -Properties @("Name"))."Name" -ea SilentlyContinue
         $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#SerialNumber" -Value (getinv -Name "Computer" -WMIClass "win32_SystemEnclosure" -Properties @("SerialNumber"))."SerialNumber" -ea SilentlyContinue
-        #$AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#MAC" -Value (get-wmiobject -class "Win32_NetworkAdapterConfiguration" | Where {($_.IpEnabled -Match "True") -and $_.DefaultIPGateway }).MACAddress.Replace(':','-')
         $AppendObject.Value | Add-Member -MemberType NoteProperty -Name "#MAC" -Value (get-wmiobject -class "Win32_NetworkAdapterConfiguration" | Where {($_.IpEnabled -Match "True")}).MACAddress.Replace(':', '-')
         return $null
     }   
