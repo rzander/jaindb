@@ -21,6 +21,8 @@ namespace jaindb
             public Blockchain(string Data, string Blocktype = "root", int complexity = 0)
             {
                 _complexity = complexity;
+                block._complexity = complexity; 
+
                 this.Chain = new List<block>()
             {
                 new block
@@ -37,7 +39,7 @@ namespace jaindb
                 block oGenesis = Chain.First();
                 if (string.IsNullOrEmpty(Data))
                     oGenesis.data = "";
-                oGenesis.nonce = Mine(0, Blocktype);
+                oGenesis.nonce = Mine(0, Blocktype, new byte[0]);
                 oGenesis.calc_hash();
 
                 //File.WriteAllText(@"c:\temp\data\" + Base32Encoding.ToString(oGenesis.data) + ".json", Data);
@@ -108,7 +110,13 @@ namespace jaindb
                 //Check if FreeBlock is valid..
                 var oParent = Chain.FirstOrDefault(t => t.hash == FreeBlock.previous_hash);
                 if (oParent != null)
-                    FreeBlock.validate(oParent.nonce);
+                {
+                    if(!FreeBlock.validate(oParent.nonce))
+                    {
+                        Console.WriteLine("Invalid Block: \n" + JsonConvert.SerializeObject(FreeBlock));
+                        return FreeBlock;
+                    }
+                }
                 else
                 {
                     Console.WriteLine("Invalid Block: \n" + JsonConvert.SerializeObject(FreeBlock));
@@ -149,28 +157,39 @@ namespace jaindb
                         timestamp = DateTime.Now.Ticks,
                         previous_hash = ParentBlock.hash,
                         blocktype = Blocktype,
-                        nonce = Mine(ParentBlock.nonce, Blocktype)
+                        nonce = Mine(ParentBlock.nonce, Blocktype, ParentBlock.hash)
                     };
 
                     Chain.Add(oNew);
+                    
                     return oNew;
                 }
 
                 return new block();
             }
 
-            private long Mine(long Previos_noonce, string Blocktype)
+            private long Mine(long Previos_noonce, string Blocktype, byte[] Previous_Hash)
             {
+                DateTime dStart = DateTime.Now;
                 byte[] bHash = new byte[0];
                 long nonce = Previos_noonce;
-                do
+                if (_complexity > 0 && nonce != 0)
+                {
+                    do
+                    {
+                        nonce++;
+
+                        //current implementation allows to mine new a block without data,
+                        bHash = block.GetHash((Previos_noonce + nonce).ToString() + Blocktype + Convert.ToBase64String(Previous_Hash));
+
+                    } while (bHash.Skip(bHash.Count() - _complexity).Sum(x => (long)x) != 0);
+                } else
                 {
                     nonce++;
+                }
+                TimeSpan tDur = DateTime.Now - dStart;
 
-                    bHash = block.GetHash((Previos_noonce + nonce).ToString() + Blocktype);
-
-                } while (bHash.Skip(32 - _complexity).Sum(x => (long)x) != 0);
-
+                tDur.TotalMilliseconds.ToString();
                 return nonce;
             }
 
@@ -197,7 +216,7 @@ namespace jaindb
 
         public class block
         {
-            private static int _complexity = 0;
+            internal static int _complexity = 0;
 
             public int index { get; set; }
 
@@ -312,8 +331,8 @@ namespace jaindb
                 }
 
                 //Validate nonce...
-                byte[] bHash2 = block.GetHash((Previous_nonce + nonce).ToString() + blocktype);
-                if (bHash2.Skip(bHash2.Length - _complexity).Sum(x => (long)x) != 0)
+                byte[] bHash2 = block.GetHash((Previous_nonce + nonce).ToString() + blocktype + Convert.ToBase64String(previous_hash));
+                if (bHash2.Skip(bHash2.Count() - _complexity).Sum(x => (long)x) != 0)
                     return false;
 
                 return true;

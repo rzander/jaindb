@@ -224,15 +224,28 @@ namespace jaindb
                     CosmosDB.CreateDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseId, sColl), jObj).Wait();
                 }
 
-
-
                 if (UseCosmosDB || UseRedis)
                     return true;
+
+                if(UseFileStore)
+                {
+                    if (!Directory.Exists("wwwroot\\" + Collection))
+                        Directory.CreateDirectory("wwwroot\\" + Collection);
+
+                    if (!File.Exists("wwwroot\\" + Collection + "\\" + Hash + ".json")) //We do not have to create the same hash file twice...
+                    {
+                        lock (locker) //only one write operation
+                        {
+                            File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
+                        }
+                    }
+
+                    return true;
+                }
 
             }
             catch (Exception ex)
             {
-                ex.ToString();
                 if (!Directory.Exists("wwwroot\\" + Collection))
                     Directory.CreateDirectory("wwwroot\\" + Collection);
 
@@ -306,7 +319,7 @@ namespace jaindb
             string sData = ReadHash(DeviceID, "Chain");
             if (string.IsNullOrEmpty(sData))
             {
-                oChain = new Blockchain("", "root");
+                oChain = new Blockchain("", "root", 0);
             }
             else
             {
@@ -915,6 +928,65 @@ namespace jaindb
 
                     return aRes;
                 }
+
+                if (UseFileStore)
+                {
+                    foreach (var oFile in new DirectoryInfo("wwwroot/Assets").GetFiles("*.json"))
+                    {
+                        JObject jObj = GetRaw(File.ReadAllText(oFile.FullName), paths);
+                        JObject oRes = new JObject();
+
+                        foreach (string sAttrib in select.Split(','))
+                        {
+                            oRes.Add(sAttrib.Trim(), jObj[sAttrib]);
+                        }
+
+                        foreach (string path in paths.Split(','))
+                        {
+                            try
+                            {
+                                var oToks = jObj.SelectTokens(path.Trim(), false);
+                                foreach (JToken oTok in oToks)
+                                {
+                                    if (oTok.Type == JTokenType.Object)
+                                    {
+                                        oRes.Merge(oTok);
+                                        //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
+                                        continue;
+                                    }
+                                    if (oTok.Type == JTokenType.Array)
+                                    {
+                                        oRes.Add(new JProperty(path, oTok));
+                                    }
+                                    if (oTok.Type == JTokenType.Property)
+                                        oRes.Add(oTok.Parent);
+
+                                    if (oTok.Type == JTokenType.String)
+                                        oRes.Add(oTok.Parent);
+
+                                    if (oTok.Type == JTokenType.Date)
+                                        oRes.Add(oTok.Parent);
+
+                                }
+                                if (oToks.Count() == 0)
+                                    oRes = null;
+                            }
+                            catch { }
+                        }
+
+                        if (oRes != null)
+                        {
+                            string sHa = CalculateHash(oRes.ToString(Formatting.None));
+                            if (!lHashes.Contains(sHa))
+                            {
+                                aRes.Add(oRes);
+                                lHashes.Add(sHa);
+                            }
+                        }
+                    }
+
+                    return aRes;
+                }
             }
             catch { }
 
@@ -938,6 +1010,17 @@ namespace jaindb
                         {
                             lResult.Add(oObj.ToString());
                         }
+
+                        return lResult;
+                    }
+
+                    if(UseFileStore)
+                    {
+                        foreach(var oFile in new DirectoryInfo("wwwroot/Chain").GetFiles("*.json"))
+                        {
+                            lResult.Add(oFile.Name.Split('.')[0]);
+                        }
+                        return lResult;
                     }
                 }
                 catch { }

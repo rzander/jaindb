@@ -14,12 +14,12 @@ namespace jaindb
             SHA256 sha = SHA256.Create();
             byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(input);
             byte[] hash = sha.ComputeHash(inputBytes);
-            byte[] mhash = new byte[hash.Length + 2];
+            byte[] mhash = new byte[hash.Length + 2]; //we need two additional bytes
 
             //Add Multihash identifier
             hash.CopyTo(mhash, 2);
             mhash[0] = 0x12; //SHA256
-            mhash[1] = Convert.ToByte(hash.Length); //Hash legth
+            mhash[1] = Convert.ToByte(hash.Length); //Hash length
 
             return mhash;
         }
