@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Security.Cryptography.X509Certificates;
+using System.Collections;
 
 namespace jaindb
 {
@@ -111,11 +112,11 @@ namespace jaindb
                 var oParent = Chain.FirstOrDefault(t => t.hash == FreeBlock.previous_hash);
                 if (oParent != null)
                 {
-                    if(!FreeBlock.validate(oParent.nonce))
+                    /*if(!FreeBlock.validate(oParent.nonce))
                     {
                         Console.WriteLine("Invalid Block: \n" + JsonConvert.SerializeObject(FreeBlock));
                         return FreeBlock;
-                    }
+                    }*/
                 }
                 else
                 {
@@ -131,12 +132,6 @@ namespace jaindb
                 FreeBlock.data = Data;
                 FreeBlock.timestamp = DateTime.Now.Ticks;
                 FreeBlock.calc_hash();
-
-                //****
-                // place Code to store Data here!
-                //****
-                //File.WriteAllText(@"c:\temp\data\" + Base32Encoding.ToString(FreeBlock.data) + ".json", Data);
-
 
                 return FreeBlock;
             }
@@ -170,26 +165,37 @@ namespace jaindb
 
             private long Mine(long Previos_noonce, string Blocktype, byte[] Previous_Hash)
             {
-                DateTime dStart = DateTime.Now;
                 byte[] bHash = new byte[0];
+
                 long nonce = Previos_noonce;
-                if (_complexity > 0 && nonce != 0)
+
+                //current implementation allows to mine new a block without proof of work...
+                bool DoWork = false;
+
+                if (_complexity > 0 && nonce != 0 && DoWork) //Skip nonce generation if complexity is 0
                 {
+                    string sGoal = new string('0', _complexity); //generate a string with leading '0'
+                    //string sRes = "";
+
                     do
                     {
+                        if (nonce >= 9223372036854775807) //check overflow
+                        {
+                            nonce = 0; //reset nonce
+                        }
+
                         nonce++;
 
-                        //current implementation allows to mine new a block without data,
                         bHash = block.GetHash((Previos_noonce + nonce).ToString() + Blocktype + Convert.ToBase64String(Previous_Hash));
 
-                    } while (bHash.Skip(bHash.Count() - _complexity).Sum(x => (long)x) != 0);
-                } else
+                    } while (!Hash.checkTrailingZero(bHash, _complexity, sGoal));
+                    
+                }
+                else
                 {
                     nonce++;
                 }
-                TimeSpan tDur = DateTime.Now - dStart;
 
-                tDur.TotalMilliseconds.ToString();
                 return nonce;
             }
 
@@ -252,18 +258,33 @@ namespace jaindb
 
                     byte[] bHash = GetHash(sData);
 
-                    
-                    if (_complexity > 0)
-                    {
-                        //Calculate nonce
-                        do
-                        {
-                            nonce++;
-                            bHash = GetHash(sData + nonce.ToString());
+                    //Do a ProofOfWork if complexity is > 0
+                    bool DoWork = true;
+                    DateTime dStart = DateTime.Now;
 
-                        } while (bHash.Skip(bHash.Length - _complexity).Sum(x => (long)x) != 0);
+                    if (_complexity > 0 && nonce != 0 && DoWork)
+                    {
+                        string sGoal = new string('0', _complexity); //generate a string with leading '0'
+
+                        if (!Hash.checkTrailingZero(bHash, _complexity, sGoal)) //only calc nonce if it's not valid
+                        {
+                            do
+                            {
+                                if (nonce >= 9223372036854775807) //check overflow
+                                {
+                                    nonce = 0; //reset nonce
+                                    timestamp = DateTime.Now.Ticks; //reset timestamp
+                                }
+                                nonce++;
+
+                                bHash = block.GetHash(index.ToString() + timestamp.ToString() + previous_hash.ToString() + data.ToString() + nonce.ToString() + blocktype);
+
+                            } while (!Hash.checkTrailingZero(bHash, _complexity, sGoal));
+                        }
                     }
-                    
+                    TimeSpan tDur = DateTime.Now - dStart;
+                    tDur.TotalMilliseconds.ToString();
+
                     hash = bHash;
 
                     signature = Sign(hash, ""); //Add CertSubject as Parameter
@@ -330,10 +351,13 @@ namespace jaindb
                     }*/
                 }
 
-                //Validate nonce...
-                byte[] bHash2 = block.GetHash((Previous_nonce + nonce).ToString() + blocktype + Convert.ToBase64String(previous_hash));
-                if (bHash2.Skip(bHash2.Count() - _complexity).Sum(x => (long)x) != 0)
-                    return false;
+                if (index > 0)
+                {
+                    //Validate nonce...
+                    string sGoal = new string('0', _complexity); //generate a string with leading '0'
+                    if (!Hash.checkTrailingZero(hash, _complexity, sGoal))
+                        return false;
+                }
 
                 return true;
             }

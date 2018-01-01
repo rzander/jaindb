@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 
@@ -72,6 +73,32 @@ namespace jaindb
             }
 
             return result;
+        }
+
+        public static bool checkTrailingZero(byte[] bHash, int complexity, string sGoal = "")
+        {
+            bool bRes = false;
+            try
+            {
+                if (complexity > 0)
+                {
+                    if (string.IsNullOrEmpty(sGoal)) //create TrailingZero string if it does not exists
+                        sGoal = new string('0', complexity);
+
+                    //Check the last n Bits of the hash if they are 0, where n is the complexity
+                    int iBytes = 1 + (complexity / 8); //Nr of bytes we have toc get
+                    var aLast = bHash.Skip(bHash.Length - iBytes); //Get the last n Bytes
+                    string sRes = string.Join("", aLast.Select(x => Convert.ToString(x, 2).PadLeft(8, '0'))); //Convert to bit string
+
+                    if (sRes.Substring(sRes.Length - complexity) == sGoal) //do we have a match ?
+                        return true;
+                }
+                else
+                    return true;
+            }
+            catch { }
+
+            return bRes;
         }
     }
 }
