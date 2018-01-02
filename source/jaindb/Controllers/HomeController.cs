@@ -19,50 +19,8 @@ namespace jaindb.Controllers
         {
             this._config = config;
 
-            if ((int.Parse(config.GetSection("UseRedis").Value ?? config.GetSection("jaindb:UseRedis").Value) == 1) || (Environment.GetEnvironmentVariable("UseRedis")) == "1")
-            {
-                try
-                {
-                    if (Inv.cache0 == null)
-                    {
-                        Inv.cache0 = RedisConnectorHelper.Connection.GetDatabase(0);
-                        Inv.cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
-                        Inv.cache2 = RedisConnectorHelper.Connection.GetDatabase(2);
-                        Inv.cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
-                        Inv.cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
-                    }
-                    if(Inv.srv == null)
-                        Inv.srv = RedisConnectorHelper.Connection.GetServer("127.0.0.1", 6379);
 
-                    Inv.UseRedis = true;
 
-                }
-                catch(Exception ex)
-                {
-                    Console.WriteLine("ERROR: " + ex.Message);
-                }
-            }
-
-            if ((int.Parse(config.GetSection("UseCosmosDB").Value ?? config.GetSection("jaindb:UseCosmosDB").Value) == 1) || (Environment.GetEnvironmentVariable("UseCosmosDB") == "1"))
-            {
-                try
-                {
-                    Inv.databaseId = "Assets";
-                    Inv.endpointUrl = "https://localhost:8081";
-                    Inv.authorizationKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
-                    Inv.CosmosDB = new DocumentClient(new Uri(Inv.endpointUrl), Inv.authorizationKey);
-
-                    Inv.CosmosDB.OpenAsync();
-
-                    Inv.UseCosmosDB = true;
-                }
-                catch { }
-            }
-
-            if ((int.Parse(config.GetSection("UseFileSystem").Value ?? config.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
-            {
-                Inv.UseFileStore = true;
-            }
 
         }
 
@@ -70,7 +28,7 @@ namespace jaindb.Controllers
         public string get()
         {
             string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-            return "RZInv (c) 2017 by Roger Zander; Version: " + sVersion;
+            return "RZInv (c) 2018 by Roger Zander; Version: " + sVersion;
         }
 
         [HttpPost]
@@ -86,8 +44,15 @@ namespace jaindb.Controllers
         [Route("GetPS")]
         public string GetPS()
         {
-            string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
-            return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL"));
+            if (System.IO.File.Exists("/app/wwwroot/inventory.ps1"))
+            {
+                string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
+                return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL"));
+            }
+
+            string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
+            return sFile2.Replace("%LocalURL%", "http://localhost");
+
         }
 
         [HttpGet]

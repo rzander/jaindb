@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using System.IO;
 using System.Diagnostics;
+using Microsoft.Azure.Documents.Client;
 
 namespace jaindb
 {
@@ -101,12 +102,90 @@ namespace jaindb
 
         private void OnStartup()
         {
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("localURL")))
+                Environment.SetEnvironmentVariable("localURL", "http://localhost");
+
             Console.WriteLine(" ");
             Console.WriteLine("-------------------------------------------------------------------");
             Console.WriteLine("PowerShell Inventory:");
             Console.WriteLine(Environment.ExpandEnvironmentVariables("Invoke-RestMethod -Uri '%localURL%/getps' | iex"));
             Console.WriteLine("-------------------------------------------------------------------");
             Console.WriteLine(" ");
+
+            string sHashType = Environment.GetEnvironmentVariable("HashType");
+            if (string.IsNullOrEmpty(sHashType))
+                sHashType = Configuration.GetSection("jaindb:HashType").Value ?? Configuration.GetSection("HashType").Value;
+
+            switch (sHashType.ToLower())
+            {
+                case "md5":
+                    Inv.HashType = Inv.hashType.MD5;
+                    break;
+                case "sha256":
+                    Inv.HashType = Inv.hashType.SHA2_256;
+                    break;
+                case "sha2_256":
+                    Inv.HashType = Inv.hashType.SHA2_256;
+                    break;
+                default:
+                    Inv.HashType = Inv.hashType.MD5;
+                    break;
+            }
+
+            if ((int.Parse(Configuration.GetSection("UseRedis").Value ?? Configuration.GetSection("jaindb:UseRedis").Value) == 1) || (Environment.GetEnvironmentVariable("UseRedis")) == "1")
+            {
+                try
+                {
+                    if (Inv.cache0 == null)
+                    {
+                        Inv.cache0 = RedisConnectorHelper.Connection.GetDatabase(0);
+                        Inv.cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
+                        Inv.cache2 = RedisConnectorHelper.Connection.GetDatabase(2);
+                        Inv.cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
+                        Inv.cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
+                    }
+                    if (Inv.srv == null)
+                        Inv.srv = RedisConnectorHelper.Connection.GetServer("127.0.0.1", 6379);
+
+                    Inv.UseRedis = true;
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("ERROR: " + ex.Message);
+                }
+            }
+
+            if ((int.Parse(Configuration.GetSection("UseCosmosDB").Value ?? Configuration.GetSection("jaindb:UseCosmosDB").Value) == 1) || (Environment.GetEnvironmentVariable("UseCosmosDB") == "1"))
+            {
+                try
+                {
+                    Inv.databaseId = "Assets";
+                    Inv.endpointUrl = "https://localhost:8081";
+                    Inv.authorizationKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
+                    Inv.CosmosDB = new DocumentClient(new Uri(Inv.endpointUrl), Inv.authorizationKey);
+
+                    Inv.CosmosDB.OpenAsync();
+
+                    Inv.UseCosmosDB = true;
+                }
+                catch { }
+            }
+
+            if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
+            {
+                Inv.UseFileStore = true;
+            }
+
+            int iComplexity = 0;
+            if (!int.TryParse(Environment.GetEnvironmentVariable("PoWComplexitity"), out iComplexity))
+            {
+                if (!int.TryParse(Configuration.GetSection("PoWComplexitity").Value, out iComplexity))
+                {
+                    int.TryParse(Configuration.GetSection("jaindb:PoWComplexitity").Value, out iComplexity);
+                }
+            }
+            Inv.PoWComplexitity = iComplexity;
         }
     }
 }

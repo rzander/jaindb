@@ -9,7 +9,7 @@
     <Authors>Roger Zander</Authors>
     <Company>Zander Rools</Company>
     <Description>JainDB is a blockchain based data archive for JSON data.</Description>
-    <Copyright>Copyrigh (C) 2017 by Roger Zander</Copyright>
+    <Copyright>Copyrigh (C) 2018 by Roger Zander</Copyright>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json</PackageTags>

@@ -62,6 +62,7 @@ namespace jaindb
         public static hashType HashType = hashType.MD5;
 
         public static string BlockType = "INV";
+        public static int PoWComplexitity = 0; //Proof of Work complexity; 0 = no PoW; 8 = 8 trailing bits of the block hash must be '0'
 
         public static string CalculateHash(string input)
         {
