@@ -18,17 +18,13 @@ namespace jaindb.Controllers
         public HomeController(IConfiguration config)
         {
             this._config = config;
-
-
-
-
         }
 
         [HttpGet]
         public string get()
         {
             string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-            return "RZInv (c) 2018 by Roger Zander; Version: " + sVersion;
+            return "JainDB (c) 2018 by Roger Zander; Version: " + sVersion;
         }
 
         [HttpPost]
@@ -169,6 +165,26 @@ namespace jaindb.Controllers
 
                 return Inv.GetHistory(sKey);
             }
+            return null;
+        }
+
+        [HttpGet]
+        [Route("export")]
+        public JObject Export()
+        {
+            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
+            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            try
+            {
+                var query = QueryHelpers.ParseQuery(sQuery);
+                string sTarget = query.FirstOrDefault(t => t.Key.ToLower() == "url").Value;
+                if(!string.IsNullOrEmpty(sTarget))
+                    Inv.Export(sTarget);
+                else
+                    Inv.Export("http://localhost:5000");
+            }
+            catch { }
+
             return null;
         }
 

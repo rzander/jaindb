@@ -11,6 +11,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using static jaindb.BlockChain;
 
@@ -41,6 +43,7 @@ namespace jaindb
     {
         public enum hashType { MD5, SHA2_256 } //Implemented Hash types
         private static readonly object locker = new object();
+        private static HttpClient oClient = new HttpClient();
 
         public static bool UseCosmosDB;
         public static bool UseRedis;
@@ -1050,7 +1053,7 @@ namespace jaindb
                         {
                             if (UseRedis)
                             {
-                                var cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
+                                //var cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
 
                                 foreach (var sID in GetAllChainsAsync().Result)
                                 {
@@ -1152,6 +1155,88 @@ namespace jaindb
             return lResult;
         }
 
+        public static bool Export(string URL)
+        {
+            int iCount = 0;
+            bool bResult = true;
+            try
+            {
+                oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                if (UseRedis)
+                {
+                    foreach (var sID in GetAllChainsAsync().Result)
+                    {
+                        try
+                        {
+                            var jObj = JObject.Parse(cache3.StringGet(sID));
+                            foreach(var sBlock in jObj.SelectTokens("Chain[*].data"))
+                            {
+                                try
+                                {
+                                    string sBlockID = sBlock.Value<string>();
+                                    if (!string.IsNullOrEmpty(sBlockID))
+                                    {
+                                        var jBlock = GetRaw(cache4.StringGet(sBlockID));
+                                        jBlock.Remove("#Id"); //old Version of jainDB 
+                                        jBlock.Remove("_date");
+                                        jBlock.Remove("_index");
+                                        //jBlock.Add("#id", sID);
+
+                                        string sResult = UploadToREST(URL + "/upload/" + sID, jBlock.ToString(Formatting.None));
+                                        //System.Threading.Thread.Sleep(50);
+                                        if (!string.IsNullOrEmpty(sResult.Trim('"')))
+                                        {
+                                            Console.WriteLine("Exported: " + sResult);
+                                            iCount++;
+                                        }
+                                        else
+                                        {
+                                            jBlock.ToString();
+                                        }
+                                    }
+                                }
+                                catch(Exception ex)
+                                {
+                                    Console.WriteLine("Error: " + ex.Message);
+                                    bResult = false;
+                                }
+                            }
+                            System.Threading.Thread.Sleep(100);
+                        }
+                        catch { bResult = false; }
+                    }
+                }
+            }
+            catch { bResult = false; }
+            Console.WriteLine("Done... " + iCount.ToString() + " Blocks exported");
+            return bResult;
+        }
+
+        public static string UploadToREST(string URL, string content)
+        {
+            try
+            {
+                //oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                HttpContent oCont = new StringContent(content);
+
+                var response = oClient.PostAsync(URL, oCont);
+                response.Wait(15000);
+                if (response.IsCompleted)
+                {
+                    return response.Result.Content.ReadAsStringAsync().Result.ToString();
+                }
+
+
+            }
+            catch(Exception ex)
+            {
+                ex.Message.ToString();
+            }
+
+            return "";
+
+        }
         /*
         public static string GetFull(Blockchain oChain, int Index = -1)
         {
