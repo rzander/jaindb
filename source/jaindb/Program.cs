@@ -49,7 +49,7 @@ namespace jaindb
                 .UseIISIntegration()
                 .UseStartup<Startup>()
                 .UseApplicationInsights()
-                .UseUrls("http://*:" + Environment.GetEnvironmentVariable("WebPort") ?? "5000")
+                .UseUrls("http://*:" + (Environment.GetEnvironmentVariable("WebPort") ?? "5000"))
                 .Build();
 
             host.Run();
