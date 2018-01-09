@@ -17,7 +17,7 @@ namespace jaindb
             {
                 if (File.Exists("/usr/local/bin/redis-server"))
                 {
-                    if(!File.Exists("/app/wwwroot/redis.conf"))
+                    if (!File.Exists("/app/wwwroot/redis.conf"))
                     {
                         File.Copy("/app/redis.conf", "/app/wwwroot/redis.conf", true);
                     }
@@ -38,8 +38,10 @@ namespace jaindb
                     var oInit = Process.Start(psi); //>/dev/null 2>/dev/null
                     oInit.WaitForExit(3000);
                     Console.WriteLine("... Done.");
+
                     //Thread.Sleep(2000);
                 }
+
             }
             catch { }
 

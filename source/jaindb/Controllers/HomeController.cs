@@ -21,10 +21,10 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
-        public string get()
+        public ActionResult get()
         {
             string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-            return "JainDB (c) 2018 by Roger Zander; Version: " + sVersion;
+            return Content("JainDB (c) 2018 by Roger Zander; Version: " + sVersion);
         }
 
         [HttpPost]
@@ -46,8 +46,15 @@ namespace jaindb.Controllers
                 return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL"));
             }
 
+            string sCurrDir = System.IO.Directory.GetCurrentDirectory();
+            if (System.IO.File.Exists(sCurrDir + "/wwwroot/inventory.ps1"))
+            {
+                string sFile = System.IO.File.ReadAllText(sCurrDir + "/wwwroot/inventory.ps1");
+                return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL"));
+            }
+
             string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
-            return sFile2.Replace("%LocalURL%", "http://localhost");
+            return sFile2.Replace("%LocalURL%", "http://localhost:50000");
 
         }
 
@@ -191,18 +198,10 @@ namespace jaindb.Controllers
         //Handle all other Requests
         [HttpGet]
         [Route("{*.}")]
-        public string Thing()
+        public ActionResult Thing()
         {
-            //Inv.TST();
-            this.Url.ToString();
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
-            if (sPath != "/favicon.ico")
-            {
-                string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-                return "RZInv (c) 2017 by Roger Zander; Version: " + sVersion + " Path:" + sPath + sQuery;
-            }
-            return null;
+            string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+            return Content("JainDB (c) 2018 by Roger Zander; Version: " + sVersion);
         }
     }
 }

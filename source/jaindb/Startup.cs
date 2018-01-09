@@ -103,7 +103,7 @@ namespace jaindb
         private void OnStartup()
         {
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("localURL")))
-                Environment.SetEnvironmentVariable("localURL", "http://localhost");
+                Environment.SetEnvironmentVariable("localURL", "http://localhost:5000");
 
             Console.WriteLine(" ");
             Console.WriteLine("-------------------------------------------------------------------");
@@ -153,6 +153,9 @@ namespace jaindb
                 catch (Exception ex)
                 {
                     Console.WriteLine("ERROR: " + ex.Message);
+                    Console.WriteLine("Redis = disabled, FileStore = enabled !!!");
+                    Inv.UseRedis = false;
+                    Inv.UseFileStore = true;
                 }
             }
 
