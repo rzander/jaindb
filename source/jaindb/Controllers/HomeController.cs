@@ -53,8 +53,14 @@ namespace jaindb.Controllers
                 return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL"));
             }
 
-            string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
-            return sFile2.Replace("%LocalURL%", "http://localhost:5001");
+            try
+            {
+                string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
+                return sFile2.Replace("%LocalURL%", "http://localhost:5001");
+            }
+            catch { }
+
+            return "";
 
         }
 

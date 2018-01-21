@@ -88,6 +88,11 @@ namespace jaindb
                 {
                     return cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
                 }
+
+                if(UseFileStore)
+                {
+                    return File.ReadAllText("wwwroot\\" + "_Key" + "\\" + name.TrimStart('#', '@') + "\\" + value + ".json");
+                }
             }
             catch { }
 
@@ -297,7 +302,7 @@ namespace jaindb
                 }
 
             }
-            catch (Exception ex)
+            catch
             {
                 if (!Directory.Exists("wwwroot\\" + Collection))
                     Directory.CreateDirectory("wwwroot\\" + Collection);
