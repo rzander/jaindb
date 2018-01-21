@@ -289,6 +289,11 @@ namespace jaindb
                     }
                 }
 
+                if (UseFileStore)
+                {
+                    return File.ReadAllText("wwwroot\\" + Collection + "\\" + Hash + ".json");
+                }
+
                 if (UseCosmosDB)
                 {
                     if (database == null)
@@ -421,10 +426,15 @@ namespace jaindb
                         }
 
                         oStatic.Add(new JProperty("_index", oNew.index));
-                        oStatic.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
+
+                        if (oStatic["_date"] == null)
+                            oStatic.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
 
                         jTemp.Add(new JProperty("_index", oNew.index));
-                        jTemp.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
+
+                        if (jTemp["_date"] == null)
+                            jTemp.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
+
                         jTemp.Add(new JProperty("_hash", oNew.data));
                         JSort(jTemp);
 
@@ -681,7 +691,7 @@ namespace jaindb
             return new JObject();
         }
 
-        /// <summary>
+/*      /// <summary>
         /// Convert Topic /Key/Key/[0]/val to JSON Path format Key.Key[0].val
         /// </summary>
         /// <param name="Topic"></param>
@@ -718,6 +728,7 @@ namespace jaindb
 
             return "";
         }
+        */
 
         class TopicComparer : IComparer<string>
         {
@@ -1179,7 +1190,7 @@ namespace jaindb
                                     {
                                         var jBlock = GetRaw(cache4.StringGet(sBlockID));
                                         jBlock.Remove("#Id"); //old Version of jainDB 
-                                        jBlock.Remove("_date");
+                                        //jBlock.Remove("_date");
                                         jBlock.Remove("_index");
                                         //jBlock.Add("#id", sID);
 
@@ -1197,6 +1208,51 @@ namespace jaindb
                                     }
                                 }
                                 catch(Exception ex)
+                                {
+                                    Console.WriteLine("Error: " + ex.Message);
+                                    bResult = false;
+                                }
+                            }
+                            System.Threading.Thread.Sleep(100);
+                        }
+                        catch { bResult = false; }
+                    }
+                }
+
+                if(UseFileStore)
+                {
+                    foreach (var sID in GetAllChainsAsync().Result)
+                    {
+                        try
+                        {
+                            var jObj = JObject.Parse(ReadHash(sID, "Chain"));
+                            foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
+                            {
+                                try
+                                {
+                                    string sBlockID = sBlock.Value<string>();
+                                    if (!string.IsNullOrEmpty(sBlockID))
+                                    {
+                                        var jBlock = GetRaw(ReadHash(sBlockID, "Assets"));
+                                        jBlock.Remove("#Id"); //old Version of jainDB 
+                                        //jBlock.Remove("_date");
+                                        jBlock.Remove("_index");
+                                        //jBlock.Add("#id", sID);
+
+                                        string sResult = UploadToREST(URL + "/upload/" + sID, jBlock.ToString(Formatting.None));
+                                        //System.Threading.Thread.Sleep(50);
+                                        if (!string.IsNullOrEmpty(sResult.Trim('"')))
+                                        {
+                                            Console.WriteLine("Exported: " + sResult);
+                                            iCount++;
+                                        }
+                                        else
+                                        {
+                                            jBlock.ToString();
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
                                 {
                                     Console.WriteLine("Error: " + ex.Message);
                                     bResult = false;

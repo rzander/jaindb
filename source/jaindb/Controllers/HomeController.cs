@@ -54,7 +54,7 @@ namespace jaindb.Controllers
             }
 
             string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
-            return sFile2.Replace("%LocalURL%", "http://localhost:50000");
+            return sFile2.Replace("%LocalURL%", "http://localhost:5001");
 
         }
 
