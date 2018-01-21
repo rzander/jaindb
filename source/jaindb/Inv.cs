@@ -86,7 +86,6 @@ namespace jaindb
             {
                 if (UseRedis)
                 {
-                    var cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
                     return cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
                 }
             }
@@ -231,7 +230,7 @@ namespace jaindb
                 if (UseCosmosDB || UseRedis)
                     return true;
 
-                if(UseFileStore)
+                if (UseFileStore)
                 {
                     if (!Directory.Exists("wwwroot\\" + Collection))
                         Directory.CreateDirectory("wwwroot\\" + Collection);
@@ -242,6 +241,56 @@ namespace jaindb
                         {
                             File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
                         }
+                    }
+
+                    switch (Collection.ToLower())
+                    {
+                        case "_full":
+                            //DB 0 = Full Inv
+                            var jObj = JObject.Parse(Data);
+                            JSort(jObj);
+
+                            string sID = jObj["#id"].ToString();
+
+                            if (!Directory.Exists("wwwroot\\" + "_Key"))
+                                Directory.CreateDirectory("wwwroot\\" + "_Key");
+
+                            //Store KeyNames
+                            foreach (JProperty oSub in jObj.Properties())
+                            {
+                                if (oSub.Name.StartsWith("#"))
+                                {
+                                    if (oSub.Value.Type == JTokenType.Array)
+                                    {
+                                        foreach (var oSubSub in oSub.Values())
+                                        {
+                                            if (oSubSub.ToString() != sID)
+                                            {
+                                                string sDir = "wwwroot\\" + "_Key" + "\\" + oSub.Name.ToLower().TrimStart('#');
+                                                if (!Directory.Exists(sDir))
+                                                    Directory.CreateDirectory(sDir);
+
+                                                File.WriteAllText(sDir + "\\" + oSubSub.ToString() + ".json", sID);
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (!string.IsNullOrEmpty((string)oSub.Value))
+                                        {
+                                            if (oSub.Value.ToString() != sID)
+                                            {
+                                                string sDir = "wwwroot\\" + "_Key" + "\\" + oSub.Name.ToLower().TrimStart('#');
+                                                if (!Directory.Exists(sDir))
+                                                    Directory.CreateDirectory(sDir);
+
+                                                File.WriteAllText(sDir + "\\" + (string)oSub.Value + ".json", sID);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            break;
                     }
 
                     return true;
