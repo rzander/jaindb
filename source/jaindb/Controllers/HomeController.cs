@@ -43,20 +43,20 @@ namespace jaindb.Controllers
             if (System.IO.File.Exists("/app/wwwroot/inventory.ps1"))
             {
                 string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
-                return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL"));
+                return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
             }
 
             string sCurrDir = System.IO.Directory.GetCurrentDirectory();
             if (System.IO.File.Exists(sCurrDir + "/wwwroot/inventory.ps1"))
             {
                 string sFile = System.IO.File.ReadAllText(sCurrDir + "/wwwroot/inventory.ps1");
-                return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL"));
+                return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort")); ;
             }
 
             try
             {
                 string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
-                return sFile2.Replace("%LocalURL%", "http://localhost:5001");
+                return sFile2.Replace("%LocalURL%", "http://localhost").Replace("%WebPort%", "5000");
             }
             catch { }
 
@@ -191,10 +191,13 @@ namespace jaindb.Controllers
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
                 string sTarget = query.FirstOrDefault(t => t.Key.ToLower() == "url").Value;
-                if(!string.IsNullOrEmpty(sTarget))
-                    Inv.Export(sTarget);
+
+                string sRemove = query.FirstOrDefault(t => t.Key.ToLower() == "remove").Value;
+
+                if (!string.IsNullOrEmpty(sTarget))
+                    Inv.Export(sTarget, sRemove ?? "");
                 else
-                    Inv.Export("http://localhost:5000");
+                    Inv.Export("http://localhost:5000", sRemove ?? "");
             }
             catch { }
 

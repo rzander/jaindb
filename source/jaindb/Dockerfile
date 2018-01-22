@@ -28,7 +28,7 @@ RUN rm -f -r /app/wwwroot/bin
 #RUN apt-get purge -y make gcc wget
 #RUN apt-get autoremove -y
 #RUN apt-get clean
-ENV localURL "http://localhost:5000"
+ENV localURL "http://localhost"
 ENV WebPort "5000"
 ENV UseRedis 1
 ENV UseCosmosDB 0

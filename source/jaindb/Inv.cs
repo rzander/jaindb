@@ -20,11 +20,13 @@ namespace jaindb
 {
     public class RedisConnectorHelper
     {
+        public static string RedisServer = "localhost";
+        public static int RedisPort = 6379;
         static RedisConnectorHelper()
         {
             RedisConnectorHelper.lazyConnection = new Lazy<ConnectionMultiplexer>(() =>
             {
-                return ConnectionMultiplexer.Connect("127.0.0.1");
+                return ConnectionMultiplexer.Connect(RedisServer + ":" + RedisPort.ToString());
             });
         }
 
@@ -69,7 +71,7 @@ namespace jaindb
 
         public static string CalculateHash(string input)
         {
-            switch(HashType)
+            switch (HashType)
             {
                 case hashType.MD5:
                     return Hash.CalculateMD5HashString(input);
@@ -89,7 +91,7 @@ namespace jaindb
                     return cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
                 }
 
-                if(UseFileStore)
+                if (UseFileStore)
                 {
                     return File.ReadAllText("wwwroot\\" + "_Key" + "\\" + name.TrimStart('#', '@') + "\\" + value + ".json");
                 }
@@ -444,7 +446,7 @@ namespace jaindb
                         {
                             foreach (var oItem in oRoot.First.Children())
                             {
-                                if(oItem.Type == JTokenType.Object)
+                                if (oItem.Type == JTokenType.Object)
                                     WriteHash(oItem, ref oStatic, ((Newtonsoft.Json.Linq.JProperty)oRoot).Name);
                             }
                         }
@@ -745,44 +747,44 @@ namespace jaindb
             return new JObject();
         }
 
-/*      /// <summary>
-        /// Convert Topic /Key/Key/[0]/val to JSON Path format Key.Key[0].val
-        /// </summary>
-        /// <param name="Topic"></param>
-        /// <returns></returns>
-        public static string Topic2JPath(string Topic)
-        {
-            try
-            {
-                string sPath = "";
-                List<string> lItems = Topic.Split('/').ToList();
-                for (int i = 0; i < lItems.Count(); i++)
+        /*      /// <summary>
+                /// Convert Topic /Key/Key/[0]/val to JSON Path format Key.Key[0].val
+                /// </summary>
+                /// <param name="Topic"></param>
+                /// <returns></returns>
+                public static string Topic2JPath(string Topic)
                 {
-                    bool bArray = false;
-                    int iVal = -1;
-                    if (i + 1 < lItems.Count())
+                    try
                     {
-                        if (lItems[i + 1].Contains("[") && int.TryParse(lItems[i + 1].TrimStart('[').TrimEnd(']'), out iVal))
-                            bArray = true;
-                        else
-                            bArray = false;
+                        string sPath = "";
+                        List<string> lItems = Topic.Split('/').ToList();
+                        for (int i = 0; i < lItems.Count(); i++)
+                        {
+                            bool bArray = false;
+                            int iVal = -1;
+                            if (i + 1 < lItems.Count())
+                            {
+                                if (lItems[i + 1].Contains("[") && int.TryParse(lItems[i + 1].TrimStart('[').TrimEnd(']'), out iVal))
+                                    bArray = true;
+                                else
+                                    bArray = false;
+                            }
+                            if (!bArray)
+                                sPath += lItems[i] + ".";
+                            else
+                            {
+                                sPath += lItems[i] + "[" + iVal.ToString() + "].";
+                                i++;
+                            }
+                        }
+
+                        return sPath.TrimEnd('.');
                     }
-                    if (!bArray)
-                        sPath += lItems[i] + ".";
-                    else
-                    {
-                        sPath += lItems[i] + "[" + iVal.ToString() + "].";
-                        i++;
-                    }
+                    catch { }
+
+                    return "";
                 }
-
-                return sPath.TrimEnd('.');
-            }
-            catch { }
-
-            return "";
-        }
-        */
+                */
 
         class TopicComparer : IComparer<string>
         {
@@ -1083,9 +1085,9 @@ namespace jaindb
                         return lResult;
                     }
 
-                    if(UseFileStore)
+                    if (UseFileStore)
                     {
-                        foreach(var oFile in new DirectoryInfo("wwwroot/Chain").GetFiles("*.json"))
+                        foreach (var oFile in new DirectoryInfo("wwwroot/Chain").GetFiles("*.json"))
                         {
                             lResult.Add(oFile.Name.Split('.')[0]);
                         }
@@ -1220,10 +1222,15 @@ namespace jaindb
             return lResult;
         }
 
-        public static bool Export(string URL)
+        public static bool Export(string URL, string RemoveObjects)
         {
             int iCount = 0;
             bool bResult = true;
+            ParallelOptions po = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            };
+
             try
             {
                 oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -1235,7 +1242,7 @@ namespace jaindb
                         try
                         {
                             var jObj = JObject.Parse(cache3.StringGet(sID));
-                            foreach(var sBlock in jObj.SelectTokens("Chain[*].data"))
+                            Parallel.ForEach(jObj.SelectTokens("Chain[*].data"), sBlock =>
                             {
                                 try
                                 {
@@ -1246,6 +1253,21 @@ namespace jaindb
                                         jBlock.Remove("#Id"); //old Version of jainDB 
                                         //jBlock.Remove("_date");
                                         jBlock.Remove("_index");
+
+                                        //Remove Objects from Chain
+                                        foreach (string sRemObj in RemoveObjects.Split(';'))
+                                        {
+                                            try
+                                            {
+                                                foreach (var oTok in jBlock.Descendants().Where(t => t.Path == sRemObj).ToList())
+                                                {
+                                                    oTok.Remove();
+                                                    break;
+                                                }
+                                            }
+                                            catch { }
+                                        }
+
                                         //jBlock.Add("#id", sID);
 
                                         string sResult = UploadToREST(URL + "/upload/" + sID, jBlock.ToString(Formatting.None));
@@ -1261,19 +1283,24 @@ namespace jaindb
                                         }
                                     }
                                 }
-                                catch(Exception ex)
+                                catch (Exception ex)
                                 {
                                     Console.WriteLine("Error: " + ex.Message);
                                     bResult = false;
                                 }
+                            });
+
+                            /*foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
+                            {
+
                             }
-                            System.Threading.Thread.Sleep(100);
+                            System.Threading.Thread.Sleep(100);*/
                         }
                         catch { bResult = false; }
                     }
                 }
 
-                if(UseFileStore)
+                if (UseFileStore)
                 {
                     foreach (var sID in GetAllChainsAsync().Result)
                     {
@@ -1292,6 +1319,20 @@ namespace jaindb
                                         //jBlock.Remove("_date");
                                         jBlock.Remove("_index");
                                         //jBlock.Add("#id", sID);
+
+                                        //Remove Objects from Chain
+                                        foreach (string sRemObj in RemoveObjects.Split(';'))
+                                        {
+                                            try
+                                            {
+                                                foreach (var oTok in jBlock.Descendants().Where(t => t.Path == sRemObj).ToList())
+                                                {
+                                                    oTok.Remove();
+                                                    break;
+                                                }
+                                            }
+                                            catch { }
+                                        }
 
                                         string sResult = UploadToREST(URL + "/upload/" + sID, jBlock.ToString(Formatting.None));
                                         //System.Threading.Thread.Sleep(50);
@@ -1339,7 +1380,7 @@ namespace jaindb
 
 
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 ex.Message.ToString();
             }

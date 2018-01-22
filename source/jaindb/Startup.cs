@@ -12,6 +12,9 @@ using Microsoft.AspNetCore.Mvc.Formatters;
 using System.IO;
 using System.Diagnostics;
 using Microsoft.Azure.Documents.Client;
+using System.Net;
+using System.Net.Sockets;
+using System.Linq;
 
 namespace jaindb
 {
@@ -102,13 +105,26 @@ namespace jaindb
 
         private void OnStartup()
         {
+            string sIP = "localhost";
+
+            try
+            {
+                IPAddress ip = Dns.GetHostAddresses(Dns.GetHostName()).Where(address =>
+                address.AddressFamily == AddressFamily.InterNetwork).First();
+
+                sIP = ip.ToString();
+            }
+            catch { }
+
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
+                Environment.SetEnvironmentVariable("WebPort", "5000");
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("localURL")))
-                Environment.SetEnvironmentVariable("localURL", "http://localhost:5000");
+                Environment.SetEnvironmentVariable("localURL", "http://" + sIP);
 
             Console.WriteLine(" ");
             Console.WriteLine("-------------------------------------------------------------------");
             Console.WriteLine("PowerShell Inventory:");
-            Console.WriteLine(Environment.ExpandEnvironmentVariables("Invoke-RestMethod -Uri '%localURL%/getps' | iex"));
+            Console.WriteLine(Environment.ExpandEnvironmentVariables("Invoke-RestMethod -Uri '%localURL%:%WebPort%/getps' | iex"));
             Console.WriteLine("-------------------------------------------------------------------");
             Console.WriteLine(" ");
 
@@ -144,8 +160,21 @@ namespace jaindb
                         Inv.cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
                         Inv.cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
                     }
+
+                    //Get RedisServer from EnvironmentVariable
+                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RedisServer")))
+                        Environment.SetEnvironmentVariable("RedisServer", "localhost");
+                    string sRedisServer = Environment.GetEnvironmentVariable("RedisServer") ?? "localhost";
+                    RedisConnectorHelper.RedisServer = sRedisServer;
+
+                    //Get RedisPort from EnvironmentVariable
+                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RedisPort")))
+                        Environment.SetEnvironmentVariable("RedisPort", "6379");
+                    int iRedisPort = int.Parse(Environment.GetEnvironmentVariable("RedisPort") ?? "6379");
+                    RedisConnectorHelper.RedisPort = iRedisPort;
+
                     if (Inv.srv == null)
-                        Inv.srv = RedisConnectorHelper.Connection.GetServer("127.0.0.1", 6379);
+                        Inv.srv = RedisConnectorHelper.Connection.GetServer(sRedisServer, iRedisPort);
 
                     Inv.UseRedis = true;
 

@@ -200,7 +200,7 @@ $object | Add-Member -MemberType NoteProperty -Name "LocalAdmins" -Value ($locAd
 $locGroup = Get-LocalGroup | Select-Object Description, Name, PrincipalSource, ObjectClass | Sort-Object -Property Name
 $object | Add-Member -MemberType NoteProperty -Name "LocalGroups" -Value ($locGroup)
 
-$FWRules = Get-NetFirewallRule | Select-Object Name,DisplayName,Description,DisplayGroup,Group,Enabled,Profile,Platform,Direction,Action,EdgeTraversalPolicy,LooseSourceMapping,LocalOnlyMapping,Owner,PrimaryStatus,Status,EnforcementStatus,PolicyStoreSource,PolicyStoreSourceType | Sort-Object -Property Name
+$FWRules = Get-NetFirewallRule | Select-Object DisplayName,Description,DisplayGroup,Group,Enabled,Profile,Platform,Direction,Action,EdgeTraversalPolicy,LooseSourceMapping,LocalOnlyMapping,Owner,PrimaryStatus,Status,EnforcementStatus,PolicyStoreSource,PolicyStoreSourceType | Sort-Object -Property DisplayName
 $object | Add-Member -MemberType NoteProperty -Name "FirewallRules" -Value ($FWRules)
 
 #Windows Universal Apps
