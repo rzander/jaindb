@@ -173,6 +173,7 @@ namespace jaindb
                     int iRedisPort = int.Parse(Environment.GetEnvironmentVariable("RedisPort") ?? "6379");
                     RedisConnectorHelper.RedisPort = iRedisPort;
 
+                    Console.WriteLine("RedisServer: " + sRedisServer + " on Port: " + iRedisPort.ToString());
                     if (Inv.srv == null)
                         Inv.srv = RedisConnectorHelper.Connection.GetServer(sRedisServer, iRedisPort);
 
@@ -181,6 +182,7 @@ namespace jaindb
                 }
                 catch (Exception ex)
                 {
+                    Console.WriteLine("RedisServer: " + RedisConnectorHelper.RedisServer + " on Port: " + RedisConnectorHelper.RedisPort.ToString());
                     Console.WriteLine("ERROR: " + ex.Message);
                     Console.WriteLine("Redis = disabled, FileStore = enabled !!!");
                     Inv.UseRedis = false;

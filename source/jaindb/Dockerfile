@@ -29,7 +29,8 @@ RUN rm -f -r /app/wwwroot/bin
 #RUN apt-get autoremove -y
 #RUN apt-get clean
 ENV localURL "http://localhost"
-ENV WebPort "5000"
+ENV WebPort 5000
 ENV UseRedis 1
 ENV UseCosmosDB 0
 ENV UseFileSystem 0
+ENV StartDelay 3000

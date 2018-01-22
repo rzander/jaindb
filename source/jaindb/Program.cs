@@ -36,7 +36,14 @@ namespace jaindb
                     };
                     Console.WriteLine("starting Redis-Server ...");
                     var oInit = Process.Start(psi); //>/dev/null 2>/dev/null
-                    oInit.WaitForExit(3000);
+
+                    int iDelay = 3000;
+                    if(!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("StartDelay")))
+                    {
+                        iDelay = int.Parse(Environment.GetEnvironmentVariable("StartDelay") ?? "3000");
+                    }
+
+                    oInit.WaitForExit(iDelay);
                     Console.WriteLine("... Done.");
 
                     //Thread.Sleep(2000);

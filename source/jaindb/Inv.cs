@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 using static jaindb.BlockChain;
 
@@ -1226,10 +1227,6 @@ namespace jaindb
         {
             int iCount = 0;
             bool bResult = true;
-            ParallelOptions po = new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Environment.ProcessorCount
-            };
 
             try
             {
@@ -1237,12 +1234,13 @@ namespace jaindb
 
                 if (UseRedis)
                 {
-                    foreach (var sID in GetAllChainsAsync().Result)
+                    foreach (var sID in GetAllChainsAsync().Result) //Keep it single threaded, to prevent Redis Timeouts
                     {
                         try
                         {
                             var jObj = JObject.Parse(cache3.StringGet(sID));
-                            Parallel.ForEach(jObj.SelectTokens("Chain[*].data"), sBlock =>
+
+                            foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
                             {
                                 try
                                 {
@@ -1288,13 +1286,8 @@ namespace jaindb
                                     Console.WriteLine("Error: " + ex.Message);
                                     bResult = false;
                                 }
-                            });
-
-                            /*foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
-                            {
-
                             }
-                            System.Threading.Thread.Sleep(100);*/
+                            Thread.Sleep(100);
                         }
                         catch { bResult = false; }
                     }
