@@ -1,5 +1,5 @@
 ﻿// ************************************************************************************
-//          Blockchain library (c) Copyright 2017 by Roger Zander
+//          Blockchain library (c) Copyright 2018 by Roger Zander
 // ************************************************************************************
 
 using System;

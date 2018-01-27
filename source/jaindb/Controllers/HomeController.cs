@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace jaindb.Controllers
 {
@@ -15,9 +16,13 @@ namespace jaindb.Controllers
     public class HomeController : Controller
     {
         private readonly IConfiguration _config;
-        public HomeController(IConfiguration config)
+        private readonly ILogger _logger;
+
+        public HomeController(IConfiguration config, ILogger<HomeController> logger)
         {
-            this._config = config;
+            _config = config;
+            _logger = logger;
+
         }
 
         [HttpGet]
@@ -33,13 +38,14 @@ namespace jaindb.Controllers
         {
             var oGet = new StreamReader(Request.Body, true).ReadToEndAsync();
 
-            return Inv.UploadFull(oGet.Result.ToString(), Id);
+            return jDB.UploadFull(oGet.Result.ToString(), Id);
         }
 
         [HttpGet]
         [Route("GetPS")]
         public string GetPS()
         {
+
             if (System.IO.File.Exists("/app/wwwroot/inventory.ps1"))
             {
                 string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
@@ -76,12 +82,12 @@ namespace jaindb.Controllers
                 string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
 
                 if (string.IsNullOrEmpty(sKey))
-                    sKey = Inv.LookupID(query.First().Key, query.First().Value);
+                    sKey = jDB.LookupID(query.First().Key, query.First().Value);
                 //int index = -1;
                 if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
                     index = -1;
 
-                return Inv.GetFull(sKey, index);
+                return jDB.GetFull(sKey, index);
             }
             return null;
         }
@@ -99,7 +105,7 @@ namespace jaindb.Controllers
                 string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
 
                 if (string.IsNullOrEmpty(sKey))
-                    sKey = Inv.LookupID(query.First().Key, query.First().Value);
+                    sKey = jDB.LookupID(query.First().Key, query.First().Value);
 
                 if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
                     index = 1;
@@ -107,7 +113,7 @@ namespace jaindb.Controllers
                 if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "mode").Value, out int mode))
                     mode = 0;
 
-                return Inv.GetDiff(sKey, index, mode);
+                return jDB.GetDiff(sKey, index, mode);
             }
             return null;
         }
@@ -122,7 +128,7 @@ namespace jaindb.Controllers
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
-                return Json(Inv.search(query.FirstOrDefault(t => string.IsNullOrEmpty(t.Value)).Key, query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value));
+                return Json(jDB.search(query.FirstOrDefault(t => string.IsNullOrEmpty(t.Value)).Key, query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value));
             }
             return null;
         }
@@ -140,7 +146,7 @@ namespace jaindb.Controllers
                 //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
                 var query = QueryHelpers.ParseQuery(sQuery);
 
-                return Inv.query(string.Join(",", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value);
+                return jDB.query(string.Join(",", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value);
             }
             return null;
         }
@@ -157,7 +163,7 @@ namespace jaindb.Controllers
                 //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
                 var query = QueryHelpers.ParseQuery(sQuery);
 
-                return Inv.queryAll(string.Join(",", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value);
+                return jDB.queryAll(string.Join(",", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value);
             }
             return null;
         }
@@ -174,9 +180,9 @@ namespace jaindb.Controllers
                 string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
 
                 if (string.IsNullOrEmpty(sKey))
-                    sKey = Inv.LookupID(query.First().Key, query.First().Value);
+                    sKey = jDB.LookupID(query.First().Key, query.First().Value);
 
-                return Inv.GetHistory(sKey);
+                return jDB.GetHistory(sKey);
             }
             return null;
         }
@@ -195,9 +201,9 @@ namespace jaindb.Controllers
                 string sRemove = query.FirstOrDefault(t => t.Key.ToLower() == "remove").Value;
 
                 if (!string.IsNullOrEmpty(sTarget))
-                    Inv.Export(sTarget, sRemove ?? "");
+                    jDB.Export(sTarget, sRemove ?? "");
                 else
-                    Inv.Export("http://localhost:5000", sRemove ?? "");
+                    jDB.Export("http://localhost:5000", sRemove ?? "");
             }
             catch { }
 

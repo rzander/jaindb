@@ -1,5 +1,5 @@
 ﻿// ************************************************************************************
-//          jaindb (c) Copyright 2017 by Roger Zander
+//          jaindb (c) Copyright 2018 by Roger Zander
 // ************************************************************************************
 
 using Microsoft.Azure.Documents;
@@ -9,6 +9,7 @@ using Newtonsoft.Json.Linq;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -27,7 +28,11 @@ namespace jaindb
         {
             RedisConnectorHelper.lazyConnection = new Lazy<ConnectionMultiplexer>(() =>
             {
-                return ConnectionMultiplexer.Connect(RedisServer + ":" + RedisPort.ToString());
+                ConfigurationOptions oOpt = new ConfigurationOptions();
+                oOpt.EndPoints.Add(RedisServer + ":" + RedisPort.ToString());
+                oOpt.AbortOnConnectFail = true;
+
+                return ConnectionMultiplexer.Connect(oOpt);
             });
         }
 
@@ -42,7 +47,7 @@ namespace jaindb
         }
     }
 
-    public static class Inv
+    public static class jDB
     {
         public enum hashType { MD5, SHA2_256 } //Implemented Hash types
         private static readonly object locker = new object();
@@ -102,24 +107,40 @@ namespace jaindb
             return "";
         }
 
-        public static void WriteHash(JToken oRoot, ref JObject oStatic, string Collection)
+        public static void WriteHash(ref JToken oRoot, ref JObject oStatic, string Collection)
         {
-            //JSort(oStatic);
-            string sHash = CalculateHash(oRoot.ToString(Newtonsoft.Json.Formatting.None));
-            if (string.IsNullOrEmpty(sHash))
-                return;
-            string sPath = oRoot.Path;
-
-            var oClass = oStatic.SelectToken(sPath);// as JObject;
-
-            if (oClass != null)
+            try
             {
-                if (oClass.Type == JTokenType.Object)
+                //Remove NULL values
+                foreach (var oTok in ((JContainer)oRoot).Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).ToList())
                 {
-                    ((JObject)oClass).Add("##hash", sHash);
-
-                    WriteHash(sHash, oRoot.ToString(Newtonsoft.Json.Formatting.None), Collection);
+                    oTok.Remove();
                 }
+
+                //JSort(oStatic);
+                string sHash = CalculateHash(oRoot.ToString(Newtonsoft.Json.Formatting.None));
+                if (string.IsNullOrEmpty(sHash))
+                    return;
+                string sPath = oRoot.Path;
+
+                var oClass = oStatic.SelectToken(sPath);// as JObject;
+
+                if (oClass != null)
+                {
+                    if (oClass.Type == JTokenType.Object)
+                    {
+                        ((JObject)oClass).Add("##hash", sHash);
+
+                        WriteHash(sHash, oRoot.ToString(Newtonsoft.Json.Formatting.None), Collection);
+
+                        oRoot = oClass;
+                    }
+                }
+
+            }
+            catch(Exception ex)
+            {
+                ex.Message.ToString();
             }
         }
 
@@ -410,57 +431,100 @@ namespace jaindb
                 //Load BlockChain
                 Blockchain oChain = GetChain(DeviceID);
 
-                //Remove dynamic data
-                foreach (var oTok in oObj.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("#")).ToList())
-                {
-                    oTok.Remove();
-                }
-                foreach (var oTok in oObj.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
-                {
-                    oTok.Remove();
-                }
-
-
-                //Remove static data
-                foreach (var oTok in oStatic.Descendants().Where(t => t.Type == (JTokenType.Property) && !((JProperty)t).Name.StartsWith("#") && ((JProperty)t).Path.Contains(".")).ToList())
-                {
-                    oTok.Remove();
-                }
-                foreach (var oTok in oStatic.Properties().Where(t => t.Type == (JTokenType.Property) && ((JProperty)t).Name.StartsWith("@") && ((JProperty)t).Path.StartsWith("@")).ToList())
-                {
-                    oTok.Remove();
-                }
-
                 //Remove NULL values
                 foreach (var oTok in oStatic.Descendants().Where(t => t.Parent.Type == (JTokenType.Property) && t.Type == JTokenType.Null).ToList())
                 {
-                    oTok.Parent.Remove();
+                    try
+                    {
+                        oTok.Parent.Remove();
+                    }
+                    catch(Exception ex)
+                    {
+                        Debug.WriteLine("Errort UploadFull_1: " + ex.Message.ToString());
+                    }
                 }
                 JSort(oObj);
                 JSort(oStatic);
 
-                foreach (var oRoot in oObj.Children())
+                var jObj = oObj;
+
+                //Loop through all ChildObjects
+                foreach (var oChild in jObj.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
                 {
                     try
                     {
-                        if (oRoot.First.Type == JTokenType.Array)
+                        JToken tRef = oObj.SelectToken(oChild.Path, false);
+
+                        //check if tRfe is valid..
+                        if (tRef == null)
+                            continue;
+
+
+                        string sName = "misc";
+                        if (oChild.Parent.Type == JTokenType.Property)
+                            sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent).Name;
+                        else
+                            sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent.Parent).Name; //it's an array
+
+                        if (sName.StartsWith('@'))
+                            continue;
+
+                        foreach (JProperty jProp in oStatic.SelectToken(oChild.Path).Children().Where(t => t.Type == JTokenType.Property).ToList())
                         {
-                            foreach (var oItem in oRoot.First.Children())
+                            try
                             {
-                                if (oItem.Type == JTokenType.Object)
-                                    WriteHash(oItem, ref oStatic, ((Newtonsoft.Json.Linq.JProperty)oRoot).Name);
+                                if (!jProp.Name.StartsWith('#'))
+                                {
+                                    if (jProp.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("#")).Count() == 0)
+                                    {
+                                        jProp.Remove();
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine("Errort UploadFull_2: " + ex.Message.ToString());
                             }
                         }
-                        else
-                        {
-                            WriteHash(oRoot.First, ref oStatic, ((Newtonsoft.Json.Linq.JProperty)oRoot).Name);
-                        }
-                    }
-                    catch { }
 
+
+                        //remove all # and @ attributes
+                        foreach (var oKey in tRef.Parent.Descendants().Where(t => t.Type == JTokenType.Property && (((JProperty)t).Name.StartsWith("#") || ((JProperty)t).Name.StartsWith("@"))).ToList())
+                        {
+                            try
+                            {
+                                oKey.Remove();
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine("Errort UploadFull_3: " + ex.Message.ToString());
+                            }
+                        }
+
+                        WriteHash(ref tRef, ref oStatic, sName);
+                        oObj.SelectToken(oChild.Path).Replace(tRef);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine("Errort UploadFull_4: " + ex.Message.ToString());
+                    }
                 }
 
-                JSort(oStatic);
+                //remove all # and @ objects
+                foreach (var oKey in oStatic.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
+                {
+                    try
+                    {
+                        oKey.Remove();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine("Errort UploadFull_5: " + ex.Message.ToString());
+                    }
+                }
+
+                JSort(oStatic, true);
                 string sResult = CalculateHash(oStatic.ToString(Newtonsoft.Json.Formatting.None));
 
                 var oBlock = oChain.GetLastBlock();
@@ -475,24 +539,28 @@ namespace jaindb
                         Console.WriteLine("Blockchain is valid... " + DeviceID);
                         WriteHash(DeviceID, JsonConvert.SerializeObject(oChain), "Chain");
 
-                        //Add an #id if missing
+                        //Add missing attributes
                         if (oStatic["#id"] == null)
-                        {
                             oStatic.Add(new JProperty("#id", DeviceID));
-                            jTemp.Add(new JProperty("#id", DeviceID));
-                        }
 
-                        oStatic.Add(new JProperty("_index", oNew.index));
+                        if (jTemp["#id"] == null)
+                            jTemp.Add(new JProperty("#id", DeviceID));
+
+                        if (oStatic["_index"] == null)
+                            oStatic.Add(new JProperty("_index", oNew.index));
+
+                        if (jTemp["_index"] == null)
+                            jTemp.Add(new JProperty("_index", oNew.index));
 
                         if (oStatic["_date"] == null)
                             oStatic.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
 
-                        jTemp.Add(new JProperty("_index", oNew.index));
-
                         if (jTemp["_date"] == null)
                             jTemp.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
 
-                        jTemp.Add(new JProperty("_hash", oNew.data));
+                        if (jTemp["_hash"] == null)
+                            jTemp.Add(new JProperty("_hash", oNew.data));
+
                         JSort(jTemp);
 
                         WriteHash(DeviceID, jTemp.ToString(Formatting.None), "_Full");
@@ -503,14 +571,16 @@ namespace jaindb
                     }
                 }
 
-
                 JSort(oStatic);
                 WriteHash(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "Assets");
 
 
                 return sResult;
             }
-            catch { }
+            catch(Exception ex)
+            {
+                Debug.WriteLine("Errort UploadFull_6: " + ex.Message.ToString());
+            }
 
             return "";
         }
@@ -540,40 +610,132 @@ namespace jaindb
                     {
                         if (oInv["_index"] == null)
                             oInv.Add(new JProperty("_index", oRaw["_index"]));
-                        if (oInv["_inventoryDate"] == null)
-                            oInv.Add(new JProperty("_inventoryDate", oRaw["_inventoryDate"]));
+                        if (oInv["_date"] == null)
+                            oInv.Add(new JProperty("_date", oRaw["_date"]));
                         if (oInv["_hash"] == null)
                             oInv.Add(new JProperty("_hash", oRaw["_hash"]));
                     }
                     catch { }
 
+                    List<string> lHashes = new List<string>();
+
                     //Load hashed values
                     foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
                     {
-                        string sH = oTok.Value.ToString();
-                        string sRoot = oTok.Path.Split('.')[0].Split('[')[0];
-                        string sObj = ReadHash(sH, sRoot);
-                        if (!string.IsNullOrEmpty(sObj))
+                        lHashes.Add(oTok.Path);
+                    }
+
+                    //Remove merge ##hash with hasehd value
+                    foreach(string sHash in lHashes)
+                    {
+                        try
                         {
-                            var jStatic = JObject.Parse(sObj);
-                            oTok.Parent.Merge(jStatic);
-                            oTok.Remove();
+                            JProperty oTok = oInv.SelectToken(sHash).Parent as JProperty;
+                            string sH = oTok.Value.ToString();
+
+                            List<string> aPathItems = oTok.Path.Split('.').ToList();
+                            aPathItems.Reverse();
+                            string sRoot = "";
+                            if (aPathItems.Count > 1)
+                                sRoot = aPathItems[1].Split('[')[0];
+
+                            string sObj = ReadHash(sH, sRoot);
+                            if (!string.IsNullOrEmpty(sObj))
+                            {
+                                var jStatic = JObject.Parse(sObj);
+                                oTok.Parent.Merge(jStatic);
+
+                                //Remove NULL values as a rusult from merge
+                                foreach (var jObj in (oTok.Parent.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
+                                {
+                                    try
+                                    {
+                                        if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Array)
+                                        {
+                                            jObj.Parent.Parent.Remove();
+                                        }
+                                        if (jObj.Parent.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
+                                        {
+                                            jObj.Parent.Parent.Remove();
+                                        }
+                                        if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
+                                        {
+                                            jObj.Parent.Remove();
+                                        }
+                                        else
+                                        {
+                                            jObj.Remove();
+                                        }
+                                    }
+                                    catch(Exception ex)
+                                    {
+                                        Debug.WriteLine("Errort GetFull_1: " + ex.Message.ToString());
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                sObj.ToString();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine("Errort GetFull_2: " + ex.Message.ToString());
                         }
                     }
 
-                    JSort(oInv);
+                    //Remove ##hash
+                    foreach (var oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
+                    {
+                        try
+                        {
+                            if (oInv.SelectToken(oTok.Path).Parent.Parent.Children().Count() == 1)
+                                oInv.SelectToken(oTok.Path).Parent.Parent.Remove();
+                            else
+                                oInv.SelectToken(oTok.Path).Parent.Remove();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine("Errort GetFull_3: " + ex.Message.ToString());
+                        }
+                    }
+
+                    try
+                    {
+                        //Remove NULL values
+                        foreach (var oTok in (oInv.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
+                        {
+                            try
+                            {
+                                if(oTok.Parent.Count == 1)
+                                {
+                                    oTok.Parent.Remove();
+                                }
+
+                                oTok.Remove();
+                            }
+                            catch(Exception ex)
+                            {
+                                Debug.WriteLine("Errort GetFull_4: " + ex.Message.ToString());
+                            }
+                        }
+                    }
+                    catch { }
+                    JSort(oInv, true);
 
                     if (Index == -1)
                     {
                         WriteHash(DeviceID, oInv.ToString(), "_full");
                     }
 
-
                     return oInv;
                 }
 
             }
-            catch { }
+            catch(Exception ex)
+            {
+                Debug.WriteLine("Errort GetFull_5: "  + ex.Message.ToString());
+            }
 
             return new JObject();
         }
@@ -1248,7 +1410,7 @@ namespace jaindb
                                     if (!string.IsNullOrEmpty(sBlockID))
                                     {
                                         var jBlock = GetRaw(cache4.StringGet(sBlockID));
-                                        jBlock.Remove("#Id"); //old Version of jainDB 
+                                        jBlock.Remove("#id"); //old Version of jainDB 
                                         //jBlock.Remove("_date");
                                         jBlock.Remove("_index");
 
@@ -1308,7 +1470,7 @@ namespace jaindb
                                     if (!string.IsNullOrEmpty(sBlockID))
                                     {
                                         var jBlock = GetRaw(ReadHash(sBlockID, "Assets"));
-                                        jBlock.Remove("#Id"); //old Version of jainDB 
+                                        jBlock.Remove("#id"); //old Version of jainDB 
                                         //jBlock.Remove("_date");
                                         jBlock.Remove("_index");
                                         //jBlock.Add("#id", sID);

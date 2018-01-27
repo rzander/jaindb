@@ -1,5 +1,5 @@
 ﻿// ************************************************************************************
-//          jaindb (c) Copyright 2017 by Roger Zander
+//          jaindb (c) Copyright 2018 by Roger Zander
 // ************************************************************************************
 
 using System;
@@ -15,6 +15,8 @@ using Microsoft.Azure.Documents.Client;
 using System.Net;
 using System.Net.Sockets;
 using System.Linq;
+using Microsoft.Extensions.Logging.Console;
+using System.Net.NetworkInformation;
 
 namespace jaindb
 {
@@ -82,7 +84,7 @@ namespace jaindb
                 routes.MapRoute(
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
-            });
+            }); 
         }
 
         private void OnShutdown()
@@ -109,10 +111,16 @@ namespace jaindb
 
             try
             {
-                IPAddress ip = Dns.GetHostAddresses(Dns.GetHostName()).Where(address =>
-                address.AddressFamily == AddressFamily.InterNetwork).First();
+                foreach (NetworkInterface f in NetworkInterface.GetAllNetworkInterfaces().Where(t => t.OperationalStatus == OperationalStatus.Up))
+                    foreach (GatewayIPAddressInformation d in f.GetIPProperties().GatewayAddresses.Where(t => t.Address.AddressFamily == AddressFamily.InterNetwork))
+                    {
+                        sIP = f.GetIPProperties().UnicastAddresses.Where(t => t.Address.AddressFamily == AddressFamily.InterNetwork).First().Address.ToString();
+                    }
 
-                sIP = ip.ToString();
+                /*IPAddress ip = Dns.GetHostAddresses(Dns.GetHostName()).Where(address =>
+                address.AddressFamily == AddressFamily.InterNetwork).First();*/
+
+                //sIP = ip.ToString();
             }
             catch { }
 
@@ -135,16 +143,16 @@ namespace jaindb
             switch (sHashType.ToLower())
             {
                 case "md5":
-                    Inv.HashType = Inv.hashType.MD5;
+                    jDB.HashType = jDB.hashType.MD5;
                     break;
                 case "sha256":
-                    Inv.HashType = Inv.hashType.SHA2_256;
+                    jDB.HashType = jDB.hashType.SHA2_256;
                     break;
                 case "sha2_256":
-                    Inv.HashType = Inv.hashType.SHA2_256;
+                    jDB.HashType = jDB.hashType.SHA2_256;
                     break;
                 default:
-                    Inv.HashType = Inv.hashType.MD5;
+                    jDB.HashType = jDB.hashType.MD5;
                     break;
             }
 
@@ -152,13 +160,13 @@ namespace jaindb
             {
                 try
                 {
-                    if (Inv.cache0 == null)
+                    if (jDB.cache0 == null)
                     {
-                        Inv.cache0 = RedisConnectorHelper.Connection.GetDatabase(0);
-                        Inv.cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
-                        Inv.cache2 = RedisConnectorHelper.Connection.GetDatabase(2);
-                        Inv.cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
-                        Inv.cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
+                        jDB.cache0 = RedisConnectorHelper.Connection.GetDatabase(0);
+                        jDB.cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
+                        jDB.cache2 = RedisConnectorHelper.Connection.GetDatabase(2);
+                        jDB.cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
+                        jDB.cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
                     }
 
                     //Get RedisServer from EnvironmentVariable
@@ -174,10 +182,10 @@ namespace jaindb
                     RedisConnectorHelper.RedisPort = iRedisPort;
 
                     Console.WriteLine("RedisServer: " + sRedisServer + " on Port: " + iRedisPort.ToString());
-                    if (Inv.srv == null)
-                        Inv.srv = RedisConnectorHelper.Connection.GetServer(sRedisServer, iRedisPort);
+                    if (jDB.srv == null)
+                        jDB.srv = RedisConnectorHelper.Connection.GetServer(sRedisServer, iRedisPort);
 
-                    Inv.UseRedis = true;
+                    jDB.UseRedis = true;
 
                 }
                 catch (Exception ex)
@@ -185,8 +193,8 @@ namespace jaindb
                     Console.WriteLine("RedisServer: " + RedisConnectorHelper.RedisServer + " on Port: " + RedisConnectorHelper.RedisPort.ToString());
                     Console.WriteLine("ERROR: " + ex.Message);
                     Console.WriteLine("Redis = disabled, FileStore = enabled !!!");
-                    Inv.UseRedis = false;
-                    Inv.UseFileStore = true;
+                    jDB.UseRedis = false;
+                    jDB.UseFileStore = true;
                 }
             }
 
@@ -194,21 +202,21 @@ namespace jaindb
             {
                 try
                 {
-                    Inv.databaseId = "Assets";
-                    Inv.endpointUrl = "https://localhost:8081";
-                    Inv.authorizationKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
-                    Inv.CosmosDB = new DocumentClient(new Uri(Inv.endpointUrl), Inv.authorizationKey);
+                    jDB.databaseId = "Assets";
+                    jDB.endpointUrl = "https://localhost:8081";
+                    jDB.authorizationKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
+                    jDB.CosmosDB = new DocumentClient(new Uri(jDB.endpointUrl), jDB.authorizationKey);
 
-                    Inv.CosmosDB.OpenAsync();
+                    jDB.CosmosDB.OpenAsync();
 
-                    Inv.UseCosmosDB = true;
+                    jDB.UseCosmosDB = true;
                 }
                 catch { }
             }
 
             if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
             {
-                Inv.UseFileStore = true;
+                jDB.UseFileStore = true;
             }
 
             int iComplexity = 0;
@@ -219,7 +227,7 @@ namespace jaindb
                     int.TryParse(Configuration.GetSection("jaindb:PoWComplexitity").Value, out iComplexity);
                 }
             }
-            Inv.PoWComplexitity = iComplexity;
+            jDB.PoWComplexitity = iComplexity;
         }
     }
 }
