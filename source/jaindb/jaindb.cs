@@ -4,6 +4,7 @@
 
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
+using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StackExchange.Redis;
@@ -70,6 +71,8 @@ namespace jaindb
         internal static IDatabase cache4;
         internal static IServer srv;
 
+        internal static IMemoryCache _cache;
+
         public static hashType HashType = hashType.MD5;
 
         public static string BlockType = "INV";
@@ -88,23 +91,61 @@ namespace jaindb
             }
         }
 
+        /// <summary>
+        /// Lookup Key ID's to search for Objects based on their Key
+        /// </summary>
+        /// <param name="name">Key name to search. E.g. "name"</param>
+        /// <param name="value">Value to search. E.g. "computer01"</param>
+        /// <returns>Hash ID of the Object</returns>
         public static string LookupID(string name, string value)
         {
+            string sResult = "";
             try
             {
-                if (UseRedis)
+                //Check in MemoryCache
+                if (_cache.TryGetValue("ID-" + name, out sResult))
                 {
-                    return cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
+                    return sResult;
                 }
-
-                if (UseFileStore)
+                else
                 {
-                    return File.ReadAllText("wwwroot\\" + "_Key" + "\\" + name.TrimStart('#', '@') + "\\" + value + ".json");
+                    if (UseRedis)
+                    {
+                        sResult = cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
+
+                        //Cache result in Memory
+                        if (!string.IsNullOrEmpty(sResult))
+                        {
+                            var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 1min
+                            _cache.Set("ID-" + name, sResult, cacheEntryOptions);
+                        }
+
+                        return sResult;
+                    }
+
+                    if (UseFileStore || UseCosmosDB)
+                    {
+
+                        sResult = File.ReadAllText("wwwroot\\" + "_Key" + "\\" + name.TrimStart('#', '@') + "\\" + value + ".json");
+
+                        //Cache result in Memory
+                        if (!string.IsNullOrEmpty(sResult))
+                        {
+                            var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
+                            _cache.Set("ID-" + name, sResult, cacheEntryOptions);
+                        }
+
+                        return sResult;
+
+                    }
                 }
             }
-            catch { }
+            catch(Exception ex)
+            {
+                Debug.WriteLine("Error LookupID_1: " + ex.Message.ToString());
+            }
 
-            return "";
+            return sResult;
         }
 
         public static void WriteHash(ref JToken oRoot, ref JObject oStatic, string Collection)
@@ -347,57 +388,91 @@ namespace jaindb
 
         public static string ReadHash(string Hash, string Collection)
         {
+            string sResult = "";
             try
             {
-                if (UseRedis)
+                //Try to get value from Memory
+                if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
                 {
-                    switch (Collection.ToLower())
+                    return sResult;
+                }
+                else
+                {
+                    if (UseRedis)
                     {
-                        case "_full":
-                            return cache0.StringGet(Hash);
+                        switch (Collection.ToLower())
+                        {
+                            case "_full":
+                                return cache0.StringGet(Hash);
 
-                        case "chain":
-                            return cache3.StringGet(Hash);
+                            case "chain":
+                                return cache3.StringGet(Hash);
 
-                        case "assets":
-                            return cache4.StringGet(Hash);
+                            case "assets":
+                                return cache4.StringGet(Hash);
 
-                        default:
-                            return cache2.StringGet(Hash);
+                            default:
+                                sResult = cache2.StringGet(Hash);
+                                
+                                //Cache result in Memory
+                                if (!string.IsNullOrEmpty(sResult))
+                                {
+                                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(30)); //cache hash for 30s
+                                    _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
+                                }
+                                return sResult;
+                        }
                     }
-                }
 
-                if (UseFileStore)
-                {
-                    return File.ReadAllText("wwwroot\\" + Collection + "\\" + Hash + ".json");
-                }
-
-                if (UseCosmosDB)
-                {
-                    if (database == null)
+                    if (UseFileStore)
                     {
-                        database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
+                        sResult = File.ReadAllText("wwwroot\\" + Collection + "\\" + Hash + ".json");
+
+                        //Cache result in Memory
+                        if (!string.IsNullOrEmpty(sResult))
+                        {
+                            var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
+                            _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
+                        }
+
+                        return sResult;
+                    }
+
+                    if (UseCosmosDB)
+                    {
                         if (database == null)
-                            database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
+                        {
+                            database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
+                            if (database == null)
+                                database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
+                        }
+
+                        var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, Collection, Hash)).Result.Resource;
+                        JObject jRes = JObject.Parse(sRes.ToString());
+                        jRes.Remove("id");
+                        jRes.Remove("_rid");
+                        jRes.Remove("_ts");
+                        jRes.Remove("_etag");
+                        jRes.Remove("_self");
+                        jRes.Remove("_attachments");
+
+                        sResult= jRes.ToString(Newtonsoft.Json.Formatting.None);
+                        //Cache result in Memory
+                        if (!string.IsNullOrEmpty(sResult))
+                        {
+                            var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
+                            _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
+                        }
+                        return sResult;
                     }
-
-                    var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, Collection, Hash)).Result.Resource;
-                    JObject jRes = JObject.Parse(sRes.ToString());
-                    jRes.Remove("id");
-                    jRes.Remove("_rid");
-                    jRes.Remove("_ts");
-                    jRes.Remove("_etag");
-                    jRes.Remove("_self");
-                    jRes.Remove("_attachments");
-
-                    return jRes.ToString(Newtonsoft.Json.Formatting.None);
                 }
-
-                return File.ReadAllText("wwwroot\\" + Collection + "\\" + Hash + ".json");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error ReadHash_1: " + ex.Message.ToString());
+            }
 
-            return "";
+            return sResult;
         }
 
         public static Blockchain GetChain(string DeviceID)
@@ -440,7 +515,7 @@ namespace jaindb
                     }
                     catch(Exception ex)
                     {
-                        Debug.WriteLine("Errort UploadFull_1: " + ex.Message.ToString());
+                        Debug.WriteLine("Error UploadFull_1: " + ex.Message.ToString());
                     }
                 }
                 JSort(oObj);
@@ -483,7 +558,7 @@ namespace jaindb
                             }
                             catch (Exception ex)
                             {
-                                Debug.WriteLine("Errort UploadFull_2: " + ex.Message.ToString());
+                                Debug.WriteLine("Error UploadFull_2: " + ex.Message.ToString());
                             }
                         }
 
@@ -497,7 +572,7 @@ namespace jaindb
                             }
                             catch (Exception ex)
                             {
-                                Debug.WriteLine("Errort UploadFull_3: " + ex.Message.ToString());
+                                Debug.WriteLine("Error UploadFull_3: " + ex.Message.ToString());
                             }
                         }
 
@@ -507,7 +582,7 @@ namespace jaindb
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine("Errort UploadFull_4: " + ex.Message.ToString());
+                        Debug.WriteLine("Error UploadFull_4: " + ex.Message.ToString());
                     }
                 }
 
@@ -520,7 +595,7 @@ namespace jaindb
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine("Errort UploadFull_5: " + ex.Message.ToString());
+                        Debug.WriteLine("Error UploadFull_5: " + ex.Message.ToString());
                     }
                 }
 
@@ -579,7 +654,7 @@ namespace jaindb
             }
             catch(Exception ex)
             {
-                Debug.WriteLine("Errort UploadFull_6: " + ex.Message.ToString());
+                Debug.WriteLine("Error UploadFull_6: " + ex.Message.ToString());
             }
 
             return "";
@@ -669,7 +744,7 @@ namespace jaindb
                                     }
                                     catch(Exception ex)
                                     {
-                                        Debug.WriteLine("Errort GetFull_1: " + ex.Message.ToString());
+                                        Debug.WriteLine("Error GetFull_1: " + ex.Message.ToString());
                                     }
                                 }
                             }
@@ -680,7 +755,7 @@ namespace jaindb
                         }
                         catch (Exception ex)
                         {
-                            Debug.WriteLine("Errort GetFull_2: " + ex.Message.ToString());
+                            Debug.WriteLine("Error GetFull_2: " + ex.Message.ToString());
                         }
                     }
 
@@ -696,7 +771,7 @@ namespace jaindb
                         }
                         catch (Exception ex)
                         {
-                            Debug.WriteLine("Errort GetFull_3: " + ex.Message.ToString());
+                            Debug.WriteLine("Error GetFull_3: " + ex.Message.ToString());
                         }
                     }
 
@@ -716,7 +791,7 @@ namespace jaindb
                             }
                             catch(Exception ex)
                             {
-                                Debug.WriteLine("Errort GetFull_4: " + ex.Message.ToString());
+                                Debug.WriteLine("Error GetFull_4: " + ex.Message.ToString());
                             }
                         }
                     }
@@ -734,7 +809,7 @@ namespace jaindb
             }
             catch(Exception ex)
             {
-                Debug.WriteLine("Errort GetFull_5: "  + ex.Message.ToString());
+                Debug.WriteLine("Error GetFull_5: "  + ex.Message.ToString());
             }
 
             return new JObject();
@@ -1400,7 +1475,9 @@ namespace jaindb
                     {
                         try
                         {
-                            var jObj = JObject.Parse(cache3.StringGet(sID));
+                            
+                            var jObj = JObject.Parse(ReadHash(sID, "chain"));
+                            //var jObj = JObject.Parse(cache3.StringGet(sID));
 
                             foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
                             {
@@ -1409,7 +1486,8 @@ namespace jaindb
                                     string sBlockID = sBlock.Value<string>();
                                     if (!string.IsNullOrEmpty(sBlockID))
                                     {
-                                        var jBlock = GetRaw(cache4.StringGet(sBlockID));
+                                        var jBlock = GetRaw(ReadHash(sBlockID, "assets"));
+                                        //var jBlock = GetRaw(cache4.StringGet(sBlockID));
                                         jBlock.Remove("#id"); //old Version of jainDB 
                                         //jBlock.Remove("_date");
                                         jBlock.Remove("_index");

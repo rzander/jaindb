@@ -41,6 +41,8 @@ namespace jaindb
 
             services.AddSingleton<IConfiguration>(Configuration);
 
+            services.AddMemoryCache();
+
             // Add framework services.
             //services.AddMvc();
             services.AddMvc(options =>

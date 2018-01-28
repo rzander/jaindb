@@ -9,6 +9,7 @@ using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace jaindb.Controllers
 {
@@ -17,12 +18,14 @@ namespace jaindb.Controllers
     {
         private readonly IConfiguration _config;
         private readonly ILogger _logger;
+        private IMemoryCache _cache;
 
-        public HomeController(IConfiguration config, ILogger<HomeController> logger)
+        public HomeController(IConfiguration config, ILogger<HomeController> logger, IMemoryCache memoryCache)
         {
             _config = config;
             _logger = logger;
-
+            _cache = memoryCache;
+            jDB._cache = memoryCache;
         }
 
         [HttpGet]
@@ -45,28 +48,62 @@ namespace jaindb.Controllers
         [Route("GetPS")]
         public string GetPS()
         {
+            string sResult = "";
+            
+            //Check in MemoryCache
+            if (_cache.TryGetValue("GetPS", out sResult))
+            {
+                return sResult;
+            }
 
             if (System.IO.File.Exists("/app/wwwroot/inventory.ps1"))
             {
                 string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
-                return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
+                sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
+                
+                //Cache result in Memory
+                if (!string.IsNullOrEmpty(sResult))
+                {
+                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
+                    _cache.Set("GetPS", sResult, cacheEntryOptions);
+                }
+
+                return sResult;
             }
 
             string sCurrDir = System.IO.Directory.GetCurrentDirectory();
             if (System.IO.File.Exists(sCurrDir + "/wwwroot/inventory.ps1"))
             {
                 string sFile = System.IO.File.ReadAllText(sCurrDir + "/wwwroot/inventory.ps1");
-                return sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort")); ;
+                sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
+
+                //Cache result in Memory
+                if (!string.IsNullOrEmpty(sResult))
+                {
+                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
+                    _cache.Set("GetPS", sResult, cacheEntryOptions);
+                }
+
+                return sResult;
             }
 
             try
             {
                 string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
-                return sFile2.Replace("%LocalURL%", "http://localhost").Replace("%WebPort%", "5000");
+                sResult = sFile2.Replace("%LocalURL%", "http://localhost").Replace("%WebPort%", "5000");
+
+                //Cache result in Memory
+                if (!string.IsNullOrEmpty(sResult))
+                {
+                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
+                    _cache.Set("GetPS", sResult, cacheEntryOptions);
+                }
+
+                return sResult;
             }
             catch { }
 
-            return "";
+            return sResult;
 
         }
 
