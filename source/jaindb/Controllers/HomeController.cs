@@ -10,6 +10,7 @@ using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
+using System.Text;
 
 namespace jaindb.Controllers
 {
@@ -245,6 +246,165 @@ namespace jaindb.Controllers
             catch { }
 
             return null;
+        }
+
+        [HttpGet]
+        [Route("html/{*.}")]
+        public ActionResult Html()
+        {
+            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
+            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+
+            JToken jData = new JObject();
+
+            switch(sPath.Replace("/html/", "").ToLower())
+            {
+                case "full":
+                    jData = Full();
+                    break;
+                case "query":
+                    jData = Query();
+                    break;
+                case "queryall":
+                    jData = QueryAll();
+                    break;
+                case "diff":
+                    jData = Diff();
+                    break;
+                case "history":
+                    jData = History();
+                    break;
+            }
+
+            StringBuilder htmlTable = new StringBuilder();
+            htmlTable.Append("<!DOCTYPE html>");
+            htmlTable.Append("<html xmlns=\"http://www.w3.org/1999/xhtml\">");
+            htmlTable.Append("<head>");
+            htmlTable.Append("<meta charset=\"utf-8\">");
+            htmlTable.Append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
+            htmlTable.Append("<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js\"></script>");
+            htmlTable.Append("<script src=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js\"></script>");
+            htmlTable.Append("<link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css\">");
+
+            htmlTable.Append("</head>");
+            htmlTable.Append("<body>");
+            htmlTable.Append("<div class=\"container-fluid\">");
+            htmlTable.Append("<table class=\"table table-bordered table-responsive\">");
+
+
+            
+            foreach(var oChild in jData.Children())
+            {
+                htmlTable.Append(GetChild(oChild));
+            }
+
+            htmlTable.Append("</table>");
+            htmlTable.Append("</div>");
+            htmlTable.Append("</body>");
+            htmlTable.Append("</html>");
+
+            return new ContentResult()
+            {
+                Content = htmlTable.ToString(),
+                ContentType = "text/HTML"
+            };
+        }
+
+        public string GetChild(JToken jChild)
+        {
+            StringBuilder htmlTable = new StringBuilder();
+
+            if (jChild.Type == JTokenType.String || jChild.Type == JTokenType.Integer)
+            {
+                htmlTable.Append("<td>");
+                htmlTable.Append(jChild.ToString());
+                htmlTable.Append("</td>");
+            }
+
+            if (jChild.Type == JTokenType.Array)
+            {
+                foreach(var oChild in jChild.Children())
+                {
+                    htmlTable.Append("<tr>");
+                    htmlTable.Append(GetChild(oChild));
+                    htmlTable.Append("</tr>");
+                }
+            }
+
+            if (jChild.Type == JTokenType.Object)
+            {
+                foreach (var oChild in jChild.Children())
+                {
+                    htmlTable.Append("<tr>");
+                    htmlTable.Append(GetChild(oChild));
+                    htmlTable.Append("</tr>");
+                }
+            }
+
+            if (jChild.Type == JTokenType.Property)
+            {
+                htmlTable.Append("<tr>");
+                htmlTable.Append("<th>");
+                htmlTable.Append(((JProperty)jChild).Name);
+                htmlTable.Append("</th>");
+                htmlTable.Append("<td>");
+
+                if (((JProperty)jChild).Value.Type == JTokenType.String)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+                if (((JProperty)jChild).Value.Type == JTokenType.Integer)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+                if (((JProperty)jChild).Value.Type == JTokenType.Date)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+                if (((JProperty)jChild).Value.Type == JTokenType.Boolean)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+                if (((JProperty)jChild).Value.Type == JTokenType.Guid)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+                if (((JProperty)jChild).Value.Type == JTokenType.Bytes)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+                if (((JProperty)jChild).Value.Type == JTokenType.TimeSpan)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+                if (((JProperty)jChild).Value.Type == JTokenType.Uri)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+                if (((JProperty)jChild).Value.Type == JTokenType.Undefined)
+                {
+                    htmlTable.Append(((JProperty)jChild).Value);
+                }
+
+                if (((JProperty)jChild).Value.Type == JTokenType.Array)
+                {
+                    htmlTable.Append("<table class=\"table table-bordered table-hover table-striped table-sm\">");
+                    htmlTable.Append(GetChild(((JProperty)jChild).Value));
+                    htmlTable.Append("</table>");
+                }
+
+                if (((JProperty)jChild).Value.Type == JTokenType.Object)
+                {
+                    htmlTable.Append("<table class=\"table table-bordered table-hover table-striped table-sm\">");
+                    htmlTable.Append(GetChild(((JProperty)jChild).Value));
+                    htmlTable.Append("</table>");
+                }
+
+                htmlTable.Append("</td>");
+                htmlTable.Append("</tr>");
+            }
+
+            return htmlTable.ToString();
         }
 
         //Handle all other Requests
