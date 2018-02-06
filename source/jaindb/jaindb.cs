@@ -305,14 +305,6 @@ namespace jaindb
                     if (!Directory.Exists("wwwroot\\" + Collection))
                         Directory.CreateDirectory("wwwroot\\" + Collection);
 
-                    if (!File.Exists("wwwroot\\" + Collection + "\\" + Hash + ".json")) //We do not have to create the same hash file twice...
-                    {
-                        lock (locker) //only one write operation
-                        {
-                            File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
-                        }
-                    }
-
                     switch (Collection.ToLower())
                     {
                         case "_full":
@@ -358,6 +350,28 @@ namespace jaindb
                                             }
                                         }
                                     }
+                                }
+                            }
+
+                            lock (locker) //only one write operation
+                            {
+                                File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
+                            }
+                            break;
+
+                        case "chain":
+                            lock (locker) //only one write operation
+                            {
+                                File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
+                            }
+                            break;
+
+                        default:
+                            if (!File.Exists("wwwroot\\" + Collection + "\\" + Hash + ".json")) //We do not have to create the same hash file twice...
+                            {
+                                lock (locker) //only one write operation
+                                {
+                                    File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
                                 }
                             }
                             break;
