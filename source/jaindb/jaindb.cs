@@ -1128,32 +1128,40 @@ namespace jaindb
                             var oToks = jObj.SelectTokens(path.Trim(), false);
                             foreach (JToken oTok in oToks)
                             {
-                                if (oTok.Type == JTokenType.Object)
+                                try
                                 {
-                                    oRes.Merge(oTok);
-                                    //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
-                                    continue;
+                                    if (oTok.Type == JTokenType.Object)
+                                    {
+                                        oRes.Merge(oTok);
+                                        //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
+                                        continue;
+                                    }
+                                    if (oTok.Type == JTokenType.Array)
+                                    {
+                                        oRes.Add(new JProperty(path, oTok));
+                                    }
+                                    if (oTok.Type == JTokenType.Property)
+                                        oRes.Add(oTok.Parent);
+
+                                    if (oTok.Type == JTokenType.String)
+                                        oRes.Add(oTok.Path, oTok.ToString());
+
+                                    if (oTok.Type == JTokenType.Date)
+                                        oRes.Add(oTok.Parent);
                                 }
-                                if (oTok.Type == JTokenType.Array)
+                                catch(Exception ex)
                                 {
-                                    oRes.Add(new JProperty(path, oTok));
+                                    ex.Message.ToString();
                                 }
-                                if (oTok.Type == JTokenType.Property)
-                                    oRes.Add(oTok.Parent);
-
-                                if (oTok.Type == JTokenType.String)
-                                    oRes.Add(oTok.Parent);
-
-                                if (oTok.Type == JTokenType.Date)
-                                    oRes.Add(oTok.Parent);
 
                             }
-                            if (oToks.Count() == 0)
-                                oRes = null;
+
+                            /*if (oToks.Count() == 0)
+                                oRes = null; */
                         }
                         catch { }
                     }
-                    if (oRes != null)
+                    if (oRes.HasValues)
                     {
                         aRes.Add(oRes);
                         //lRes.Add(i.ToString(), oRes);

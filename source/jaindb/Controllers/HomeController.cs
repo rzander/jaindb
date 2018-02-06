@@ -45,6 +45,23 @@ namespace jaindb.Controllers
             return jDB.UploadFull(oGet.Result.ToString(), Id);
         }
 
+        [HttpPost]
+        [Route("uploadxml/{Id}")]
+        public string UploadXML(string XML, string Id)
+        {
+            var oGet = new StreamReader(Request.Body, true).ReadToEndAsync();
+
+            string sJSON = xml2json.ConvertXMLToJSON(oGet.Result.ToString());
+
+            //Check if we have a value in sJSON
+            if (!string.IsNullOrEmpty(sJSON))
+            {
+                return jDB.UploadFull(sJSON, Id);
+            }
+
+            return "";
+        }
+
         [HttpGet]
         [Route("GetPS")]
         public string GetPS()
