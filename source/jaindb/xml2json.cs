@@ -1,4 +1,8 @@
-﻿using System;
+﻿// ************************************************************************************
+//          jaindb (c) Copyright 2018 by Roger Zander
+// ************************************************************************************
+
+using System;
 using System.Collections;
 using System.Text;
 using System.Xml;

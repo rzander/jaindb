@@ -1,4 +1,8 @@
-﻿using System;
+﻿// ************************************************************************************
+//          jaindb (c) Copyright 2018 by Roger Zander
+// ************************************************************************************
+
+using System;
 using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;

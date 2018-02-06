@@ -1,4 +1,8 @@
-﻿using System;
+﻿// ************************************************************************************
+//          jaindb (c) Copyright 2018 by Roger Zander
+// ************************************************************************************
+
+using System;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
@@ -6,7 +10,6 @@ using System.IO;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Azure.Documents;
-using Microsoft.Azure.Documents.Client;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
@@ -60,6 +63,23 @@ namespace jaindb.Controllers
             }
 
             return "";
+        }
+
+        [HttpPost]
+        [Route("xml2json")]
+        public JObject XML2JSON(string XML)
+        {
+            var oGet = new StreamReader(Request.Body, true).ReadToEndAsync();
+
+            string sJSON = xml2json.ConvertXMLToJSON(oGet.Result.ToString());
+
+            //Check if we have a value in sJSON
+            if (!string.IsNullOrEmpty(sJSON))
+            {
+                return JObject.Parse(sJSON);
+            }
+
+            return null;
         }
 
         [HttpGet]
