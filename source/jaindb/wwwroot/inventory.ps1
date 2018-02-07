@@ -200,8 +200,8 @@ $object | Add-Member -MemberType NoteProperty -Name "LocalAdmins" -Value ($locAd
 $locGroup = Get-LocalGroup | Select-Object Description, Name, PrincipalSource, ObjectClass | Sort-Object -Property Name
 $object | Add-Member -MemberType NoteProperty -Name "LocalGroups" -Value ($locGroup)
 
-$FWRules = Get-NetFirewallRule | Select-Object DisplayName,Description,DisplayGroup,Group,Enabled,Profile,Platform,Direction,Action,EdgeTraversalPolicy,LooseSourceMapping,LocalOnlyMapping,Owner,PrimaryStatus,Status,EnforcementStatus,PolicyStoreSource,PolicyStoreSourceType | Sort-Object -Property DisplayName
-$object | Add-Member -MemberType NoteProperty -Name "FirewallRules" -Value ($FWRules)
+#$FWRules = Get-NetFirewallRule | Select-Object DisplayName,Description,DisplayGroup,Group,Enabled,Profile,Platform,Direction,Action,EdgeTraversalPolicy,LooseSourceMapping,LocalOnlyMapping,Owner,PrimaryStatus,Status,EnforcementStatus,PolicyStoreSource,PolicyStoreSourceType | Sort-Object -Property DisplayName
+#$object | Add-Member -MemberType NoteProperty -Name "FirewallRules" -Value ($FWRules)
 
 #Windows Universal Apps
 #$Appx = Get-AppxPackage | Select-Object Name, Publisher, Architecture, Version, PackageFullName, IsFramework, PackageFamilyName, PublisherId, IsResourcePackage, IsBundle, IsDevelopmentMode, IsPartiallyStaged, SignatureKind, Status | Sort-Object -Property Name
@@ -231,5 +231,5 @@ $id = $object."#id"
 $con = $object | ConvertTo-Json -Compress
 Write-Host "Device ID: $($id)"
 
-Invoke-RestMethod -Uri "%LocalURL%/upload/$($id)" -Method Post -Body $con -ContentType "application/json; charset=utf-8"
+Invoke-RestMethod -Uri "%LocalURL%:%WebPort%/upload/$($id)" -Method Post -Body $con -ContentType "application/json; charset=utf-8"
 
