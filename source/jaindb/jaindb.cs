@@ -1133,13 +1133,24 @@ namespace jaindb
                     JObject oRes = new JObject();
                     foreach (string sAttrib in select.Split(','))
                     {
-                        oRes.Add(sAttrib.Trim(), jObj[sAttrib]);
+                        //var jVal = jObj[sAttrib];
+                        var jVal = jObj.SelectToken(sAttrib);
+
+                        if (jVal != null)
+                            oRes.Add(sAttrib.Trim(), jVal);
                     }
-                    foreach (string path in paths.Split(','))
+                    foreach (string path in paths.Split(';'))
                     {
                         try
                         {
                             var oToks = jObj.SelectTokens(path.Trim(), false);
+
+                            if (oToks.Count() == 0)
+                            {
+                                oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
+                                continue;
+                            }
+
                             foreach (JToken oTok in oToks)
                             {
                                 try
@@ -1165,15 +1176,18 @@ namespace jaindb
                                 }
                                 catch(Exception ex)
                                 {
-                                    ex.Message.ToString();
+                                    Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
                                 }
 
                             }
 
                             /*if (oToks.Count() == 0)
-                                oRes = null; */
+                                oRes = new JObject(); */
                         }
-                        catch { }
+                        catch(Exception ex)
+                        {
+                            Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                        }
                     }
                     if (oRes.HasValues)
                     {
@@ -1182,7 +1196,10 @@ namespace jaindb
                         //i++;
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                }
             }
 
             return aRes;
