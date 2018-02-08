@@ -1173,6 +1173,16 @@ namespace jaindb
                     }
                     if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
                     {
+                        //Generate list of excluded paths
+                        List<string> sExclPath = new List<string>();
+                        foreach (string sExclude in lExclude)
+                        {
+                            foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
+                            {
+                                sExclPath.Add(oRem.Path);
+                            }
+                        }
+
                         foreach (string path in paths.Split(';'))
                         {
                             try
@@ -1203,7 +1213,11 @@ namespace jaindb
                                             oRes.Add(oTok.Parent);
 
                                         if (oTok.Type == JTokenType.String)
-                                            oRes.Add(oTok.Path, oTok.ToString());
+                                        {
+                                            //check if path is excluded
+                                            if (!sExclPath.Contains(oTok.Path))
+                                                oRes.Add(oTok.Path, oTok.ToString());
+                                        }
 
                                         if (oTok.Type == JTokenType.Date)
                                             oRes.Add(oTok.Parent);
@@ -1224,8 +1238,6 @@ namespace jaindb
                             }
                         }
                     }
-
-
 
                     if (oRes.HasValues)
                     {
