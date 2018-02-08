@@ -185,10 +185,19 @@ namespace jaindb.Controllers
                 if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
                     index = 0;
 
+                if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "lindex").Value, out int lindex))
+                    lindex = 0;
+
+                if (index == 0)
+                    index = lindex;
+
+                if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "rindex").Value, out int rindex))
+                    rindex = -1;
+
                 if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "mode").Value, out int mode))
                     mode = 0;
 
-                return jDB.GetDiff(sKey, index, mode);
+                return jDB.GetDiff(sKey, index, mode, rindex);
             }
             return null;
         }
