@@ -183,7 +183,7 @@ namespace jaindb.Controllers
                     sKey = jDB.LookupID(query.First().Key, query.First().Value);
 
                 if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
-                    index = 1;
+                    index = 0;
 
                 if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "mode").Value, out int mode))
                     mode = 0;
