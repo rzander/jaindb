@@ -973,6 +973,10 @@ namespace jaindb
             {
                 var right = GetFull(DeviceId, IndexRight);
                 var left = GetFull(DeviceId, IndexLeft);
+                if(IndexLeft == 0)
+                {
+                    IndexLeft = ((int)right["_index"]) - 1;
+                }
 
                 foreach (var oTok in right.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
                 {
@@ -1300,6 +1304,16 @@ namespace jaindb
 
                         if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
                         {
+                            //Generate list of excluded paths
+                            List<string> sExclPath = new List<string>();
+                            foreach (string sExclude in lExclude)
+                            {
+                                foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
+                                {
+                                    sExclPath.Add(oRem.Path);
+                                }
+                            }
+
                             foreach (string path in paths.Split(','))
                             {
                                 try
@@ -1372,6 +1386,16 @@ namespace jaindb
 
                         if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
                         {
+                            //Generate list of excluded paths
+                            List<string> sExclPath = new List<string>();
+                            foreach (string sExclude in lExclude)
+                            {
+                                foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
+                                {
+                                    sExclPath.Add(oRem.Path);
+                                }
+                            }
+
                             foreach (string path in paths.Split(';'))
                             {
                                 try
