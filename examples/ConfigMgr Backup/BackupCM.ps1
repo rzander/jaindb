@@ -1,13 +1,40 @@
+$jaindburi = "http://172.16.101.3:5000"
 Import-Module (Join-Path $(Split-Path $env:SMS_ADMIN_UI_PATH) ConfigurationManager.psd1) 
 $SiteCode = Get-PSDrive -PSProvider CMSITE
 Push-Location "$($SiteCode.Name):\"
-$namespace  = (Get-CMConnectionManager).NamedValueDictionary.connection
+$namespace = (Get-CMConnectionManager).NamedValueDictionary.connection
 
+function GetMD5([string]$txt) {
+    $md5 = new-object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
+    $utf8 = new-object -TypeName System.Text.ASCIIEncoding
+    return Base58(@(0xd5, 0x10) + $md5.ComputeHash($utf8.GetBytes($txt))) #To store hash in Miltihash format, we add a 0xD5 to make it an MD5 and an 0x10 means 10Bytes length
+}
+function Base58([byte[]]$data) {
+    $Digits = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    [bigint]$intData = 0
+    for ($i = 0; $i -lt $data.Length; $i++) {
+        $intData = ($intData * 256) + $data[$i]; 
+    }
+    [string]$result = "";
+    while ($intData -gt 0) {
+        $remainder = ($intData % 58);
+        $intData /= 58;
+        $result = $Digits[$remainder] + $result;
+    }
+
+    for ($i = 0; ($i -lt $data.Length) -and ($data[$i] -eq 0); $i++) {
+        $result = '1' + $result;
+    }
+
+    return $result
+}
+
+#Task-Sequences
 Get-CMTaskSequence | ForEach-Object { 
     $object = New-Object PSObject
     $ts = $_
     $id = "ts-" + $_.PackageID
-    $js = Invoke-RestMethod -Uri "http://172.16.101.3:5000/xml2json" -Method Post -Body $ts.Sequence -ContentType "application/json; charset=utf-8"
+    $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $ts.Sequence -ContentType "application/json; charset=utf-8"
     $object | Add-Member -MemberType NoteProperty -Name "sequence" -Value $js.sequence 
     $object | Add-Member -MemberType NoteProperty -Name "#Name" -Value ("ts-" + $ts.Name) 
     $object | Add-Member -MemberType NoteProperty -Name "BootImageID" -Value $ts.BootImageID 
@@ -19,10 +46,12 @@ Get-CMTaskSequence | ForEach-Object {
     $object | Add-Member -MemberType NoteProperty -Name "ProgramFlags" -Value $ts.ProgramFlags
     $object | Add-Member -MemberType NoteProperty -Name "SecuredScopeNames" -Value $ts.SecuredScopeNames
     $object | Add-Member -MemberType NoteProperty -Name "SupportedOperatingSystems" -Value ($ts.SupportedOperatingSystems | ForEach-Object { $_.PropertyList })
-
-    Invoke-RestMethod -Uri "http://172.16.101.3:5000/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+    $result  = New-Object PSObject
+    $result | Add-Member -MemberType NoteProperty -Name "TaskSequence " -Value $object
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($result| ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
+#Applications
 Get-CMApplication | ForEach-Object { 
     $object = New-Object PSObject
     $id = "app-" + $_.PackageID
@@ -47,14 +76,13 @@ Get-CMApplication | ForEach-Object {
     $object | Add-Member -MemberType NoteProperty -Name "SecuredScopeNames" -Value $app.SecuredScopeNames
     $object | Add-Member -MemberType NoteProperty -Name "@NumberOfDevicesWithApp" -Value $app.LastModifiedBy
     $object | Add-Member -MemberType NoteProperty -Name "@NumberOfUsersWithApp" -Value $app.LastModifiedBy
-    $js = Invoke-RestMethod -Uri "http://172.16.101.3:5000/xml2json" -Method Post -Body $app.SDMPackageXML -ContentType "application/json; charset=utf-8"
+    $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $app.SDMPackageXML -ContentType "application/json; charset=utf-8"
     $object | Add-Member -MemberType NoteProperty -Name "AppMgmtDigest" -Value $js.AppMgmtDigest
 
-
-    Invoke-RestMethod -Uri "http://172.16.101.3:5000/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
-
+#Collections
 Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Object {
     $object = New-Object PSObject
     $id = "coll-" + $_.CollectionID
@@ -82,6 +110,10 @@ Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Obj
     $object.CollectionRules = $object.CollectionRules | Select-Object * -ExcludeProperty Cim*, PSComp*
     $object.RefreshSchedule = $object.RefreshSchedule | Select-Object * -ExcludeProperty Cim*, PSComp*
 
+    $result  = New-Object PSObject
+    $result | Add-Member -MemberType NoteProperty -Name "Collection" -Value $object
+
+    #CollectionSettings
     $settings = Get-CMCollectionSetting -CollectionID $coll.CollectionID | Select-Object AMTAutoProvisionEnabled, ClusterCount, ClusterPercentage, ClusterTimeout, CollectionID, CollectionVariablePrecedence, CollectionVariables, LastModificationTime, LocaleID, PollingInterval, PollingIntervalEnabled, PostAction, PowerConfigs, PreAction, RebootCountdown, RebootCountdownEnabled, RebootCountdownFinalWindow, ServiceWindows, SourceSite, UseCluster, UseClusterPercentage
     if ($settings) {
         $settings.CollectionVariables = $settings.CollectionVariables | Select-Object IsMasked, Name, Value
@@ -104,11 +136,12 @@ Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Obj
         }
     }
     
-    $object | Add-Member -MemberType NoteProperty -Name "CollectionSettings" -Value $settings 
+    $result| Add-Member -MemberType NoteProperty -Name "CollectionSettings" -Value $settings 
 
-    Invoke-RestMethod -Uri "http://172.16.101.3:5000/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($result | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
+#Packages
 Get-CMPackage | ForEach-Object {
     $object = New-Object PSObject
     $pkg = $_
@@ -128,10 +161,247 @@ Get-CMPackage | ForEach-Object {
     $lastRefresh = $pkg.LastRefreshTime
     $pkg.psobject.Properties.Remove("LastRefreshTime")
     $object | Add-Member -MemberType NoteProperty -Name "@LastRefreshTime" -Value $lastRefresh
-    $pkg | Add-Member -MemberType NoteProperty -Name "Programs" -Value $prg
-    $object | Add-Member -MemberType NoteProperty -Name "Package" -Value $pkg
-    
 
-    Invoke-RestMethod -Uri "http://172.16.101.3:5000/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+    $object | Add-Member -MemberType NoteProperty -Name "Package" -Value $pkg
+    $object | Add-Member -MemberType NoteProperty -Name "Programs" -Value $prg
+    
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
+#BoundaryGroups
+Get-CMBoundaryGroup | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "bg-" + $_.GroupID
+    $bg = $_ | Select-Object $_.PropertyNames
+    $object | Add-Member -MemberType NoteProperty -Name "BoundaryGroup" -Value $bg
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#Boundaries
+Get-CMBoundary | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "bip-" + $_.BoundaryID
+    $bg = $_ | Select-Object $_.PropertyNames
+    $object | Add-Member -MemberType NoteProperty -Name "Boundary" -Value $bg
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#Boundary Relationship
+Get-CMBoundaryGroupRelationship | ForEach-Object { 
+    $object = New-Object PSObject
+    $br = $_ | Select-Object $_.PropertyNames
+    $id = GetMD5($br | ConvertTo-Json)
+    
+    $object | Add-Member -MemberType NoteProperty -Name "BoundaryRelationship" -Value $br
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#BootImages
+Get-CMBootImage | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "boot-" + $_.PackageID
+    $bi = $_ | Select-Object $_.PropertyNames
+    $object | Add-Member -MemberType NoteProperty -Name "BootImage" -Value $bi
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#ClientSettings
+Get-CMClientSetting | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "cfg-" + $_.SettingsID
+    $cfg = $_ | Select-Object $_.PropertyNames
+    $cfgs = @()
+    if ($cfg.AgentConfigurations) {
+        $cfg.AgentConfigurations | ForEach-Object { 
+            $acfg = New-Object PSObject
+            $acfg | Add-Member -MemberType NoteProperty -Name "ClientSettings" -Value ($_ | Select-Object $_.PropertyNames )
+            $cfgs += $acfg
+        }
+        $cfg.AgentConfigurations = $cfgs
+    }
+  
+    $object | Add-Member -MemberType NoteProperty -Name "ClientSettings" -Value $cfg
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#ConfigItems
+Get-CMConfigurationItem | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "ci-" + $_.CI_ID
+    $orgobj = $_
+    $ci = $_ | Select-Object $_.PropertyNames -ExcludeProperty SDMPackageXML,LocalizedInformation,EULASignoffDate
+    $ci| Add-Member -MemberType NoteProperty -Name "@EULASignoffDate" -Value $orgobj.EULASignoffDate
+    if ($orgobj.SDMPackageXML) {
+        $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $orgobj.SDMPackageXML -ContentType "application/json; charset=utf-8"
+        $ci| Add-Member -MemberType NoteProperty -Name "SDMPackageXML" -Value $js
+    }
+    $li = @()
+    $orgobj.LocalizedInformation | ForEach-Object {
+        $li += $_ | Select-Object $_.PropertyNames
+    }
+    $ci| Add-Member -MemberType NoteProperty -Name "LocalizedInformation" -Value $li
+    $ci.SDMPackageLocalizedData = $ci.SDMPackageLocalizedData | Select-Object $ci.SDMPackageLocalizedData.PropertyNames
+    $js2 = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $ci.SDMPackageLocalizedData.LocalizedData -ContentType "application/json; charset=utf-8"
+    $ci.SDMPackageLocalizedData.psobject.Properties.Remove('LocalizedData') = $js2
+    $ci.SDMPackageLocalizedData| Add-Member -MemberType NoteProperty -Name "LocalizedData" -Value $js2
+    $ci.LocalizedCategoryInstanceNames = $ci.LocalizedCategoryInstanceNames | Select-Object $ci.LocalizedCategoryInstanceNames.PropertyNames
+    $ci.LocalizedEulas = $ci.LocalizedEulas| Select-Object $ci.LocalizedEulas.PropertyNames
+    $object | Add-Member -MemberType NoteProperty -Name "ConfigItem" -Value $ci
+
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#Baselines
+Get-CMBaseline | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "bl-" + $_.CI_ID
+    $orgobj = $_
+    $bi = $_ | Select-Object $_.PropertyNames -ExcludeProperty ActivatedCount, AssignedCount, ComplianceCount, CompliantPercentage, FailureCount, NonComplianceCount, SDMPackageXML
+    $bi | Add-Member -MemberType NoteProperty -Name "@ActivatedCount" -Value $_.ActivatedCount
+    $bi | Add-Member -MemberType NoteProperty -Name "@AssignedCount" -Value $_.AssignedCount
+    $bi | Add-Member -MemberType NoteProperty -Name "@ComplianceCount" -Value $_.ComplianceCount
+    $bi | Add-Member -MemberType NoteProperty -Name "@CompliantPercentage" -Value $_.CompliantPercentage
+    $bi | Add-Member -MemberType NoteProperty -Name "@FailureCount" -Value $_.FailureCount
+    $bi | Add-Member -MemberType NoteProperty -Name "@NonComplianceCount" -Value $_.NonComplianceCount
+    $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body ($orgobj | Get-CMBaselineXMLDefinition) -ContentType "application/json; charset=utf-8"
+    $bi | Add-Member -MemberType NoteProperty -Name "SDMPackageXML" -Value $js
+    $object | Add-Member -MemberType NoteProperty -Name "Baseline" -Value $bi
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#Site Server
+Get-CMSiteSystemServer | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "srv-" + $_.NetworkOSPath.replace("\\", "")
+    $srv = $_ | Select-Object $_.PropertyNames
+    $props = @()
+    $srv.Props = $srv.Props | % {
+        $props += $_ | Select-Object $_.PropertyNames
+    }
+    $srv.psobject.Properties.remove('Props')
+    $srv| Add-Member -MemberType NoteProperty -Name "Props" -Value $props
+    $object | Add-Member -MemberType NoteProperty -Name "SiteSystemServer" -Value $srv
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#DP Groups
+Get-CMDistributionPointGroup | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "dpg-" + $_.GroupID
+    $dp = $_ | Select-Object $_.PropertyNames
+    $object | Add-Member -MemberType NoteProperty -Name "DistributionPointGroup" -Value $dp
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#DP's
+Get-CMDistributionPointInfo | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "dp-" + $_.ID
+    $dp = $_ | Select-Object $_.PropertyNames
+    $object | Add-Member -MemberType NoteProperty -Name "DistributionPointInfo" -Value $dp
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#Hierarchy Settings
+Get-CMHierarchySetting | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "site-" + $_.SiteCode
+    $site = $_ | Select-Object $_.PropertyNames
+    $props = @()
+    $site.Props = $site.Props | % {
+        $props += $_ | Select-Object $_.PropertyNames
+    }
+    $site.psobject.Properties.remove('Props')
+    $site | Add-Member -MemberType NoteProperty -Name "Props" -Value $props
+
+    $props = @()
+    $site.PropLists = $site.PropLists | % {
+        $props += $_ | Select-Object $_.PropertyNames
+    }
+    $site.psobject.Properties.remove('PropLists')
+    $site | Add-Member -MemberType NoteProperty -Name "PropLists" -Value $props
+
+    $object | Add-Member -MemberType NoteProperty -Name "HierarchySetting" -Value $site
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#Site Maintenance Task 
+Get-CMSiteMaintenanceTask | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "tsk-" + $_.ItemName
+    $tsk = $_ | Select-Object $_.PropertyNames
+    $object | Add-Member -MemberType NoteProperty -Name "SiteMaintenanceTask" -Value $tsk
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#deployed SoftwareUpdate's
+Get-CMSoftwareUpdate -Fast | Where-Object { $_.IsDeployed -eq $true }  | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "upd-" + $_.CI_ID
+    $upd = $_ | Select-Object $_.PropertyNames -ExcludeProperty NumMissing, NumNotApplicable, NumPresent, NumTotal, NumUnknown, PercentCompliant, LastStatusTime
+    $upd | Add-Member -MemberType NoteProperty -Name "@NumMissing" -Value $_.NumMissing
+    $upd | Add-Member -MemberType NoteProperty -Name "@NumNotApplicable" -Value $_.NumNotApplicable
+    $upd | Add-Member -MemberType NoteProperty -Name "@NumPresent" -Value $_.NumPresent
+    $upd | Add-Member -MemberType NoteProperty -Name "@NumTotal" -Value $_.NumTotal
+    $upd | Add-Member -MemberType NoteProperty -Name "@NumUnknown" -Value $_.NumUnknown
+    $upd | Add-Member -MemberType NoteProperty -Name "@PercentCompliant" -Value $_.PercentCompliant
+    $upd | Add-Member -MemberType NoteProperty -Name "@LastStatusTime" -Value $_.LastStatusTime
+    $object | Add-Member -MemberType NoteProperty -Name "SoftwareUpdate" -Value $upd
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#UpdateGroup Deployments
+Get-CMUpdateGroupDeployment | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "ugd-" + $_.AssignmentID
+    $ugd = $_ | Select-Object $_.PropertyNames
+    $object | Add-Member -MemberType NoteProperty -Name "UpdateGroupDeployment" -Value $ugd
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#Device resources
+Get-CMResource -ResourceType System -Fast | Where-Object { $_.Client -eq 1 } | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "res-" + $_.ResourceID
+    $orgres = $_
+    $res = $_ | Select-Object $_.PropertyNames -ExcludeProperty AgentTime, LastLogonTimestamp
+    $res | Add-Member -MemberType NoteProperty -Name "@AgentTime" -Value $_.AgentTime
+    $res | Add-Member -MemberType NoteProperty -Name "@LastLogonTimestamp" -Value $_.LastLogonTimestamp
+    $object | Add-Member -MemberType NoteProperty -Name "Device" -Value $res
+
+    $vars = @()
+    $orgres | Get-CMDeviceVariable | ForEach-Object {
+        $vars += $_ | Select-Object $_.PropertyNames
+    }
+
+    $users = @()
+    Get-CMUserDeviceAffinity -DeviceID $res.ResourceID | ForEach-Object {
+        $users += $_ | Select-Object $_.PropertyNames
+    }
+
+    $object | Add-Member -MemberType NoteProperty -Name "DeviceVariable" -Value $vars
+    $object | Add-Member -MemberType NoteProperty -Name "UserDeviceAffinity" -Value $users
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#OperatingSystem UpgradePackage
+Get-CMOperatingSystemUpgradePackage | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "osd-" + $_.PackageID
+    $osd = $_ | Select-Object $_.PropertyNames
+    $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $osd.ImageProperty -ContentType "application/json; charset=utf-8"
+    $osd.ImageProperty = $js
+    $object | Add-Member -MemberType NoteProperty -Name "OperatingSystemUpgradePackage" -Value $osd
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#OperatingSystem Image
+Get-CMOperatingSystemImage | ForEach-Object { 
+    $object = New-Object PSObject
+    $id = "osd-" + $_.PackageID
+    $osd = $_ | Select-Object $_.PropertyNames
+    $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $osd.ImageProperty -ContentType "application/json; charset=utf-8"
+    $osd.ImageProperty = $js
+    $object | Add-Member -MemberType NoteProperty -Name "OperatingSystemImage" -Value $osd
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
