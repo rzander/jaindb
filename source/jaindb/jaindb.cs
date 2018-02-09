@@ -140,7 +140,7 @@ namespace jaindb
                     }
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Debug.WriteLine("Error LookupID_1: " + ex.Message.ToString());
             }
@@ -155,7 +155,14 @@ namespace jaindb
                 //Remove NULL values
                 foreach (var oTok in ((JContainer)oRoot).Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).ToList())
                 {
-                    oTok.Remove();
+                    try
+                    {
+                        oTok.Parent.Remove();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.Message.ToString();
+                    }
                 }
 
                 //JSort(oStatic);
@@ -179,7 +186,7 @@ namespace jaindb
                 }
 
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 ex.Message.ToString();
             }
@@ -443,7 +450,7 @@ namespace jaindb
 
                             default:
                                 sResult = cache2.StringGet(Hash);
-                                
+
                                 //Cache result in Memory
                                 if (!string.IsNullOrEmpty(sResult))
                                 {
@@ -493,7 +500,8 @@ namespace jaindb
                         jRes.Remove("_self");
                         jRes.Remove("_attachments");
 
-                        sResult= jRes.ToString(Newtonsoft.Json.Formatting.None);
+                        sResult = jRes.ToString(Newtonsoft.Json.Formatting.None);
+                        
                         //Cache result in Memory
                         if (!string.IsNullOrEmpty(sResult))
                         {
@@ -550,7 +558,7 @@ namespace jaindb
                     {
                         oTok.Parent.Remove();
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         Debug.WriteLine("Error UploadFull_1: " + ex.Message.ToString());
                     }
@@ -689,7 +697,7 @@ namespace jaindb
 
                 return sResult;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Debug.WriteLine("Error UploadFull_6: " + ex.Message.ToString());
             }
@@ -701,6 +709,12 @@ namespace jaindb
         {
             try
             {
+                JObject oInv = new JObject();
+                /*if (_cache.TryGetValue("FULL-" + DeviceID + "-" + Index.ToString(), out oInv))
+                {
+                    return oInv;
+                }*/
+
                 //Chech if we have the full data in cache0
                 if (Index == -1)
                 {
@@ -717,7 +731,7 @@ namespace jaindb
 
                 if (!string.IsNullOrEmpty(sData))
                 {
-                    JObject oInv = JObject.Parse(sData);
+                    oInv = JObject.Parse(sData);
                     try
                     {
                         if (oInv["_index"] == null)
@@ -738,7 +752,7 @@ namespace jaindb
                     }
 
                     //Remove merge ##hash with hasehd value
-                    foreach(string sHash in lHashes)
+                    foreach (string sHash in lHashes)
                     {
                         try
                         {
@@ -756,23 +770,54 @@ namespace jaindb
                             {
                                 var jStatic = JObject.Parse(sObj);
                                 oTok.Parent.Merge(jStatic);
+                                bool bLoop = true;
+                                int i = 0;
+                                //Remove NULL values as a result from merge
+                                while (bLoop)
+                                {
+                                    bLoop = false;
+                                    foreach (var jObj in (oTok.Parent.Descendants().Where(t => (t.Type == (JTokenType.Object) || t.Type == (JTokenType.Array)) && t.HasValues == false).Reverse().ToList()))
+                                    {
+                                        try
+                                        {
+                                            if ((jObj.Type == JTokenType.Object || jObj.Type == JTokenType.Array) && jObj.Parent.Type == JTokenType.Property)
+                                            {
+                                                jObj.Parent.Remove();
+                                                bLoop = true;
+                                                continue;
+                                            }
 
-                                //Remove NULL values as a rusult from merge
-                                foreach (var jObj in (oTok.Parent.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
+                                            jObj.Remove();
+                                            bLoop = true;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Debug.WriteLine("Error GetFull_1: " + ex.Message.ToString());
+                                            if(i <= 100)
+                                                bLoop = true;
+                                            i++;
+                                        }
+                                    }
+                                }
+
+                                /*foreach (var jObj in (oTok.Parent.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
                                 {
                                     try
                                     {
-                                        if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Array)
+                                         if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Array)
                                         {
                                             jObj.Parent.Parent.Remove();
+                                            continue;
                                         }
                                         if (jObj.Parent.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
                                         {
                                             jObj.Parent.Parent.Remove();
+                                            continue;
                                         }
                                         if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
                                         {
                                             jObj.Parent.Remove();
+                                            continue;
                                         }
                                         else
                                         {
@@ -783,7 +828,7 @@ namespace jaindb
                                     {
                                         Debug.WriteLine("Error GetFull_1: " + ex.Message.ToString());
                                     }
-                                }
+                                }*/
                             }
                             else
                             {
@@ -819,14 +864,15 @@ namespace jaindb
                         {
                             try
                             {
-                                if(oTok.Parent.Count == 1)
+                                if (oTok.Parent.Count == 1)
                                 {
                                     oTok.Parent.Remove();
                                 }
 
-                                oTok.Remove();
+                                if (oTok.HasValues)
+                                    oTok.Remove();
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
                                 Debug.WriteLine("Error GetFull_4: " + ex.Message.ToString());
                             }
@@ -840,13 +886,16 @@ namespace jaindb
                         WriteHash(DeviceID, oInv.ToString(), "_full");
                     }
 
+                    /*var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache full for 60s
+                    _cache.Set("FULL-" + DeviceID + "-" + Index.ToString(), oInv, cacheEntryOptions);*/
+
                     return oInv;
                 }
 
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Debug.WriteLine("Error GetFull_5: "  + ex.Message.ToString());
+                Debug.WriteLine("Error GetFull_5: " + ex.Message.ToString());
             }
 
             return new JObject();
@@ -924,11 +973,39 @@ namespace jaindb
             try
             {
                 JObject oInv = JObject.Parse(RawID);
-                if (!string.IsNullOrEmpty(path))
+
+                if (!path.Contains("*") && !path.Contains("..")) //Skip if using wildcards; we have to get the full content to filter
                 {
-                    foreach (string spath in path.Split(','))
+                    if (!string.IsNullOrEmpty(path))
                     {
-                        foreach (JProperty oTok in oInv.Descendants().Where(t => t.Path.StartsWith(spath.Split('.')[0]) && t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
+                        foreach (string spath in path.Split(';'))
+                        {
+                            string sLookupPath = spath.Replace(".##hash", "");
+                            var aPath = spath.Split('.');
+                            if (aPath.Length > 1) //at least 2 segments...
+                            {
+                                sLookupPath = sLookupPath.Substring(0, sLookupPath.LastIndexOf('.'));
+                            }
+                            //foreach (JProperty oTok in oInv.Descendants().Where(t => t.Path.StartsWith(spath.Split('.')[0]) && t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
+                            foreach (JProperty oTok in oInv.Descendants().Where(t => t.Path.StartsWith(sLookupPath) && t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
+                            {
+
+                                string sH = oTok.Value.ToString();
+                                string sRoot = oTok.Path.Split('.').Reverse().ToList()[1]; //second last as last is ##hash
+                                                                                           //string sRoot = oTok.Path.Split('.')[0].Split('[')[0]; //AppMgmtDigest.Application.DisplayInfo.Info.##hash
+                                string sObj = ReadHash(sH, sRoot);
+                                if (!string.IsNullOrEmpty(sObj))
+                                {
+                                    var jStatic = JObject.Parse(sObj);
+                                    oTok.Parent.Merge(jStatic);
+                                    oTok.Remove();
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
                         {
                             string sH = oTok.Value.ToString();
                             string sRoot = oTok.Path.Split('.')[0].Split('[')[0];
@@ -941,28 +1018,16 @@ namespace jaindb
                             }
                         }
                     }
-                }
-                else
-                {
-                    foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
-                    {
-                        string sH = oTok.Value.ToString();
-                        string sRoot = oTok.Path.Split('.')[0].Split('[')[0];
-                        string sObj = ReadHash(sH, sRoot);
-                        if (!string.IsNullOrEmpty(sObj))
-                        {
-                            var jStatic = JObject.Parse(sObj);
-                            oTok.Parent.Merge(jStatic);
-                            oTok.Remove();
-                        }
-                    }
-                }
 
-                JSort(oInv);
+                    JSort(oInv);
+                }
 
                 return oInv;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ex.Message.ToString();
+            }
 
             return jResult;
         }
@@ -972,11 +1037,12 @@ namespace jaindb
             try
             {
                 var right = GetFull(DeviceId, IndexRight);
-                var left = GetFull(DeviceId, IndexLeft);
-                if(IndexLeft == 0)
+
+                if (IndexLeft == 0)
                 {
                     IndexLeft = ((int)right["_index"]) - 1;
                 }
+                var left = GetFull(DeviceId, IndexLeft);
 
                 foreach (var oTok in right.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
                 {
@@ -1019,6 +1085,7 @@ namespace jaindb
                 if (oDiff == null)
                     return new JObject();
 
+                GC.Collect();
                 return JObject.Parse(oDiff.ToString());
             }
             catch { }
@@ -1145,7 +1212,7 @@ namespace jaindb
             exclude = System.Net.WebUtility.UrlDecode(exclude);
             List<string> lExclude = new List<string>();
 
-            if(!string.IsNullOrEmpty(exclude))
+            if (!string.IsNullOrEmpty(exclude))
             {
                 lExclude = exclude.Split(";").ToList();
             }
@@ -1160,6 +1227,7 @@ namespace jaindb
             List<string> lLatestHash = GetAllChainsAsync().Result;
             foreach (string sHash in lLatestHash)
             {
+                bool foundData = false;
                 try
                 {
                     var jObj = GetFull(sHash);
@@ -1195,8 +1263,11 @@ namespace jaindb
 
                                 if (oToks.Count() == 0)
                                 {
-                                    oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
-                                    continue;
+                                    if (!foundData)
+                                    {
+                                        oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
+                                        continue;
+                                    }
                                 }
 
                                 foreach (JToken oTok in oToks)
@@ -1216,15 +1287,23 @@ namespace jaindb
                                         if (oTok.Type == JTokenType.Property)
                                             oRes.Add(oTok.Parent);
 
-                                        if (oTok.Type == JTokenType.String)
+                                        if (oTok.Type == JTokenType.String ||
+                                            oTok.Type == JTokenType.Integer ||
+                                            oTok.Type == JTokenType.Date ||
+                                            oTok.Type == JTokenType.Boolean ||
+                                            oTok.Type == JTokenType.Float ||
+                                            oTok.Type == JTokenType.Guid ||
+                                            oTok.Type == JTokenType.TimeSpan)
                                         {
                                             //check if path is excluded
                                             if (!sExclPath.Contains(oTok.Path))
-                                                oRes.Add(oTok.Path, oTok.ToString());
+                                                oRes.Add(oTok.Path, oTok);
                                         }
 
                                         if (oTok.Type == JTokenType.Date)
                                             oRes.Add(oTok.Parent);
+
+                                        foundData = true;
                                     }
                                     catch (Exception ex)
                                     {
@@ -1251,7 +1330,6 @@ namespace jaindb
                             foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
                             {
                                 oRem.Parent.Remove();
-                                //oRes.Remove(oRem.Path);
                             }
                         }
 
@@ -1266,6 +1344,7 @@ namespace jaindb
                 }
             }
 
+            GC.Collect();
             return aRes;
 
         }
@@ -1294,94 +1373,31 @@ namespace jaindb
                 {
                     foreach (var oObj in srv.Keys(4, "*"))
                     {
-                        JObject jObj = GetRaw(cache4.StringGet(oObj), paths);
-                        JObject oRes = new JObject();
+                        bool foundData = false;
 
-                        foreach (string sAttrib in select.Split(','))
+                        JObject jObj = GetRaw(ReadHash(oObj, "assets"), paths);
+
+                        if (paths.Contains("*") || paths.Contains(".."))
                         {
-                            oRes.Add(sAttrib.Trim(), jObj[sAttrib]);
+                            try
+                            {
+                                jObj = GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                            }
+                            catch { }
                         }
 
-                        if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
-                        {
-                            //Generate list of excluded paths
-                            List<string> sExclPath = new List<string>();
-                            foreach (string sExclude in lExclude)
-                            {
-                                foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
-                                {
-                                    sExclPath.Add(oRem.Path);
-                                }
-                            }
-
-                            foreach (string path in paths.Split(','))
-                            {
-                                try
-                                {
-                                    var oToks = jObj.SelectTokens(path.Trim(), false);
-                                    foreach (JToken oTok in oToks)
-                                    {
-                                        if (oTok.Type == JTokenType.Object)
-                                        {
-                                            oRes.Merge(oTok);
-                                            //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
-                                            continue;
-                                        }
-                                        if (oTok.Type == JTokenType.Array)
-                                        {
-                                            oRes.Add(new JProperty(path, oTok));
-                                        }
-                                        if (oTok.Type == JTokenType.Property)
-                                            oRes.Add(oTok.Parent);
-
-                                        if (oTok.Type == JTokenType.String)
-                                            oRes.Add(oTok.Parent);
-
-                                        if (oTok.Type == JTokenType.Date)
-                                            oRes.Add(oTok.Parent);
-
-                                    }
-                                    if (oToks.Count() == 0)
-                                        oRes = null;
-                                }
-                                catch { }
-                            }
-                        }
-
-                        if (oRes.HasValues)
-                        {
-                            string sHa = CalculateHash(oRes.ToString(Formatting.None));
-                            if (!lHashes.Contains(sHa))
-                            {
-                                aRes.Add(oRes);
-                                lHashes.Add(sHa);
-                            }
-
-                            //Remove excluded Properties
-                            foreach (string sExclude in lExclude)
-                            {
-                                foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
-                                {
-                                    oRem.Parent.Remove();
-                                    //oRes.Remove(oRem.Path);
-                                }
-                            }
-                        }
-                    }
-
-                    return aRes;
-                }
-
-                if (UseFileStore)
-                {
-                    foreach (var oFile in new DirectoryInfo("wwwroot/Assets").GetFiles("*.json"))
-                    {
-                        JObject jObj = GetRaw(File.ReadAllText(oFile.FullName), paths);
+                        //JObject jObj = GetRaw(cache4.StringGet(oObj), paths);
                         JObject oRes = new JObject();
 
                         foreach (string sAttrib in select.Split(';'))
                         {
-                            oRes.Add(sAttrib.Trim(), jObj[sAttrib]);
+                            //var jVal = jObj[sAttrib];
+                            var jVal = jObj.SelectToken(sAttrib);
+
+                            if (jVal != null)
+                            {
+                                oRes.Add(sAttrib.Trim(), jVal);
+                            }
                         }
 
                         if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
@@ -1401,32 +1417,190 @@ namespace jaindb
                                 try
                                 {
                                     var oToks = jObj.SelectTokens(path.Trim(), false);
+
+                                    if (oToks.Count() == 0)
+                                    {
+                                        if (!foundData)
+                                        {
+                                            oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
+                                            break;
+                                        }
+                                    }
+
                                     foreach (JToken oTok in oToks)
                                     {
-                                        if (oTok.Type == JTokenType.Object)
+                                        try
                                         {
-                                            oRes.Merge(oTok);
-                                            //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
-                                            continue;
+                                            if (oTok.Type == JTokenType.Object)
+                                            {
+                                                oRes.Merge(oTok);
+                                                //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
+                                                continue;
+                                            }
+                                            if (oTok.Type == JTokenType.Array)
+                                            {
+                                                oRes.Add(new JProperty(path, oTok));
+                                            }
+                                            if (oTok.Type == JTokenType.Property)
+                                                oRes.Add(oTok.Parent);
+
+                                            if (oTok.Type == JTokenType.String ||
+                                                oTok.Type == JTokenType.Integer ||
+                                                oTok.Type == JTokenType.Date ||
+                                                oTok.Type == JTokenType.Boolean ||
+                                                oTok.Type == JTokenType.Float ||
+                                                oTok.Type == JTokenType.Guid ||
+                                                oTok.Type == JTokenType.TimeSpan)
+                                            {
+                                                //check if path is excluded
+                                                if (!sExclPath.Contains(oTok.Path))
+                                                    oRes.Add(oTok.Path, oTok);
+                                            }
+
+                                            if (oTok.Type == JTokenType.Date)
+                                                oRes.Add(oTok.Parent);
+
+                                            foundData = true;
                                         }
-                                        if (oTok.Type == JTokenType.Array)
+                                        catch (Exception ex)
                                         {
-                                            oRes.Add(new JProperty(path, oTok));
+                                            Debug.WriteLine("Error QueryAll_1: " + ex.Message.ToString());
                                         }
-                                        if (oTok.Type == JTokenType.Property)
-                                            oRes.Add(oTok.Parent);
-
-                                        if (oTok.Type == JTokenType.String)
-                                            oRes.Add(oTok.Parent);
-
-                                        if (oTok.Type == JTokenType.Date)
-                                            oRes.Add(oTok.Parent);
 
                                     }
-                                    if (oToks.Count() == 0)
-                                        oRes = null;
+
+                                    /*if (oToks.Count() == 0)
+                                        oRes = new JObject(); */
                                 }
-                                catch { }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                                }
+                            }
+                        }
+
+                        if (oRes.HasValues)
+                        {
+                            string sHa = CalculateHash(oRes.ToString(Formatting.None));
+                            if (!lHashes.Contains(sHa))
+                            {
+                                aRes.Add(oRes);
+                                lHashes.Add(sHa);
+                            }
+
+                            //Remove excluded Properties
+                            foreach (string sExclude in lExclude)
+                            {
+                                foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
+                                {
+                                    oRem.Parent.Remove();
+                                }
+                            }
+                        }
+                    }
+                    GC.Collect();
+                    return aRes;
+                }
+
+                if (UseFileStore)
+                {
+                    foreach (var oFile in new DirectoryInfo("wwwroot/Assets").GetFiles("*.json"))
+                    {
+                        bool foundData = false;
+                        JObject jObj = GetRaw(File.ReadAllText(oFile.FullName), paths);
+
+                        if (paths.Contains("*") || paths.Contains(".."))
+                        {
+                            try
+                            {
+                                jObj = GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                            }
+                            catch { }
+                        }
+
+                        JObject oRes = new JObject();
+
+                        foreach (string sAttrib in select.Split(';'))
+                        {
+                            //var jVal = jObj[sAttrib];
+                            var jVal = jObj.SelectToken(sAttrib);
+
+                            if (jVal != null)
+                            {
+                                oRes.Add(sAttrib.Trim(), jVal);
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
+                        {
+                            //Generate list of excluded paths
+                            List<string> sExclPath = new List<string>();
+                            foreach (string sExclude in lExclude)
+                            {
+                                foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
+                                {
+                                    sExclPath.Add(oRem.Path);
+                                }
+                            }
+
+                            foreach (string path in paths.Split(';'))
+                            {
+                                try
+                                {
+                                    var oToks = jObj.SelectTokens(path.Trim(), false);
+
+                                    if (oToks.Count() == 0)
+                                    {
+                                        if (!foundData)
+                                        {
+                                            oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
+                                            continue;
+                                        }
+                                    }
+
+                                    foreach (JToken oTok in oToks)
+                                    {
+                                        try
+                                        {
+                                            if (oTok.Type == JTokenType.Object)
+                                            {
+                                                oRes.Merge(oTok);
+                                                //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
+                                                continue;
+                                            }
+                                            if (oTok.Type == JTokenType.Array)
+                                            {
+                                                oRes.Add(new JProperty(path, oTok));
+                                            }
+                                            if (oTok.Type == JTokenType.Property)
+                                                oRes.Add(oTok.Parent);
+
+                                            if (oTok.Type == JTokenType.String)
+                                            {
+                                                //check if path is excluded
+                                                if (!sExclPath.Contains(oTok.Path))
+                                                    oRes.Add(oTok.Path, oTok.ToString());
+                                            }
+
+                                            if (oTok.Type == JTokenType.Date)
+                                                oRes.Add(oTok.Parent);
+
+                                            foundData = true;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                                        }
+
+                                    }
+
+                                    /*if (oToks.Count() == 0)
+                                        oRes = new JObject(); */
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                                }
                             }
                         }
 
@@ -1450,7 +1624,7 @@ namespace jaindb
                             }
                         }
                     }
-
+                    GC.Collect();
                     return aRes;
                 }
             }
@@ -1632,7 +1806,7 @@ namespace jaindb
                     {
                         try
                         {
-                            
+
                             var jObj = JObject.Parse(ReadHash(sID, "chain"));
                             //var jObj = JObject.Parse(cache3.StringGet(sID));
 
