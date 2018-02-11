@@ -1,4 +1,6 @@
-| ﻿Class                                  | id                                   | QueryAll                                                                                                               |
+ConfigMgr Objects:
+
+| **Class**                                  | id                                   | QueryAll                                                                                                               |
 |----------------------------------------|--------------------------------------|------------------------------------------------------------------------------------------------------------------------|
 | TaskSequence                           | ts-{PackageID}                       | http://localhost:5000/query?TaskSequence.Name                                                                          |
 | App                                    | app-{PackageID}                      | http://localhost:5000/query?App.%23LocalizedDisplayName;App.AppMgmtDigest.DeploymentType..Title.value                  |
