@@ -25,6 +25,7 @@ namespace jaindb
     {
         public static string RedisServer = "localhost";
         public static int RedisPort = 6379;
+
         static RedisConnectorHelper()
         {
             RedisConnectorHelper.lazyConnection = new Lazy<ConnectionMultiplexer>(() =>
@@ -179,7 +180,7 @@ namespace jaindb
                     {
                         ((JObject)oClass).Add("##hash", sHash);
 
-                        WriteHash(sHash, oRoot.ToString(Newtonsoft.Json.Formatting.None), Collection);
+                        WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection);
 
                         oRoot = oClass;
                     }
@@ -309,6 +310,13 @@ namespace jaindb
 
                 if (UseFileStore)
                 {
+                    //Remove invalid Characters in Path and Hash
+                    foreach (var sChar in Path.GetInvalidPathChars())
+                    {
+                        Collection = Collection.Replace(sChar.ToString(), "");
+                        Hash= Hash.Replace(sChar.ToString(), "");
+                    }
+
                     if (!Directory.Exists("wwwroot\\" + Collection))
                         Directory.CreateDirectory("wwwroot\\" + Collection);
 
@@ -364,6 +372,13 @@ namespace jaindb
                                                 try
                                                 {
                                                     string sDir = "wwwroot\\" + "_Key" + "\\" + oSub.Name.ToLower().TrimStart('#');
+
+                                                    //Remove invalid Characters in Path
+                                                    foreach (var sChar in Path.GetInvalidPathChars())
+                                                    {
+                                                        sDir = sDir.Replace(sChar.ToString(), "");
+                                                    }
+
                                                     if (!Directory.Exists(sDir))
                                                         Directory.CreateDirectory(sDir);
 
@@ -423,6 +438,14 @@ namespace jaindb
             return false;
         }
 
+        public static async Task<bool> WriteHashAsync(string Hash, string Data, string Collection)
+        {
+            return await Task.Run(() =>
+            {
+                return WriteHash(Hash, Data, Collection);
+            });
+        }
+
         public static string ReadHash(string Hash, string Collection)
         {
             string sResult = "";
@@ -451,6 +474,24 @@ namespace jaindb
                             default:
                                 sResult = cache2.StringGet(Hash);
 
+#if DEBUG
+                                //Check if hashes are valid...
+                                var jData = JObject.Parse(sResult);
+                                /*if (jData["#id"] != null)
+                                    jData.Remove("#id");*/
+                                if (jData["_date"] != null)
+                                    jData.Remove("_date");
+                                if (jData["_index"] != null)
+                                    jData.Remove("_index");
+
+                                string s1 = CalculateHash(jData.ToString(Formatting.None));
+                                if (Hash != s1)
+                                {
+                                    s1.ToString();
+                                    return "";
+                                }
+#endif
+
                                 //Cache result in Memory
                                 if (!string.IsNullOrEmpty(sResult))
                                 {
@@ -464,13 +505,36 @@ namespace jaindb
                     if (UseFileStore)
                     {
                         string Coll2 = Collection;
-                        //Remove invalid Characters in Path
+                        //Remove invalid Characters in Path anf File
                         foreach (var sChar in Path.GetInvalidPathChars())
                         {
                             Coll2 = Coll2.Replace(sChar.ToString(), "");
+                            Hash = Hash.Replace(sChar.ToString(), "");
                         }
 
                         sResult = File.ReadAllText("wwwroot\\" + Coll2 + "\\" + Hash + ".json");
+
+#if DEBUG
+                        //Check if hashes are valid...
+                        if (Collection.ToLower() != "_full" && Collection.ToLower() != "chain")
+                        {
+                            var jData = JObject.Parse(sResult);
+                            /*if (jData["#id"] != null)
+                                jData.Remove("#id");*/
+                            if (jData["_date"] != null)
+                                jData.Remove("_date");
+                            if (jData["_index"] != null)
+                                jData.Remove("_index");
+
+                            string s1 = CalculateHash(jData.ToString(Formatting.None));
+                            if (Hash != s1)
+                            {
+                                s1.ToString();
+                                return "";
+                            }
+                        }
+#endif
+
 
                         //Cache result in Memory
                         if (!string.IsNullOrEmpty(sResult))
@@ -644,7 +708,9 @@ namespace jaindb
                     }
                 }
 
-                JSort(oStatic, true);
+                JSort(oStatic);
+                //JSort(oStatic, true);
+
                 string sResult = CalculateHash(oStatic.ToString(Newtonsoft.Json.Formatting.None));
 
                 var oBlock = oChain.GetLastBlock();
@@ -657,33 +723,28 @@ namespace jaindb
                     {
                         //Console.WriteLine(JsonConvert.SerializeObject(tChain));
                         Console.WriteLine("Blockchain is valid... " + DeviceID);
-                        WriteHash(DeviceID, JsonConvert.SerializeObject(oChain), "Chain");
+                        WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "Chain");
 
                         //Add missing attributes
-                        if (oStatic["#id"] == null)
-                            oStatic.Add(new JProperty("#id", DeviceID));
-
-                        if (jTemp["#id"] == null)
-                            jTemp.Add(new JProperty("#id", DeviceID));
-
+                        if (oStatic["_date"] == null)
+                            oStatic.AddFirst(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
                         if (oStatic["_index"] == null)
-                            oStatic.Add(new JProperty("_index", oNew.index));
+                            oStatic.AddFirst(new JProperty("_index", oNew.index));
+                        if (oStatic["#id"] == null)
+                            oStatic.AddFirst(new JProperty("#id", DeviceID));
 
                         if (jTemp["_index"] == null)
-                            jTemp.Add(new JProperty("_index", oNew.index));
-
-                        if (oStatic["_date"] == null)
-                            oStatic.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
-
-                        if (jTemp["_date"] == null)
-                            jTemp.Add(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
-
+                            jTemp.AddFirst(new JProperty("_index", oNew.index));
                         if (jTemp["_hash"] == null)
-                            jTemp.Add(new JProperty("_hash", oNew.data));
+                            jTemp.AddFirst(new JProperty("_hash", oNew.data));
+                        if (jTemp["_date"] == null)
+                            jTemp.AddFirst(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
+                        if (jTemp["#id"] == null)
+                            jTemp.AddFirst(new JProperty("#id", DeviceID));
 
-                        JSort(jTemp);
+                        //JSort(jTemp);
 
-                        WriteHash(DeviceID, jTemp.ToString(Formatting.None), "_Full");
+                        WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_Full");
                     }
                     else
                     {
@@ -691,8 +752,8 @@ namespace jaindb
                     }
                 }
 
-                JSort(oStatic);
-                WriteHash(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "Assets");
+                //JSort(oStatic);
+                WriteHashAsync(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "Assets");
 
 
                 return sResult;
@@ -883,7 +944,7 @@ namespace jaindb
 
                     if (Index == -1)
                     {
-                        WriteHash(DeviceID, oInv.ToString(), "_full");
+                        WriteHashAsync(DeviceID, oInv.ToString(), "_full");
                     }
 
                     /*var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache full for 60s

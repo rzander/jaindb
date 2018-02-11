@@ -151,20 +151,17 @@ namespace jaindb.Controllers
         {
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
             string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
-            if (sPath != "/favicon.ico")
-            {
-                var query = QueryHelpers.ParseQuery(sQuery);
-                string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
 
-                if (string.IsNullOrEmpty(sKey))
-                    sKey = jDB.LookupID(query.First().Key, query.First().Value);
-                //int index = -1;
-                if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
-                    index = -1;
+            var query = QueryHelpers.ParseQuery(sQuery);
+            string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
 
-                return jDB.GetFull(sKey, index);
-            }
-            return null;
+            if (string.IsNullOrEmpty(sKey))
+                sKey = jDB.LookupID(query.First().Key, query.First().Value);
+            //int index = -1;
+            if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
+                index = -1;
+
+            return jDB.GetFull(sKey, index);
         }
 
         [HttpGet]
@@ -292,6 +289,77 @@ namespace jaindb.Controllers
             catch { }
 
             return null;
+        }
+
+        [HttpGet]
+        [Route("validate")]
+        public bool Validate()
+        {
+            try
+            {
+                string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
+                string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+
+                var query = QueryHelpers.ParseQuery(sQuery);
+                string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
+
+                if (string.IsNullOrEmpty(sKey))
+                    sKey = jDB.LookupID(query.First().Key, query.First().Value);
+
+                /*if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
+                    index = -1;*/ 
+
+                int index = -1;
+
+                //get the latest index from full
+                var jFull = jDB.GetFull(sKey, index);
+
+                //remove all # and @ objects
+                foreach (var oKey in jFull.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
+                {
+                    try
+                    {
+                        oKey.Remove();
+                    }
+                    catch { }
+                }
+
+                //Remove NULL values
+                foreach (var oTok in jFull.Descendants().Where(t => t.Parent.Type == (JTokenType.Property) && t.Type == JTokenType.Null).ToList())
+                {
+                    try
+                    {
+                        oTok.Parent.Remove();
+                    }
+                    catch { }
+                }
+                int rawindex = jFull["_index"].Value<int>();
+
+                var jFromChain = jDB.GetFull(sKey, rawindex);
+                //Remove NULL values
+                foreach (var oTok in jFromChain.Descendants().Where(t => t.Parent.Type == (JTokenType.Property) && t.Type == JTokenType.Null).ToList())
+                {
+                    try
+                    {
+                        oTok.Parent.Remove();
+                    }
+                    catch { }
+                }
+
+                jDB.JSort(jFull);
+                jDB.JSort(jFromChain);
+
+                string sCalc = jDB.CalculateHash(jFromChain.ToString(Newtonsoft.Json.Formatting.None));
+                string sChain = jDB.CalculateHash(jFull.ToString(Newtonsoft.Json.Formatting.None));
+                if (sCalc == sChain)
+                {
+                    return true;
+                }
+                else
+                    return false;
+            }
+            catch { }
+            return false;
         }
 
         [HttpGet]
