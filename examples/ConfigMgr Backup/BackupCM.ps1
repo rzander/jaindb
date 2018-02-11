@@ -36,7 +36,7 @@ Get-CMTaskSequence | ForEach-Object {
     $id = "ts-" + $_.PackageID
     $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $ts.Sequence -ContentType "application/json; charset=utf-8"
     $object | Add-Member -MemberType NoteProperty -Name "sequence" -Value $js.sequence 
-    $object | Add-Member -MemberType NoteProperty -Name "#Name" -Value ("ts-" + $ts.Name) 
+    $object | Add-Member -MemberType NoteProperty -Name "Name" -Value ("ts-" + $ts.Name) 
     $object | Add-Member -MemberType NoteProperty -Name "BootImageID" -Value $ts.BootImageID 
     $object | Add-Member -MemberType NoteProperty -Name "Description" -Value $ts.Description
     $object | Add-Member -MemberType NoteProperty -Name "Duration" -Value $ts.Duration
@@ -47,7 +47,7 @@ Get-CMTaskSequence | ForEach-Object {
     $object | Add-Member -MemberType NoteProperty -Name "SecuredScopeNames" -Value $ts.SecuredScopeNames
     $object | Add-Member -MemberType NoteProperty -Name "SupportedOperatingSystems" -Value ($ts.SupportedOperatingSystems | ForEach-Object { $_.PropertyList })
     $result  = New-Object PSObject
-    $result | Add-Member -MemberType NoteProperty -Name "TaskSequence " -Value $object
+    $result | Add-Member -MemberType NoteProperty -Name "TaskSequence" -Value $object
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($result| ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
@@ -78,8 +78,9 @@ Get-CMApplication | ForEach-Object {
     $object | Add-Member -MemberType NoteProperty -Name "@NumberOfUsersWithApp" -Value $app.LastModifiedBy
     $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $app.SDMPackageXML -ContentType "application/json; charset=utf-8"
     $object | Add-Member -MemberType NoteProperty -Name "AppMgmtDigest" -Value $js.AppMgmtDigest
-
-    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+    $app = New-Object PSObject 
+    $app | Add-Member -MemberType NoteProperty -Name "App" -Value $object
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($app  | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
 #Collections
@@ -134,9 +135,17 @@ Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Obj
             $settings.PSObject.Properties.Remove('LastModificationTime')
             $settings|  Add-Member -MemberType NoteProperty -Name "@LastModificationTime" -Value $lastMod
         }
+        if($settings.PowerConfigs.NonPeakPowerPlan) {
+            $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $settings.PowerConfigs.NonPeakPowerPlan -ContentType "application/json; charset=utf-8"
+            $settings.PowerConfigs.NonPeakPowerPlan = $js
+        }
+        if($settings.PowerConfigs.PeakPowerPlan) {
+            $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $settings.PowerConfigs.PeakPowerPlan -ContentType "application/json; charset=utf-8"
+            $settings.PowerConfigs.PeakPowerPlan = $js
+        }
     }
     
-    $result| Add-Member -MemberType NoteProperty -Name "CollectionSettings" -Value $settings 
+    $result | Add-Member -MemberType NoteProperty -Name "CollectionSettings" -Value $settings 
 
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($result | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
