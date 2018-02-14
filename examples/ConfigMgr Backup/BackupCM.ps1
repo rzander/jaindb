@@ -1,4 +1,4 @@
-$jaindburi = "http://172.16.101.3:5000"
+$jaindburi = "http://localhost:5000"
 Import-Module (Join-Path $(Split-Path $env:SMS_ADMIN_UI_PATH) ConfigurationManager.psd1) 
 $SiteCode = Get-PSDrive -PSProvider CMSITE
 Push-Location "$($SiteCode.Name):\"
@@ -32,11 +32,14 @@ function Base58([byte[]]$data) {
 #Task-Sequences
 Get-CMTaskSequence | ForEach-Object { 
     $object = New-Object PSObject
+    $result  = New-Object PSObject
     $ts = $_
     $id = "ts-" + $_.PackageID
     $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $ts.Sequence -ContentType "application/json; charset=utf-8"
+    $result  | Add-Member -MemberType NoteProperty -Name "#Name" -Value ("ts-" + $ts.Name)
     $object | Add-Member -MemberType NoteProperty -Name "sequence" -Value $js.sequence 
-    $object | Add-Member -MemberType NoteProperty -Name "Name" -Value ("ts-" + $ts.Name) 
+    $object | Add-Member -MemberType NoteProperty -Name "Name" -Value $ts.Name
+    $object | Add-Member -MemberType NoteProperty -Name "PackageID" -Value $ts.PackageID 
     $object | Add-Member -MemberType NoteProperty -Name "BootImageID" -Value $ts.BootImageID 
     $object | Add-Member -MemberType NoteProperty -Name "Description" -Value $ts.Description
     $object | Add-Member -MemberType NoteProperty -Name "Duration" -Value $ts.Duration
@@ -46,7 +49,7 @@ Get-CMTaskSequence | ForEach-Object {
     $object | Add-Member -MemberType NoteProperty -Name "ProgramFlags" -Value $ts.ProgramFlags
     $object | Add-Member -MemberType NoteProperty -Name "SecuredScopeNames" -Value $ts.SecuredScopeNames
     $object | Add-Member -MemberType NoteProperty -Name "SupportedOperatingSystems" -Value ($ts.SupportedOperatingSystems | ForEach-Object { $_.PropertyList })
-    $result  = New-Object PSObject
+    
     $result | Add-Member -MemberType NoteProperty -Name "TaskSequence" -Value $object
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($result| ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
@@ -54,11 +57,16 @@ Get-CMTaskSequence | ForEach-Object {
 #Applications
 Get-CMApplication | ForEach-Object { 
     $object = New-Object PSObject
-    $id = "app-" + $_.PackageID
+    $appl = New-Object PSObject 
+    $id = "app-" + $_.CI_ID
     $app = $_
+    $appl | Add-Member -MemberType NoteProperty -Name "#CI_ID" -Value $app.CI_ID
+    $appl | Add-Member -MemberType NoteProperty -Name "#CI_UniqueID" -Value $app.CI_UniqueID
+    $appl | Add-Member -MemberType NoteProperty -Name "#Name" -Value ("app-" + $app.LocalizedDisplayName)
     $object | Add-Member -MemberType NoteProperty -Name "CategoryInstance_UniqueIDs" -Value $app.CategoryInstance_UniqueIDs
-    $object | Add-Member -MemberType NoteProperty -Name "#CI_ID" -Value $app.CI_ID
-    $object | Add-Member -MemberType NoteProperty -Name "#CI_UniqueID" -Value $app.CI_UniqueID
+    $object | Add-Member -MemberType NoteProperty -Name "CI_ID" -Value $app.CI_ID
+    $object | Add-Member -MemberType NoteProperty -Name "PackageID" -Value $app.PackageID
+    $object | Add-Member -MemberType NoteProperty -Name "CI_UniqueID" -Value $app.CI_UniqueID
     $object | Add-Member -MemberType NoteProperty -Name "CIVersion" -Value $app.CIVersion
     $object | Add-Member -MemberType NoteProperty -Name "CreatedBy" -Value $app.CreatedBy
     $object | Add-Member -MemberType NoteProperty -Name "DateCreated" -Value $app.DateCreated
@@ -70,7 +78,7 @@ Get-CMApplication | ForEach-Object {
     $object | Add-Member -MemberType NoteProperty -Name "IsSuperseding" -Value $app.IsSuperseding
     $object | Add-Member -MemberType NoteProperty -Name "@LastModifiedBy" -Value $app.LastModifiedBy
     $object | Add-Member -MemberType NoteProperty -Name "LocalizedCategoryInstanceNames" -Value $app.LocalizedCategoryInstanceNames
-    $object | Add-Member -MemberType NoteProperty -Name "#LocalizedDisplayName" -Value ("app-" + $app.LocalizedDisplayName)
+    $object | Add-Member -MemberType NoteProperty -Name "LocalizedDisplayName" -Value $app.LocalizedDisplayName
     $object | Add-Member -MemberType NoteProperty -Name "ModelID" -Value $app.ModelID
     $object | Add-Member -MemberType NoteProperty -Name "ModelName" -Value $app.ModelName
     $object | Add-Member -MemberType NoteProperty -Name "SecuredScopeNames" -Value $app.SecuredScopeNames
@@ -78,9 +86,9 @@ Get-CMApplication | ForEach-Object {
     $object | Add-Member -MemberType NoteProperty -Name "@NumberOfUsersWithApp" -Value $app.LastModifiedBy
     $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $app.SDMPackageXML -ContentType "application/json; charset=utf-8"
     $object | Add-Member -MemberType NoteProperty -Name "AppMgmtDigest" -Value $js.AppMgmtDigest
-    $app = New-Object PSObject 
+    
     $app | Add-Member -MemberType NoteProperty -Name "App" -Value $object
-    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($app  | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($appl  | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
 #Collections
@@ -88,7 +96,8 @@ Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Obj
     $object = New-Object PSObject
     $id = "coll-" + $_.CollectionID
     $coll = $_ | Get-CimInstance 
-
+    $result  = New-Object PSObject
+    $result | Add-Member -MemberType NoteProperty -Name "#Name" -Value ("coll-" + $coll.Name)
     $object | Add-Member -MemberType NoteProperty -Name "CollectionID" -Value $coll.CollectionID
     $object | Add-Member -MemberType NoteProperty -Name "CollectionRules" -Value $coll.CollectionRules
     $object | Add-Member -MemberType NoteProperty -Name "CollectionType" -Value $coll.CollectionType
@@ -97,7 +106,7 @@ Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Obj
     $object | Add-Member -MemberType NoteProperty -Name "LimitToCollectionID" -Value $coll.LimitToCollectionID
     $object | Add-Member -MemberType NoteProperty -Name "LimitToCollectionName" -Value $coll.LimitToCollectionName
     $object | Add-Member -MemberType NoteProperty -Name "@MemberCount" -Value $coll.MemberCount
-    $object | Add-Member -MemberType NoteProperty -Name "#Name" -Value ("coll-" + $coll.Name)
+    $object | Add-Member -MemberType NoteProperty -Name "Name" -Value $coll.Name
     $object | Add-Member -MemberType NoteProperty -Name "RefreshSchedule" -Value $coll.RefreshSchedule
     $object | Add-Member -MemberType NoteProperty -Name "RefreshType" -Value $coll.RefreshType
     $object | Add-Member -MemberType NoteProperty -Name "ServiceWindowsCount" -Value $coll.ServiceWindowsCount
@@ -111,7 +120,7 @@ Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Obj
     $object.CollectionRules = $object.CollectionRules | Select-Object * -ExcludeProperty Cim*, PSComp*
     $object.RefreshSchedule = $object.RefreshSchedule | Select-Object * -ExcludeProperty Cim*, PSComp*
 
-    $result  = New-Object PSObject
+
     $result | Add-Member -MemberType NoteProperty -Name "Collection" -Value $object
 
     #CollectionSettings
@@ -317,20 +326,21 @@ Get-CMHierarchySetting | ForEach-Object {
     $id = "site-" + $_.SiteCode
     $site = $_ | Select-Object $_.PropertyNames
     $props = @()
-    $site.Props = $site.Props | % {
+    $site.Props = $site.Props | ForEach-Object {
         $props += $_ | Select-Object $_.PropertyNames
     }
     $site.psobject.Properties.remove('Props')
     $site | Add-Member -MemberType NoteProperty -Name "Props" -Value $props
 
     $props = @()
-    $site.PropLists = $site.PropLists | % {
+    $site.PropLists = $site.PropLists | ForEach-Object {
         $props += $_ | Select-Object $_.PropertyNames
     }
     $site.psobject.Properties.remove('PropLists')
     $site | Add-Member -MemberType NoteProperty -Name "PropLists" -Value $props
 
     $object | Add-Member -MemberType NoteProperty -Name "HierarchySetting" -Value $site
+    $object.HierarchySetting.Props.psobject.BaseObject | Where-Object { $_.Name -eq 'SiteControlHeartBeat' } 
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
@@ -373,6 +383,7 @@ Get-CMResource -ResourceType System -Fast | Where-Object { $_.Client -eq 1 } | F
     $object = New-Object PSObject
     $id = "res-" + $_.ResourceID
     $orgres = $_
+    $object | Add-Member -MemberType NoteProperty -Name "#Name" -Value $_.Name
     $res = $_ | Select-Object $_.PropertyNames -ExcludeProperty AgentTime, LastLogonTimestamp
     $res | Add-Member -MemberType NoteProperty -Name "@AgentTime" -Value $_.AgentTime
     $res | Add-Member -MemberType NoteProperty -Name "@LastLogonTimestamp" -Value $_.LastLogonTimestamp
@@ -398,6 +409,7 @@ Get-CMOperatingSystemUpgradePackage | ForEach-Object {
     $object = New-Object PSObject
     $id = "osd-" + $_.PackageID
     $osd = $_ | Select-Object $_.PropertyNames
+    $osd.RefreshSchedule = $osd.RefreshSchedule | Select-Object $osd.RefreshSchedule.PropertyNames
     $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $osd.ImageProperty -ContentType "application/json; charset=utf-8"
     $osd.ImageProperty = $js
     $object | Add-Member -MemberType NoteProperty -Name "OperatingSystemUpgradePackage" -Value $osd
