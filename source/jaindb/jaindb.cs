@@ -722,7 +722,15 @@ namespace jaindb
                     if (oChain.ValidateChain())
                     {
                         //Console.WriteLine(JsonConvert.SerializeObject(tChain));
-                        Console.WriteLine("Blockchain is valid... " + DeviceID);
+                        if (oNew.index == 1)
+                        {
+                            Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") +  " - new " + DeviceID);
+                        }
+                        else
+                        {
+                            Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " - update " + DeviceID);
+                        }
+
                         WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "Chain");
 
                         //Add missing attributes
