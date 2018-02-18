@@ -1135,27 +1135,30 @@ namespace jaindb
                 JSort(right);
                 JSort(left);
 
-                var optipons = new JsonDiffPatchDotNet.Options();
-                if (mode == 0)
+                if (mode <= 1)
                 {
-                    optipons.ArrayDiff = JsonDiffPatchDotNet.ArrayDiffMode.Simple;
-                    optipons.TextDiff = JsonDiffPatchDotNet.TextDiffMode.Simple;
+                    var optipons = new JsonDiffPatchDotNet.Options();
+                    if (mode == 0)
+                    {
+                        optipons.ArrayDiff = JsonDiffPatchDotNet.ArrayDiffMode.Simple;
+                        optipons.TextDiff = JsonDiffPatchDotNet.TextDiffMode.Simple;
+                    }
+                    if (mode == 1)
+                    {
+                        optipons.ArrayDiff = JsonDiffPatchDotNet.ArrayDiffMode.Efficient;
+                        optipons.TextDiff = JsonDiffPatchDotNet.TextDiffMode.Efficient;
+                    }
+
+                    var jpf = new JsonDiffPatchDotNet.JsonDiffPatch(optipons);
+
+                    var oDiff = jpf.Diff(left, right);
+
+                    if (oDiff == null)
+                        return new JObject();
+
+                    GC.Collect();
+                    return JObject.Parse(oDiff.ToString());
                 }
-                if (mode == 1)
-                {
-                    optipons.ArrayDiff = JsonDiffPatchDotNet.ArrayDiffMode.Efficient;
-                    optipons.TextDiff = JsonDiffPatchDotNet.TextDiffMode.Efficient;
-                }
-
-                var jpf = new JsonDiffPatchDotNet.JsonDiffPatch(optipons);
-
-                var oDiff = jpf.Diff(left, right);
-
-                if (oDiff == null)
-                    return new JObject();
-
-                GC.Collect();
-                return JObject.Parse(oDiff.ToString());
             }
             catch { }
 

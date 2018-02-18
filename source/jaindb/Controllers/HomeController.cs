@@ -87,7 +87,7 @@ namespace jaindb.Controllers
         public string GetPS()
         {
             string sResult = "";
-            
+
             //Check in MemoryCache
             if (_cache.TryGetValue("GetPS", out sResult))
             {
@@ -98,7 +98,7 @@ namespace jaindb.Controllers
             {
                 string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
                 sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
-                
+
                 //Cache result in Memory
                 if (!string.IsNullOrEmpty(sResult))
                 {
@@ -197,6 +197,55 @@ namespace jaindb.Controllers
                 return jDB.GetDiff(sKey, index, mode, rindex);
             }
             return null;
+        }
+
+        [HttpGet]
+        [Route("diffvis")]
+        public ActionResult DiffVis()
+        {
+            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
+            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+
+            var query = QueryHelpers.ParseQuery(sQuery);
+            string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
+
+            if (string.IsNullOrEmpty(sKey))
+                sKey = jDB.LookupID(query.First().Key, query.First().Value);
+
+            if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
+                index = 0;
+
+            if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "lindex").Value, out int lindex))
+                lindex = 0;
+
+            if (index == 0)
+                index = lindex;
+
+            if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "rindex").Value, out int rindex))
+                rindex = -1;
+
+            if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "mode").Value, out int mode))
+                mode = 0;
+
+            var right = jDB.GetFull(sKey, rindex);
+
+
+            jDB.JSort(right);
+            if (index == 0)
+                index = ((int)right["_index"]) - 1;
+
+            var left = jDB.GetFull(sKey, index);
+            jDB.JSort(left);
+
+            string sRes = Properties.Resources.diffvis;
+            sRes = sRes.Replace("$$left$$", left.ToString(Newtonsoft.Json.Formatting.None));
+            sRes = sRes.Replace("$$right$$", right.ToString(Newtonsoft.Json.Formatting.None));
+
+            return new ContentResult()
+            {
+                Content = sRes,
+                ContentType = "text/HTML"
+            };
         }
 
         [HttpGet]
@@ -307,7 +356,7 @@ namespace jaindb.Controllers
                     sKey = jDB.LookupID(query.First().Key, query.First().Value);
 
                 /*if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
-                    index = -1;*/ 
+                    index = -1;*/
 
                 int index = -1;
 
@@ -371,7 +420,7 @@ namespace jaindb.Controllers
 
             JToken jData = new JObject();
 
-            switch(sPath.Replace("/html/", "").ToLower())
+            switch (sPath.Replace("/html/", "").ToLower())
             {
                 case "full":
                     jData = Full();
@@ -406,8 +455,8 @@ namespace jaindb.Controllers
             htmlTable.Append("<table class=\"table table-bordered table-responsive\">");
 
 
-            
-            foreach(var oChild in jData.Children())
+
+            foreach (var oChild in jData.Children())
             {
                 htmlTable.Append(GetChild(oChild));
             }
@@ -437,7 +486,7 @@ namespace jaindb.Controllers
 
             if (jChild.Type == JTokenType.Array)
             {
-                foreach(var oChild in jChild.Children())
+                foreach (var oChild in jChild.Children())
                 {
                     htmlTable.Append("<tr>");
                     htmlTable.Append(GetChild(oChild));
