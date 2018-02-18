@@ -1259,7 +1259,7 @@ namespace jaindb
         /// <param name="searchkey"></param>
         /// <param name="KeyID"></param>
         /// <returns></returns>
-        public static List<string> search(string searchkey, string KeyID = "#id")
+        public static List<string> Search(string searchkey, string KeyID = "#id")
         {
             if (string.IsNullOrEmpty(searchkey))
                 return new List<string>();
@@ -1277,7 +1277,7 @@ namespace jaindb
             return lNames.Union(lNames).ToList();
         }
 
-        public static JArray query(string paths, string select, string exclude)
+        public static JArray Query(string paths, string select, string exclude)
         {
             paths = System.Net.WebUtility.UrlDecode(paths);
             select = System.Net.WebUtility.UrlDecode(select);
@@ -1421,7 +1421,7 @@ namespace jaindb
 
         }
 
-        public static JArray queryAll(string paths, string select, string exclude)
+        public static JArray QueryAll(string paths, string select, string exclude)
         {
             paths = System.Net.WebUtility.UrlDecode(paths);
             select = System.Net.WebUtility.UrlDecode(select);
@@ -1703,6 +1703,48 @@ namespace jaindb
             catch { }
 
             return new JArray();
+        }
+
+        public enum ChangeType { New, Update };
+
+        public class Change
+        {
+            public ChangeType changeType; 
+            public DateTime lastChange;
+            public int index;
+            public string id;
+        }
+
+        public static JArray GetChanges(TimeSpan age, int changeType = -1)
+        {
+            age.ToString();
+            List<Change> lRes = new List<Change>();
+            foreach (var sID in GetAllChainsAsync().Result)
+            {
+                Change oRes = new Change();
+                oRes.id = sID;
+                var jObj = JObject.Parse(ReadHash(sID, "chain"));
+                oRes.lastChange = new DateTime(jObj["Chain"].Last["timestamp"].Value<long>());
+                if(DateTime.Now.Subtract(oRes.lastChange) > age)
+                {
+                    continue;
+                }
+                oRes.index = jObj["Chain"].Last["index"].Value<int>();
+                if (oRes.index > 1)
+                    oRes.changeType = ChangeType.Update;
+                else
+                    oRes.changeType = ChangeType.New;
+
+                if(changeType >= 0)
+                {
+                    if(((int)oRes.changeType) != changeType)
+                        continue;
+                }
+
+                lRes.Add(oRes);
+            }
+
+            return JArray.Parse(JsonConvert.SerializeObject(lRes.OrderBy(t=>t.id).ToList(), Formatting.None));
         }
 
         /// <summary>

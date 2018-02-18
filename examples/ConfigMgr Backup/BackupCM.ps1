@@ -307,6 +307,7 @@ Get-CMDistributionPointGroup | ForEach-Object {
     $object = New-Object PSObject
     $id = "dpg-" + $_.GroupID
     $dp = $_ | Select-Object $_.PropertyNames
+    $dp | Add-Member -MemberType NoteProperty -Name "DistributionPoints" -Value (Get-CMDistributionPoint -DistributionPointGroupName ($dp.Name) | Select-Object NetworkOSPath)
     $object | Add-Member -MemberType NoteProperty -Name "DistributionPointGroup" -Value $dp
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }

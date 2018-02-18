@@ -258,7 +258,7 @@ namespace jaindb.Controllers
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
-                return Json(jDB.search(query.FirstOrDefault(t => string.IsNullOrEmpty(t.Value)).Key, query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value));
+                return Json(jDB.Search(query.FirstOrDefault(t => string.IsNullOrEmpty(t.Value)).Key, query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value));
             }
             return null;
         }
@@ -276,7 +276,7 @@ namespace jaindb.Controllers
                 //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
                 var query = QueryHelpers.ParseQuery(sQuery);
 
-                return jDB.query(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value);
+                return jDB.Query(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value);
             }
             return null;
         }
@@ -293,7 +293,7 @@ namespace jaindb.Controllers
                 //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
                 var query = QueryHelpers.ParseQuery(sQuery);
 
-                return jDB.queryAll(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value);
+                return jDB.QueryAll(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value);
             }
             return null;
         }
@@ -315,6 +315,26 @@ namespace jaindb.Controllers
                 return jDB.GetHistory(sKey);
             }
             return null;
+        }
+
+        [HttpGet]
+        [Route("changes")]
+        public JArray Changes()
+        {
+            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
+            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+
+            var query = QueryHelpers.ParseQuery(sQuery);
+            string sAge = query.FirstOrDefault(t => t.Key.ToLower() == "age").Value;
+            string sType = query.FirstOrDefault(t => t.Key.ToLower() == "changetype").Value;
+            int iType = -1;
+
+            TimeSpan tAge = new TimeSpan(24, 0, 0);
+            TimeSpan.TryParse(sAge.Replace("-", ":"), out tAge);
+            if(!string.IsNullOrEmpty(sType))
+                int.TryParse(sType, out iType);
+
+            return jDB.GetChanges(tAge, iType);
         }
 
         [HttpGet]
