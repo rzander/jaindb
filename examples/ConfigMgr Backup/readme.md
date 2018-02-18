@@ -30,3 +30,4 @@ ConfigMgr Objects:
 | UserDeviceAffinity                     | res-{ResourceID}                     | http://localhost:5000/query?UserDeviceAffinity..ResourceName;UserDeviceAffinity..UniqueUserName                        |
 | OperatingSystemUpgradePackage          | osd-{PackageID}                      | http://localhost:5000/query?OperatingSystemUpgradePackage.Name                                                         |
 | OperatingSystemImage                   | osd-{PackageID}                      | http://localhost:5000/query?OperatingSystemImage.Name                                                                  |
+| Deployment                             | depl-{DeploymentID}                  | http://localhost:5000/query?Deployment.CollectionName;Deployment.SoftwareName                                          |

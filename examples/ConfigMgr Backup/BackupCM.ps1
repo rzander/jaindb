@@ -329,8 +329,12 @@ Get-CMHierarchySetting | ForEach-Object {
     $site.Props = $site.Props | ForEach-Object {
         $props += $_ | Select-Object $_.PropertyNames
     }
+
+    $proplist = {$props}.Invoke()
+    $proplist.Remove(($proplist | Where-Object { $_.PropertyName -eq 'SiteControlHeartBeat' })) #Remove Heartbeat
+    
     $site.psobject.Properties.remove('Props')
-    $site | Add-Member -MemberType NoteProperty -Name "Props" -Value $props
+    $site | Add-Member -MemberType NoteProperty -Name "Props" -Value $proplist
 
     $props = @()
     $site.PropLists = $site.PropLists | ForEach-Object {
@@ -340,7 +344,7 @@ Get-CMHierarchySetting | ForEach-Object {
     $site | Add-Member -MemberType NoteProperty -Name "PropLists" -Value $props
 
     $object | Add-Member -MemberType NoteProperty -Name "HierarchySetting" -Value $site
-    $object.HierarchySetting.Props.psobject.BaseObject | Where-Object { $_.Name -eq 'SiteControlHeartBeat' } 
+
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
@@ -424,5 +428,24 @@ Get-CMOperatingSystemImage | ForEach-Object {
     $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $osd.ImageProperty -ContentType "application/json; charset=utf-8"
     $osd.ImageProperty = $js
     $object | Add-Member -MemberType NoteProperty -Name "OperatingSystemImage" -Value $osd
+    Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
+}
+
+#Deployments
+Get-CMDeployment | ForEach-Object { 
+    $object = New-Object PSObject
+    $org = $_
+    $id = "depl-" + $_.DeploymentID
+    $depl = $_ | Select-Object $_.PropertyNames -ExcludeProperty NumberErrors,NumberInProgress,NumberOther,NumberSuccess,NumberTargeted,NumberUnknown,SummarizationTime
+
+    $depl | Add-Member -MemberType NoteProperty -Name "@NumberErrors" -Value $org.NumberErrors
+    $depl | Add-Member -MemberType NoteProperty -Name "@NumberInProgress" -Value $org.NumberInProgress
+    $depl | Add-Member -MemberType NoteProperty -Name "@NumberOther" -Value $org.NumberOther
+    $depl | Add-Member -MemberType NoteProperty -Name "@NumberSuccess" -Value $org.NumberSuccess
+    $depl | Add-Member -MemberType NoteProperty -Name "@NumberTargeted" -Value $org.NumberTargeted
+    $depl | Add-Member -MemberType NoteProperty -Name "@NumberUnknown" -Value $org.NumberUnknown
+    $depl | Add-Member -MemberType NoteProperty -Name "@SummarizationTime" -Value $org.SummarizationTime
+
+    $object | Add-Member -MemberType NoteProperty -Name "Deployment" -Value $depl
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($object | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
