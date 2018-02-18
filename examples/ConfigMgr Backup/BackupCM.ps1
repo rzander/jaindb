@@ -87,7 +87,7 @@ Get-CMApplication | ForEach-Object {
     $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $app.SDMPackageXML -ContentType "application/json; charset=utf-8"
     $object | Add-Member -MemberType NoteProperty -Name "AppMgmtDigest" -Value $js.AppMgmtDigest
     
-    $app | Add-Member -MemberType NoteProperty -Name "App" -Value $object
+    $appl | Add-Member -MemberType NoteProperty -Name "App" -Value $object
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($appl  | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
