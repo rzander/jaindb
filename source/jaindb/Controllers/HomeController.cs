@@ -229,11 +229,12 @@ namespace jaindb.Controllers
 
             var right = jDB.GetFull(sKey, rindex);
 
-
-            jDB.JSort(right);
-            if (index == 0)
-                index = ((int)right["_index"]) - 1;
-
+            if (right.HasValues)
+            {
+                jDB.JSort(right);
+                if (index == 0)
+                    index = ((int)right["_index"]) - 1;
+            }
             var left = jDB.GetFull(sKey, index);
             jDB.JSort(left);
 

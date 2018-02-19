@@ -64,11 +64,11 @@ namespace jaindb.Properties {
         ///   Looks up a localized string similar to &lt;!DOCTYPE html&gt;
         ///&lt;html&gt;
         ///&lt;head&gt;
-        ///    &lt;link rel=&quot;stylesheet&quot; href=&quot;style.css&quot; type=&quot;text/css&quot; media=&quot;screen&quot; /&gt;
+        ///    //&lt;link rel=&quot;stylesheet&quot; href=&quot;../formatters-styles/style.css&quot; type=&quot;text/css&quot; media=&quot;screen&quot; /&gt;
         ///    &lt;link rel=&quot;stylesheet&quot; href=&quot;../formatters-styles/html.css&quot; type=&quot;text/css&quot; media=&quot;screen&quot; /&gt;
         ///    &lt;link rel=&quot;stylesheet&quot; href=&quot;../formatters-styles/annotated.css&quot; type=&quot;text/css&quot; media=&quot;screen&quot; /&gt;
-        ///    &lt;link rel=&quot;stylesheet&quot; href=&quot;https://cdnjs.cloudflare.com/ajax/libs/codemirror/3.21.0/codemirror.min.css&quot; type=&quot;text/css&quot; media=&quot;screen&quot; /&gt;
-        ///    &lt;script type=&apos;text/javascript&apos; src=&quot;https://cdn. [rest of string was truncated]&quot;;.
+        ///    &lt;script type=&quot;text/javascript&quot; src=&quot;../formatters-styles/jsondiffpatch.js&quot;&gt;&lt;/script&gt;
+        ///    &lt;script type=&quot;text/javascript&quot; src=&quot;../formatters-styles/jsondiffpatch-formatter [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string diffvis {
             get {

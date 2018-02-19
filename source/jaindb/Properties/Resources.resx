@@ -121,13 +121,11 @@
     <value>&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
-    &lt;link rel="stylesheet" href="style.css" type="text/css" media="screen" /&gt;
+    //&lt;link rel="stylesheet" href="../formatters-styles/style.css" type="text/css" media="screen" /&gt;
     &lt;link rel="stylesheet" href="../formatters-styles/html.css" type="text/css" media="screen" /&gt;
     &lt;link rel="stylesheet" href="../formatters-styles/annotated.css" type="text/css" media="screen" /&gt;
-    &lt;link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/3.21.0/codemirror.min.css" type="text/css" media="screen" /&gt;
-    &lt;script type='text/javascript' src="https://cdn.jsdelivr.net/npm/jsondiffpatch@0.3.1/dist/jsondiffpatch.umd.min.js"&gt;&lt;/script&gt;
-    &lt;script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/3.21.0/codemirror.js"&gt;&lt;/script&gt;
-    &lt;script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/3.21.0/mode/javascript/javascript.min.js"&gt;&lt;/script&gt;
+    &lt;script type="text/javascript" src="../formatters-styles/jsondiffpatch.js"&gt;&lt;/script&gt;
+    &lt;script type="text/javascript" src="../formatters-styles/jsondiffpatch-formatters.js"&gt;&lt;/script&gt;
 &lt;/head&gt;
 &lt;body&gt;
     &lt;div id="visual"&gt;&lt;/div&gt;
@@ -136,11 +134,16 @@
     &lt;script&gt;
             var left = $$left$$;
             var right =$$right$$;
-            var delta = jsondiffpatch.diff(left, right);
+            var delta = jsondiffpatch.create({
+    objectHash: function(obj, index) {
+      // try to find an id property, otherwise just use the index in the array
+      return obj.name || obj.id || obj._id || obj.PropertyName || obj.name  || '$$index:' + index;
+    }
+  }).diff(left, right);
 
             // beautiful html diff
             document.getElementById('visual').innerHTML = jsondiffpatch.formatters.html.format(delta, left);
-
+            jsondiffpatch.formatters.html.hideUnchanged();
             // self-explained json
             document.getElementById('annotated').innerHTML = jsondiffpatch.formatters.annotated.format(delta, left);
     &lt;/script&gt;
