@@ -2,7 +2,6 @@ $jaindburi = "http://localhost:5000"
 Import-Module (Join-Path $(Split-Path $env:SMS_ADMIN_UI_PATH) ConfigurationManager.psd1) 
 $SiteCode = Get-PSDrive -PSProvider CMSITE
 Push-Location "$($SiteCode.Name):\"
-$namespace = (Get-CMConnectionManager).NamedValueDictionary.connection
 
 function GetMD5([string]$txt) {
     $md5 = new-object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
@@ -92,36 +91,21 @@ Get-CMApplication | ForEach-Object {
 }
 
 #Collections
-Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Object {
-    $object = New-Object PSObject
-    $id = "coll-" + $_.CollectionID
-    $coll = $_ | Get-CimInstance 
+Get-CMCollection | ForEach-Object {
+    $org = $_
+    $coll = $org | Select-Object $org.PropertyNames -ExcludeProperty CollectionRules,MemberCount,LocalMemberCount,LastRefreshTime,LastMemberChangeTime
+    $id = "coll-" + $coll.CollectionID
+    $rules = @()
+    $org.CollectionRules | ForEach-Object { $r = $_;$rules += $r | Select-Object $r.PropertyNames }
+    $coll| Add-Member -MemberType NoteProperty -Name "CollectionRules" -Value $rules
+    #$coll.CollectionRules = $coll.CollectionRules | Select-Object $coll.CollectionRules.PropertyNames
+    $coll.RefreshSchedule = $coll.RefreshSchedule | Select-Object $coll.RefreshSchedule.PropertyNames
+    $coll| Add-Member -MemberType NoteProperty -Name "@MemberCount" -Value $org.MemberCount
+    $coll| Add-Member -MemberType NoteProperty -Name "@LocalMemberCount" -Value $org.LocalMemberCount
+    $coll| Add-Member -MemberType NoteProperty -Name "@LastRefreshTime" -Value $org.LastRefreshTime
+    $coll| Add-Member -MemberType NoteProperty -Name "@LastMemberChangeTime" -Value $org.LastMemberChangeTime
     $result  = New-Object PSObject
-    $result | Add-Member -MemberType NoteProperty -Name "#Name" -Value ("coll-" + $coll.Name)
-    $object | Add-Member -MemberType NoteProperty -Name "CollectionID" -Value $coll.CollectionID
-    $object | Add-Member -MemberType NoteProperty -Name "CollectionRules" -Value $coll.CollectionRules
-    $object | Add-Member -MemberType NoteProperty -Name "CollectionType" -Value $coll.CollectionType
-    $object | Add-Member -MemberType NoteProperty -Name "CollectionVariablesCount" -Value $coll.CollectionVariablesCount
-    $object | Add-Member -MemberType NoteProperty -Name "Comment" -Value $coll.Comment
-    $object | Add-Member -MemberType NoteProperty -Name "LimitToCollectionID" -Value $coll.LimitToCollectionID
-    $object | Add-Member -MemberType NoteProperty -Name "LimitToCollectionName" -Value $coll.LimitToCollectionName
-    $object | Add-Member -MemberType NoteProperty -Name "@MemberCount" -Value $coll.MemberCount
-    $object | Add-Member -MemberType NoteProperty -Name "Name" -Value $coll.Name
-    $object | Add-Member -MemberType NoteProperty -Name "RefreshSchedule" -Value $coll.RefreshSchedule
-    $object | Add-Member -MemberType NoteProperty -Name "RefreshType" -Value $coll.RefreshType
-    $object | Add-Member -MemberType NoteProperty -Name "ServiceWindowsCount" -Value $coll.ServiceWindowsCount
-    $object | Add-Member -MemberType NoteProperty -Name "UseCluster" -Value $coll.UseCluster
-    $object | Add-Member -MemberType NoteProperty -Name "IsBuiltIn" -Value $coll.IsBuiltIn
-    $object | Add-Member -MemberType NoteProperty -Name "PowerConfigsCount" -Value $coll.PowerConfigsCount
-    $object | Add-Member -MemberType NoteProperty -Name "ReplicateToSubSites" -Value $coll.ReplicateToSubSites
-    $object | Add-Member -MemberType NoteProperty -Name "IncludeExcludeCollectionsCount" -Value $coll.IncludeExcludeCollectionsCount
-
-    #Cleanup unused properties
-    $object.CollectionRules = $object.CollectionRules | Select-Object * -ExcludeProperty Cim*, PSComp*
-    $object.RefreshSchedule = $object.RefreshSchedule | Select-Object * -ExcludeProperty Cim*, PSComp*
-
-
-    $result | Add-Member -MemberType NoteProperty -Name "Collection" -Value $object
+    $result | Add-Member -MemberType NoteProperty -Name "Collection" -Value $coll
 
     #CollectionSettings
     $settings = Get-CMCollectionSetting -CollectionID $coll.CollectionID | Select-Object AMTAutoProvisionEnabled, ClusterCount, ClusterPercentage, ClusterTimeout, CollectionID, CollectionVariablePrecedence, CollectionVariables, LastModificationTime, LocaleID, PollingInterval, PollingIntervalEnabled, PostAction, PowerConfigs, PreAction, RebootCountdown, RebootCountdownEnabled, RebootCountdownFinalWindow, ServiceWindows, SourceSite, UseCluster, UseClusterPercentage
@@ -154,8 +138,8 @@ Get-CimInstance  -Namespace $namespace -ClassName "SMS_Collection" | ForEach-Obj
         }
     }
     
-    $result | Add-Member -MemberType NoteProperty -Name "CollectionSettings" -Value $settings 
-
+    $result | Add-Member -MemberType NoteProperty -Name "CollectionSettings" -Value $settings
+    
     Invoke-RestMethod -Uri "$($jaindburi)/upload/$($id)" -Method Post -Body ($result | ConvertTo-Json -Compress -Depth 10) -ContentType "application/json; charset=utf-8" 
 }
 
