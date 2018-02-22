@@ -42,11 +42,15 @@ namespace jaindb
             services.AddSingleton<IConfiguration>(Configuration);
             services.AddMemoryCache();
 
-            services.AddAuthorization();
+            services.AddAuthorization(); /*options =>
+            {
+                options.AddPolicy("sAll",
+                    policy => policy.RequireClaim(ClaimTypes.Role , "sAll"));
+            });*/
             services.AddAuthentication("Basic").AddBasic(o =>
             {
-                //o.Realm = "Password: password";
-
+                o.Realm = "Password: password";
+                
                 o.Events = new BasicAuthenticationEvents
                 {
                     OnSignIn = OnSignIn
@@ -249,7 +253,9 @@ namespace jaindb
             if ((context.Password == "password") && (context.UserName =="DEMO"))
             {
                 var claims = new[] { new Claim(ClaimsIdentity.DefaultNameClaimType, context.UserName) };
+                
                 var identity = new ClaimsIdentity(claims, context.Scheme.Name);
+                identity.AddClaim(new Claim(ClaimsIdentity.DefaultRoleClaimType, "All")); //Role = All
                 context.Principal = new ClaimsPrincipal(identity);
             }
 

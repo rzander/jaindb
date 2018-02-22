@@ -271,7 +271,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Roles = "All")]
         [Route("query")]
         public JArray Query()
         {
