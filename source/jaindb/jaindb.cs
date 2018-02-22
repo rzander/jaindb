@@ -40,13 +40,7 @@ namespace jaindb
 
         private static Lazy<ConnectionMultiplexer> lazyConnection;
 
-        public static ConnectionMultiplexer Connection
-        {
-            get
-            {
-                return lazyConnection.Value;
-            }
-        }
+        public static ConnectionMultiplexer Connection => lazyConnection.Value;
     }
 
     public static class jDB

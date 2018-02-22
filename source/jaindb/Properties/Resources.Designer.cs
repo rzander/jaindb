@@ -64,11 +64,15 @@ namespace jaindb.Properties {
         ///   Looks up a localized string similar to &lt;!DOCTYPE html&gt;
         ///&lt;html&gt;
         ///&lt;head&gt;
-        ///    //&lt;link rel=&quot;stylesheet&quot; href=&quot;../formatters-styles/style.css&quot; type=&quot;text/css&quot; media=&quot;screen&quot; /&gt;
         ///    &lt;link rel=&quot;stylesheet&quot; href=&quot;../formatters-styles/html.css&quot; type=&quot;text/css&quot; media=&quot;screen&quot; /&gt;
         ///    &lt;link rel=&quot;stylesheet&quot; href=&quot;../formatters-styles/annotated.css&quot; type=&quot;text/css&quot; media=&quot;screen&quot; /&gt;
         ///    &lt;script type=&quot;text/javascript&quot; src=&quot;../formatters-styles/jsondiffpatch.js&quot;&gt;&lt;/script&gt;
-        ///    &lt;script type=&quot;text/javascript&quot; src=&quot;../formatters-styles/jsondiffpatch-formatter [rest of string was truncated]&quot;;.
+        ///    &lt;script type=&quot;text/javascript&quot; src=&quot;../formatters-styles/jsondiffpatch-formatters.js&quot;&gt;&lt;/script&gt;
+        ///&lt;/head&gt;
+        ///&lt;body&gt;
+        ///    &lt;div id=&quot;visual&quot;&gt;&lt;/div&gt;
+        ///    &lt;hr /&gt;
+        ///    &lt;div id=&quot;annotated&quot;&gt;&lt;/d [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string diffvis {
             get {

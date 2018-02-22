@@ -12,11 +12,12 @@ using Microsoft.AspNetCore.Mvc.Formatters;
 using System.IO;
 using System.Diagnostics;
 using Microsoft.Azure.Documents.Client;
-using System.Net;
 using System.Net.Sockets;
 using System.Linq;
-using Microsoft.Extensions.Logging.Console;
 using System.Net.NetworkInformation;
+using Moon.AspNetCore.Authentication.Basic;
+using System.Threading.Tasks;
+using System.Security.Claims;
 
 namespace jaindb
 {
@@ -38,10 +39,19 @@ namespace jaindb
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddOptions();
-
             services.AddSingleton<IConfiguration>(Configuration);
-
             services.AddMemoryCache();
+
+            services.AddAuthorization();
+            services.AddAuthentication("Basic").AddBasic(o =>
+            {
+                //o.Realm = "Password: password";
+
+                o.Events = new BasicAuthenticationEvents
+                {
+                    OnSignIn = OnSignIn
+                };
+            });
 
             // Add framework services.
             //services.AddMvc();
@@ -79,6 +89,7 @@ namespace jaindb
                 app.UseExceptionHandler("/Home/Error");
             }
 
+            app.UseAuthentication();
             app.UseStaticFiles();
 
             app.UseMvc(routes =>
@@ -230,6 +241,19 @@ namespace jaindb
                 }
             }
             jDB.PoWComplexitity = iComplexity;
+        }
+
+
+        private Task OnSignIn(BasicSignInContext context)
+        {
+            if ((context.Password == "password") && (context.UserName =="DEMO"))
+            {
+                var claims = new[] { new Claim(ClaimsIdentity.DefaultNameClaimType, context.UserName) };
+                var identity = new ClaimsIdentity(claims, context.Scheme.Name);
+                context.Principal = new ClaimsPrincipal(identity);
+            }
+
+            return Task.CompletedTask;
         }
     }
 }

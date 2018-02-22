@@ -14,6 +14,7 @@ using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 namespace jaindb.Controllers
 {
@@ -66,6 +67,7 @@ namespace jaindb.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         [Route("xml2json")]
         public JObject XML2JSON(string XML)
         {
@@ -146,6 +148,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("full")]
         public JObject Full()
         {
@@ -165,6 +168,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("diff")]
         public JObject Diff()
         {
@@ -200,6 +204,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("diffvis")]
         public ActionResult DiffVis()
         {
@@ -250,6 +255,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("search")]
         public JsonResult Search()
         {
@@ -265,6 +271,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("query")]
         public JArray Query()
         {
@@ -283,6 +290,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("queryAll")]
         public JArray QueryAll()
         {
@@ -300,6 +308,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("history")]
         public JObject History()
         {
@@ -319,6 +328,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("changes")]
         public JArray Changes()
         {
@@ -339,6 +349,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("export")]
         public JObject Export()
         {
@@ -362,6 +373,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("validate")]
         public bool Validate()
         {
@@ -433,6 +445,7 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("html/{*.}")]
         public ActionResult Html()
         {
