@@ -142,14 +142,18 @@ namespace jaindb
             catch { }
 
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
-                Environment.SetEnvironmentVariable("WebPort", "5000");
+                Environment.SetEnvironmentVariable("WebPort", "");
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("localURL")))
                 Environment.SetEnvironmentVariable("localURL", "http://" + sIP);
 
             Console.WriteLine(" ");
             Console.WriteLine("-------------------------------------------------------------------");
             Console.WriteLine("PowerShell Inventory:");
-            Console.WriteLine(Environment.ExpandEnvironmentVariables("Invoke-RestMethod -Uri '%localURL%:%WebPort%/getps' | iex"));
+            if(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
+                Console.WriteLine(Environment.ExpandEnvironmentVariables("Invoke-RestMethod -Uri '%localURL%/getps' | iex"));
+            else
+                Console.WriteLine(Environment.ExpandEnvironmentVariables("Invoke-RestMethod -Uri '%localURL%:%WebPort%/getps' | iex"));
+
             Console.WriteLine("-------------------------------------------------------------------");
             Console.WriteLine(" ");
 
@@ -250,7 +254,7 @@ namespace jaindb
 
         private Task OnSignIn(BasicSignInContext context)
         {
-            if ((context.Password == "password") && (context.UserName =="DEMO"))
+            if ((context.Password == Environment.GetEnvironmentVariable("ReportPW")) && (context.UserName == Environment.GetEnvironmentVariable("ReportUser")))
             {
                 var claims = new[] { new Claim(ClaimsIdentity.DefaultNameClaimType, context.UserName) };
                 

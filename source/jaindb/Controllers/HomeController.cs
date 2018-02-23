@@ -99,7 +99,10 @@ namespace jaindb.Controllers
             if (System.IO.File.Exists("/app/wwwroot/inventory.ps1"))
             {
                 string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
-                sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
+                    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace(":%WebPort%", "");
+                else
+                    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
 
                 //Cache result in Memory
                 if (!string.IsNullOrEmpty(sResult))
@@ -115,7 +118,10 @@ namespace jaindb.Controllers
             if (System.IO.File.Exists(sCurrDir + "/wwwroot/inventory.ps1"))
             {
                 string sFile = System.IO.File.ReadAllText(sCurrDir + "/wwwroot/inventory.ps1");
-                sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
+                    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace(":%WebPort%", "");
+                else
+                    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
 
                 //Cache result in Memory
                 if (!string.IsNullOrEmpty(sResult))

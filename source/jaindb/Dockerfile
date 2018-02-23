@@ -34,3 +34,5 @@ ENV UseRedis 1
 ENV UseCosmosDB 0
 ENV UseFileSystem 0
 ENV StartDelay 3000
+ENV ReportUser = "DEMO"
+ENV ReportPW = "password"
