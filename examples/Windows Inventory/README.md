@@ -1,9 +1,9 @@
-JainDB can be used as an inventory database wit the following benefits:
+JainDB can be used as an inventory solution with the following benefits:
 * Agentless
 * customizable PowerShell script to define the data you want to collect.
 * Cloud or OnPremise
 * History (all changes are tracked and stored in a blockchain)
-* Reporting over PowerBi or Excel (or other Tools than can query data from REST API)
+* Reporting over Power-Bi or Excel (or other Tools than can query data from REST API)
 * Free and OpenSource
 
 For testing, you can use the online Test-Instance: https://jaindb.azurewebsites.net/
