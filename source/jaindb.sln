@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "jaindb", "jaindb\jaindb.csp
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{405D1A24-398E-46D7-AA8C-9C79AA26D656}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JainDBTest", "JainDBTest\JainDBTest.csproj", "{F09B6258-D9B4-43ED-8A14-6314BEA93D53}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{405D1A24-398E-46D7-AA8C-9C79AA26D656}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{405D1A24-398E-46D7-AA8C-9C79AA26D656}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{405D1A24-398E-46D7-AA8C-9C79AA26D656}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F09B6258-D9B4-43ED-8A14-6314BEA93D53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F09B6258-D9B4-43ED-8A14-6314BEA93D53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F09B6258-D9B4-43ED-8A14-6314BEA93D53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F09B6258-D9B4-43ED-8A14-6314BEA93D53}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
