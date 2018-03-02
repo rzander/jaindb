@@ -152,7 +152,14 @@ namespace jaindb
                 {
                     try
                     {
-                        oTok.Parent.Remove();
+                        if (oTok.Parent.Type != JTokenType.Array)
+                            oTok.Parent.Remove();
+                        if (oTok.Parent.Type == JTokenType.Array)
+                        {
+                            if (oTok.Parent.Parent.Count == 1)
+                                oTok.Parent.Parent.Remove();
+                        }
+
                     }
                     catch (Exception ex)
                     {
@@ -631,6 +638,11 @@ namespace jaindb
                 {
                     try
                     {
+                        if(!oChild.HasValues)
+                        {
+                            jTemp.SelectToken(oChild.Path, false).Parent.Remove();
+                            oChild.Parent.Remove();
+                        }
                         JToken tRef = oObj.SelectToken(oChild.Path, false);
 
                         //check if tRfe is valid..

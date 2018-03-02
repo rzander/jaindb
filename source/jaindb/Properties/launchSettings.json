@@ -19,8 +19,8 @@
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {
-        "localURL": "https://jaindb.azurewebsites.net",
         "ReportPW": "password",
+        "WebPort": "5000",
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ReportUser": "DEMO"
       },
