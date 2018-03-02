@@ -50,7 +50,7 @@ namespace jaindb
             services.AddAuthentication("Basic").AddBasic(o =>
             {
                 o.Realm = "Password: password";
-                
+
                 o.Events = new BasicAuthenticationEvents
                 {
                     OnSignIn = OnSignIn

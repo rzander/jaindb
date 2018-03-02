@@ -1766,7 +1766,7 @@ namespace jaindb
                     {
                         foreach (var oFile in new DirectoryInfo("wwwroot/Chain").GetFiles("*.json"))
                         {
-                            lResult.Add(oFile.Name.Split('.')[0]);
+                            lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
                         }
                         return lResult;
                     }

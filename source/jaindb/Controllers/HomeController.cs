@@ -67,7 +67,6 @@ namespace jaindb.Controllers
         }
 
         [HttpPost]
-        [Authorize]
         [Route("xml2json")]
         public JObject XML2JSON(string XML)
         {
@@ -343,6 +342,8 @@ namespace jaindb.Controllers
 
             var query = QueryHelpers.ParseQuery(sQuery);
             string sAge = query.FirstOrDefault(t => t.Key.ToLower() == "age").Value;
+            if (sAge == null)
+                sAge = "24-0-0";
             string sType = query.FirstOrDefault(t => t.Key.ToLower() == "changetype").Value;
             int iType = -1;
 
