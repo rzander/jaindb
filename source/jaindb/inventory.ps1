@@ -231,5 +231,4 @@ $id = $object."#id"
 $con = $object | ConvertTo-Json -Compress
 Write-Host "Device ID: $($id)"
 
-Invoke-RestMethod -Uri "%LocalURL%:%WebPort%/upload/$($id)" -Method Post -Body $con -ContentType "application/json; charset=utf-8"
-
+Invoke-RestMethod -Uri "%LocalURL%:%WebPort%/upload/$($id)" -Method Post -Body $con -ContentType "application/json; charset=utf-8" -Headers @{"Accept-Encoding"="gzip"}

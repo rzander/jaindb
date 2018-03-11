@@ -19,6 +19,7 @@ using Moon.AspNetCore.Authentication.Basic;
 using System.Threading.Tasks;
 using System.Security.Claims;
 
+
 namespace jaindb
 {
     public class Startup
@@ -41,6 +42,11 @@ namespace jaindb
             services.AddOptions();
             services.AddSingleton<IConfiguration>(Configuration);
             services.AddMemoryCache();
+
+            services.AddResponseCompression(options =>
+            {
+                options.EnableForHttps = true;
+            });
 
             services.AddAuthorization(); /*options =>
             {
@@ -70,8 +76,6 @@ namespace jaindb
                 options.SerializerSettings.Formatting = Newtonsoft.Json.Formatting.Indented;
                 options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
             });
-
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -94,6 +98,7 @@ namespace jaindb
             }
 
             app.UseAuthentication();
+            app.UseResponseCompression();
             app.UseStaticFiles();
 
             app.UseMvc(routes =>
