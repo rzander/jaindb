@@ -13,7 +13,7 @@ RUN rm -f -r /app/wwwroot/bin
 #RUN apt-get install -y make gcc wget
 #RUN apt-get install -y --no-install-recommends ca-certificates
 #RUN mkdir -p /app/wwwroot/redis
-#RUN wget -O redis.tar.gz http://download.redis.io/releases/redis-4.0.6.tar.gz
+#RUN wget -O redis.tar.gz http://download.redis.io/releases/redis-4.0.8.tar.gz
 #RUN tar -xzf redis.tar.gz -C /app/wwwroot/redis --strip-components=1
 
 #RUN grep -q '^#define CONFIG_DEFAULT_PROTECTED_MODE 1$' /app/wwwroot/redis/src/server.h
@@ -34,5 +34,5 @@ ENV UseRedis 1
 ENV UseCosmosDB 0
 ENV UseFileSystem 0
 ENV StartDelay 3000
-ENV ReportUser = "DEMO"
-ENV ReportPW = "password"
+ENV ReportUser "DEMO"
+ENV ReportPW "password"

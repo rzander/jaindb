@@ -20,8 +20,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Remove="wwwroot\formatters-styles\annotated.css" />
-    <Content Remove="wwwroot\formatters-styles\html.css" />
+    <Content Remove="wwwroot\bin\bin.zip" />
+    <Content Remove="wwwroot\bin\redis-benchmark" />
+    <Content Remove="wwwroot\bin\redis-check-aof" />
+    <Content Remove="wwwroot\bin\redis-check-rdb" />
+    <Content Remove="wwwroot\bin\redis-cli" />
+    <Content Remove="wwwroot\bin\redis-sentinel" />
+    <Content Remove="wwwroot\bin\redis-server" />
     <Content Remove="wwwroot\redis.sh" />
   </ItemGroup>
 
@@ -68,11 +73,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="wwwroot\formatters-styles\annotated.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Include="wwwroot\bin\redis-benchmark">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-    <None Include="wwwroot\formatters-styles\html.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Include="wwwroot\bin\redis-check-aof">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Include="wwwroot\bin\redis-check-rdb">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Include="wwwroot\bin\redis-cli">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Include="wwwroot\bin\redis-sentinel">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Include="wwwroot\bin\redis-server">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
@@ -85,6 +102,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Update="wwwroot\formatters-styles\annotated.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\formatters-styles\html.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Update="wwwroot\formatters-styles\jsondiffpatch-formatters.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
