@@ -148,7 +148,7 @@ namespace jaindb
             try
             {
                 //Remove NULL values
-                foreach (var oTok in ((JContainer)oRoot).Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).ToList())
+                /*foreach (var oTok in ((JContainer)oRoot).Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).ToList())
                 {
                     try
                     {
@@ -165,7 +165,7 @@ namespace jaindb
                     {
                         ex.Message.ToString();
                     }
-                }
+                }*/
 
                 //JSort(oStatic);
                 string sHash = CalculateHash(oRoot.ToString(Newtonsoft.Json.Formatting.None));
@@ -452,6 +452,12 @@ namespace jaindb
             string sResult = "";
             try
             {
+                //Check if MemoryCache is initialized
+                if (_cache == null)
+                {
+                    _cache = new MemoryCache(new MemoryCacheOptions());
+                }
+
                 //Try to get value from Memory
                 if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
                 {
@@ -566,7 +572,7 @@ namespace jaindb
                         jRes.Remove("_attachments");
 
                         sResult = jRes.ToString(Newtonsoft.Json.Formatting.None);
-                        
+
                         //Cache result in Memory
                         if (!string.IsNullOrEmpty(sResult))
                         {
@@ -608,16 +614,9 @@ namespace jaindb
             try
             {
                 JObject oObj = JObject.Parse(JSON);
-                JSort(oObj, true); //Enforce full sort
-
-                JObject oStatic = oObj.ToObject<JObject>();
-                JObject jTemp = oObj.ToObject<JObject>();
-
-                //Load BlockChain
-                Blockchain oChain = GetChain(DeviceID);
 
                 //Remove NULL values
-                foreach (var oTok in oStatic.Descendants().Where(t => t.Parent.Type == (JTokenType.Property) && t.Type == JTokenType.Null).ToList())
+                foreach (var oTok in oObj.Descendants().Where(t => t.Parent.Type == (JTokenType.Property) && t.Type == JTokenType.Null).ToList())
                 {
                     try
                     {
@@ -628,6 +627,46 @@ namespace jaindb
                         Debug.WriteLine("Error UploadFull_1: " + ex.Message.ToString());
                     }
                 }
+
+                //Remove empty values
+                foreach (var oTok in oObj.Descendants().Where(t => t.Type == (JTokenType.Object) && !t.HasValues).ToList())
+                {
+                    try
+                    {
+                        if (oTok.Parent.Type == JTokenType.Property)
+                        {
+                            oTok.Parent.Remove();
+                            continue;
+                        }
+
+                        if (oTok.Parent.Type == JTokenType.Array)
+                        {
+                            if (oTok.Parent.Count == 1) //Parent is array with one empty child
+                            {
+                                if (oTok.Parent.Parent.Type == JTokenType.Property)
+                                    oTok.Parent.Parent.Remove(); //remove parent
+                            }
+                            else
+                                oTok.Remove(); //remove empty array item
+                            continue;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine("Error UploadFull_1: " + ex.Message.ToString());
+                    }
+                }
+
+
+                JSort(oObj, true); //Enforce full sort
+
+                JObject oStatic = oObj.ToObject<JObject>();
+                JObject jTemp = oObj.ToObject<JObject>();
+
+                //Load BlockChain
+                Blockchain oChain = GetChain(DeviceID);
+
+
                 JSort(oObj);
                 JSort(oStatic);
 
@@ -638,11 +677,6 @@ namespace jaindb
                 {
                     try
                     {
-                        if(!oChild.HasValues)
-                        {
-                            jTemp.SelectToken(oChild.Path, false).Parent.Remove();
-                            oChild.Parent.Remove();
-                        }
                         JToken tRef = oObj.SelectToken(oChild.Path, false);
 
                         //check if tRfe is valid..
