@@ -1,4 +1,5 @@
-# jaindb
+![jaindb](https://github.com/rzander/jaindb/blob/master/docs/images/JAINDB%201.png)
+
 JainDB is a blockchain based data warehouse for JSON objects. It provides a [REST API](https://github.com/rzander/jaindb/wiki/REST-API) to interact with the data store. Jaindb is using REDIS, CosmosDB or just the File-System to store the data by using hashing and deduplication technologies.
 
 Jaindb was initially created to store inventory data of computers in an auditable way with the history of all changes. But as jaindb is schema-less, it can store everything you want... 
