@@ -191,13 +191,13 @@ getinv -Name "Printer" -WMIClass "Win32_Printer" -Properties @("DeviceID","Capab
 
 
 
-$user = Get-LocalUser | Select-Object Description, Enabled, UserMayChangePassword, PasswordRequired, Name, @{N = '@PasswordLastSet'; E = {[System.DateTime](($_.PasswordLastSet).ToUniversalTime())}} | Sort-Object -Property Name
+$user = Get-LocalUser | Select-Object Description, Enabled, UserMayChangePassword, PasswordRequired, Name, @{N = '@PasswordLastSet'; E = {[System.DateTime](($_.PasswordLastSet).ToUniversalTime())}}, @{N = 'id'; E = {$_.SID}} | Sort-Object -Property Name
 $object | Add-Member -MemberType NoteProperty -Name "LocalUsers" -Value ($user)
 
 $locAdmin = Get-LocalGroupMember -SID S-1-5-32-544 | Select-Object @{N = 'Name'; E = {$_.Name.Replace($($env:Computername) + "\", "")}}, PrincipalSource, ObjectClass | Sort-Object -Property Name
 $object | Add-Member -MemberType NoteProperty -Name "LocalAdmins" -Value ($locAdmin)
 
-$locGroup = Get-LocalGroup | Select-Object Description, Name, PrincipalSource, ObjectClass | Sort-Object -Property Name
+$locGroup = Get-LocalGroup | Select-Object Description, Name, PrincipalSource, ObjectClass, @{N = 'id'; E = {$_.SID}}  | Sort-Object -Property Name
 $object | Add-Member -MemberType NoteProperty -Name "LocalGroups" -Value ($locGroup)
 
 #$FWRules = Get-NetFirewallRule | Select-Object DisplayName,Description,DisplayGroup,Group,Enabled,Profile,Platform,Direction,Action,EdgeTraversalPolicy,LooseSourceMapping,LocalOnlyMapping,Owner,PrimaryStatus,Status,EnforcementStatus,PolicyStoreSource,PolicyStoreSourceType | Sort-Object -Property DisplayName
@@ -214,10 +214,13 @@ $object | Add-Member -MemberType NoteProperty -Name "LocalGroups" -Value ($locGr
 #$object | Add-Member -MemberType NoteProperty -Name "Update" -Value ($upd)
 
 #Get Installed Software
-$SW = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* -ea SilentlyContinue | ? { $_.DisplayName -ne $null -and $_.SystemComponent -ne 0x1 -and $_.ParentDisplayName -eq $null } | Select DisplayName, DisplayVersion, Publisher, @{N = '@InstallDate'; E = {$_.InstallDate}}, HelpLink, UninstallString
-$SW += Get-ItemProperty HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* -ea SilentlyContinue | ? { $_.DisplayName -ne $null -and $_.SystemComponent -ne 0x1 -and $_.ParentDisplayName -eq $null } | Select DisplayName, DisplayVersion, Publisher, @{N = '@InstallDate'; E = {$_.InstallDate}}, HelpLink, UninstallString
-$object | Add-Member -MemberType NoteProperty -Name "Software" -Value ($SW | Sort-Object -Property DisplayName )
+$SW = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* -ea SilentlyContinue | Where-Object { $_.DisplayName -ne $null -and $_.SystemComponent -ne 0x1 -and $_.ParentDisplayName -eq $null } | Select-Object DisplayName, DisplayVersion, Publisher, Language, WindowsInstaller, @{N = '@InstallDate'; E = { $_.InstallDate }}, HelpLink, UninstallString, @{N = 'Architecture'; E = {"X64"}}, @{N = 'id'; E = {GetHash($_.DisplayName + $_.DisplayVersion + $_.Publisher + "X64")}}
+$SW += Get-ItemProperty HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* -ea SilentlyContinue | Where-Object { $_.DisplayName -ne $null -and $_.SystemComponent -ne 0x1 -and $_.ParentDisplayName -eq $null } | Select-Object DisplayName, DisplayVersion, Publisher, Language, WindowsInstaller,  @{N = '@InstallDate'; E = { $_.InstallDate }}, HelpLink, UninstallString,  @{N = 'Architecture'; E = {"X86"}}, @{N = 'id'; E = {GetHash($_.DisplayName + $_.DisplayVersion + $_.Publisher + "X86")}}
+$object | Add-Member -MemberType NoteProperty -Name "Software" -Value ($SW| Sort-Object -Property DisplayName )
 
+#Services
+$Services = get-service | Select-Object -ExcludeProperty MachineName, Site, Container, @{N = 'id'; E = { $_.Name}}
+$object | Add-Member -MemberType NoteProperty -Name "Services" -Value ($Services )
 
 #Cleanup
 $object."LogicalDisk" | % { $_."@FreeSpace" = normalize($_."@FreeSpace")}
@@ -230,5 +233,4 @@ SetID([ref] $object)
 $id = $object."#id"
 $con = $object | ConvertTo-Json -Compress
 Write-Host "Device ID: $($id)"
-
-Invoke-RestMethod -Uri "%LocalURL%:%WebPort%/upload/$($id)" -Method Post -Body $con -ContentType "application/json; charset=utf-8" -Headers @{"Accept-Encoding"="gzip"}
+Write-Host "Hash:" (Invoke-RestMethod -Uri "%LocalURL%:%WebPort%/upload/$($id)" -Method Post -Body $con -ContentType "application/json; charset=utf-8")
