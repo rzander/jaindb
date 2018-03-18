@@ -198,6 +198,13 @@ namespace jaindb
         {
             try
             {
+                //Cache result in Memory
+                if (!string.IsNullOrEmpty(Data))
+                {
+                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
+                    _cache.Set("RH-" + Collection + "-" + Hash, Data, cacheEntryOptions);
+                }
+
                 if (string.IsNullOrEmpty(Data) || Data == "null")
                     return true;
 
@@ -418,6 +425,8 @@ namespace jaindb
 
                     return true;
                 }
+
+
 
             }
             catch
