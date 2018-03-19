@@ -675,7 +675,6 @@ namespace jaindb
                 //Load BlockChain
                 Blockchain oChain = GetChain(DeviceID);
 
-
                 JSort(oObj);
                 JSort(oStatic);
 
