@@ -13,11 +13,17 @@
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json</PackageTags>
     <Version>0.9.0</Version>
-    <AssemblyVersion>0.9.0.53</AssemblyVersion>
-    <FileVersion>0.9.0.53</FileVersion>
+    <AssemblyVersion>0.9.0.54</AssemblyVersion>
+    <FileVersion>0.9.0.54</FileVersion>
     <StartupObject>jaindb.Program</StartupObject>
     <UserSecretsId>fcfd6c0a-e53c-46cb-8a9d-b786c0579861</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="AuthProvider\CustomAuthExtensions.cs" />
+    <Compile Remove="AuthProvider\CustomAuthHandler.cs" />
+    <Compile Remove="AuthProvider\CustomAuthOptions.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Remove="wwwroot\bin\bin.zip" />
@@ -38,6 +44,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="AuthProvider\CustomAuthExtensions.cs" />
+    <Content Include="AuthProvider\CustomAuthHandler.cs" />
+    <Content Include="AuthProvider\CustomAuthOptions.cs" />
     <Content Include="redis.conf">
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -55,7 +64,7 @@
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.0.2" />
     <PackageReference Include="Microsoft.Azure.DocumentDB.Core" Version="1.9.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="2.0.1" />
-    <PackageReference Include="Microsoft.OData.Core" Version="7.4.1" />
+    <PackageReference Include="Microsoft.OData.Core" Version="7.4.3" />
     <PackageReference Include="Microsoft.VisualStudio.Web.BrowserLink" Version="2.0.2" />
     <PackageReference Include="Moon.AspNetCore.Authentication.Basic" Version="4.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.1" />
@@ -73,6 +82,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="AuthProvider\CustomAuthExtensions.cs" />
+    <None Include="AuthProvider\CustomAuthHandler.cs" />
+    <None Include="AuthProvider\CustomAuthOptions.cs" />
     <None Include="wwwroot\bin\redis-benchmark">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>

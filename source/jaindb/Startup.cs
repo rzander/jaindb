@@ -18,7 +18,8 @@ using System.Net.NetworkInformation;
 using Moon.AspNetCore.Authentication.Basic;
 using System.Threading.Tasks;
 using System.Security.Claims;
-
+using jaindb;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 namespace jaindb
 {
@@ -48,11 +49,7 @@ namespace jaindb
                 options.EnableForHttps = true;
             });
 
-            services.AddAuthorization(); /*options =>
-            {
-                options.AddPolicy("sAll",
-                    policy => policy.RequireClaim(ClaimTypes.Role , "sAll"));
-            });*/
+            //services.AddAuthorization();
             services.AddAuthentication("Basic").AddBasic(o =>
             {
                 o.Realm = "Password: password";
@@ -63,12 +60,24 @@ namespace jaindb
                 };
             });
 
+            //Custom Authentication Provider
+            /*services.AddAuthentication(options =>
+            {
+                // the scheme name has to match the value we're going to use in AuthenticationBuilder.AddScheme(...)
+                options.DefaultAuthenticateScheme = "Custom Scheme";
+                options.DefaultChallengeScheme = "Custom Scheme";
+            }).AddCustomAuth(o => { });*/
+
             // Add framework services.
             //services.AddMvc();
             services.AddMvc(options =>
             {
                 options.OutputFormatters.RemoveType<StringOutputFormatter>();
                 options.RespectBrowserAcceptHeader = true;
+
+                //disable Authentication ?
+                if(int.Parse(Environment.GetEnvironmentVariable("DisableAuth") ?? "0") > 0)
+                    options.Filters.Add(new AllowAnonymousFilter());
             }
                 ).AddJsonOptions(options =>
             {
