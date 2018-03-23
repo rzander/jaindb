@@ -81,8 +81,8 @@ Get-CMApplication | ForEach-Object {
     $object | Add-Member -MemberType NoteProperty -Name "ModelID" -Value $app.ModelID
     $object | Add-Member -MemberType NoteProperty -Name "ModelName" -Value $app.ModelName
     $object | Add-Member -MemberType NoteProperty -Name "SecuredScopeNames" -Value $app.SecuredScopeNames
-    $object | Add-Member -MemberType NoteProperty -Name "@NumberOfDevicesWithApp" -Value $app.LastModifiedBy
-    $object | Add-Member -MemberType NoteProperty -Name "@NumberOfUsersWithApp" -Value $app.LastModifiedBy
+    $object | Add-Member -MemberType NoteProperty -Name "@NumberOfDevicesWithApp" -Value $app.NumberOfDevicesWithApp
+    $object | Add-Member -MemberType NoteProperty -Name "@NumberOfUsersWithApp" -Value $app.NumberOfUsersWithApp
     $js = Invoke-RestMethod -Uri "$($jaindburi)/xml2json" -Method Post -Body $app.SDMPackageXML -ContentType "application/json; charset=utf-8"
     $object | Add-Member -MemberType NoteProperty -Name "AppMgmtDigest" -Value $js.AppMgmtDigest
     
