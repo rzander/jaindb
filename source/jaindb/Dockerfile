@@ -32,3 +32,4 @@ ENV UseFileSystem 0
 ENV StartDelay 3000
 ENV ReportUser "DEMO"
 ENV ReportPW "password"
+ENV DisableAuth 1

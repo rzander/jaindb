@@ -180,9 +180,10 @@ namespace jaindb
                     if (oClass.Type == JTokenType.Object)
                     {
                         ((JObject)oClass).Add("##hash", sHash);
-
-                        WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection);
-
+                        if(jDB.UseCosmosDB)
+                            WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection).Wait(3000);
+                        else
+                            WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection);
                         oRoot = oClass;
                     }
                 }
@@ -294,7 +295,7 @@ namespace jaindb
                 if (UseCosmosDB)
                 {
                     string sColl = Collection;
-                    if (Collection == "_full")
+                    if (Collection.ToLower() == "_full")
                         sColl = "Full";
 
                     if (database == null)
@@ -304,13 +305,38 @@ namespace jaindb
                             database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
                     }
 
-                    CosmosDB.CreateDocumentCollectionIfNotExistsAsync(database.SelfLink, new DocumentCollection { Id = sColl }).Wait();
+
+                    var collquery = CosmosDB.CreateDocumentCollectionQuery(database.SelfLink, new FeedOptions() { MaxItemCount = 1 });
+                    var oCollExists = collquery.Where(t => t.Id == sColl).AsEnumerable().Any();
+                    if (!oCollExists)
+                    {
+                        lock (locker) //only one write operation
+                        {
+                            CosmosDB.CreateDocumentCollectionAsync(database.SelfLink, new DocumentCollection { Id = sColl }).Wait();
+                        }
+                    }
 
                     //string sJ = "{ \"Id\" : \"" + Hash + "\"," + Data.TrimStart('{');
                     var jObj = JObject.Parse(Data);
-                    jObj.Add("id", Hash);
+                    if (jObj.GetValue("id") == null)
+                    {
+                        jObj.Add("id", Hash);
+                    }
                     jObj.Remove("#id");
-                    CosmosDB.CreateDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseId, sColl), jObj).Wait();
+                    try
+                    {
+                        var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
+                        var docquery = CosmosDB.CreateDocumentQuery(cUri, new FeedOptions() { MaxItemCount = 1 });
+                        var oDocExists = docquery.Where(t => t.Id == Hash).AsEnumerable().Any();
+                        if (!oDocExists)
+                        {
+                            CosmosDB.CreateDocumentAsync(cUri, jObj);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.Message.ToString();
+                    }
                 }
 
                 if (UseCosmosDB || UseRedis)
@@ -322,7 +348,7 @@ namespace jaindb
                     foreach (var sChar in Path.GetInvalidPathChars())
                     {
                         Collection = Collection.Replace(sChar.ToString(), "");
-                        Hash= Hash.Replace(sChar.ToString(), "");
+                        Hash = Hash.Replace(sChar.ToString(), "");
                     }
 
                     if (!Directory.Exists("wwwroot\\" + Collection))
@@ -429,7 +455,7 @@ namespace jaindb
 
 
             }
-            catch
+            catch (Exception ex)
             {
                 if (!Directory.Exists("wwwroot\\" + Collection))
                     Directory.CreateDirectory("wwwroot\\" + Collection);
@@ -571,7 +597,13 @@ namespace jaindb
                                 database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
                         }
 
-                        var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, Collection, Hash)).Result.Resource;
+                        string sColl = Collection;
+                        if (sColl.ToLower() == "_full")
+                            sColl = "Full";
+                        /*if (sColl == "chain")
+                            sColl = "Chain";*/
+
+                        var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;
                         JObject jRes = JObject.Parse(sRes.ToString());
                         jRes.Remove("id");
                         jRes.Remove("_rid");
@@ -1771,7 +1803,7 @@ namespace jaindb
             {
                 Change oRes = new Change();
                 oRes.id = sID;
-                var jObj = JObject.Parse(ReadHash(sID, "chain"));
+                var jObj = JObject.Parse(ReadHash(sID, "Chain"));
                 oRes.lastChange = new DateTime(jObj["Chain"].Last["timestamp"].Value<long>());
                 if(DateTime.Now.Subtract(oRes.lastChange) > age)
                 {
@@ -1814,6 +1846,23 @@ namespace jaindb
                         }
 
                         return lResult;
+                    }
+
+                    if(UseCosmosDB)
+                    {
+                        if (database == null)
+                        {
+                            database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
+                            if (database == null)
+                                database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
+                        }
+
+                        var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, "Chain");
+                        var docquery = CosmosDB.CreateDocumentQuery(cUri);
+                        foreach(var oDoc in docquery.AsEnumerable())
+                        {
+                            lResult.Add(oDoc.Id);
+                        }
                     }
 
                     if (UseFileStore)

@@ -22,7 +22,7 @@
         "ReportPW": "password",
         "WebPort": "5000",
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "DisableAuth": "0",
+        "DisableAuth": "1",
         "ReportUser": "DEMO"
       },
       "applicationUrl": "http://localhost:59345/"
