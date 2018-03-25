@@ -4,6 +4,7 @@
 
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
+using Microsoft.Azure.Documents.Linq;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -147,26 +148,6 @@ namespace jaindb
         {
             try
             {
-                //Remove NULL values
-                /*foreach (var oTok in ((JContainer)oRoot).Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).ToList())
-                {
-                    try
-                    {
-                        if (oTok.Parent.Type != JTokenType.Array)
-                            oTok.Parent.Remove();
-                        if (oTok.Parent.Type == JTokenType.Array)
-                        {
-                            if (oTok.Parent.Parent.Count == 1)
-                                oTok.Parent.Parent.Remove();
-                        }
-
-                    }
-                    catch (Exception ex)
-                    {
-                        ex.Message.ToString();
-                    }
-                }*/
-
                 //JSort(oStatic);
                 string sHash = CalculateHash(oRoot.ToString(Newtonsoft.Json.Formatting.None));
                 if (string.IsNullOrEmpty(sHash))
@@ -180,10 +161,13 @@ namespace jaindb
                     if (oClass.Type == JTokenType.Object)
                     {
                         ((JObject)oClass).Add("##hash", sHash);
-                        if(jDB.UseCosmosDB)
-                            WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection).Wait(3000);
-                        else
+                        if (!UseCosmosDB)
                             WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection);
+                        else
+                        {
+                            //No need to save hashes when using CosmosDB
+                            //WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection).Wait();
+                        }
                         oRoot = oClass;
                     }
                 }
@@ -295,9 +279,7 @@ namespace jaindb
                 if (UseCosmosDB)
                 {
                     string sColl = Collection;
-                    if (Collection.ToLower() == "_full")
-                        sColl = "Full";
-
+                    
                     if (database == null)
                     {
                         database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
@@ -330,13 +312,25 @@ namespace jaindb
                         var oDocExists = docquery.Where(t => t.Id == Hash).AsEnumerable().Any();
                         if (!oDocExists)
                         {
-                            CosmosDB.CreateDocumentAsync(cUri, jObj);
+                            lock (locker) //only one write operation
+                            {
+                                CosmosDB.CreateDocumentAsync(cUri, jObj).Wait();
+                            }
+                        }
+                        else
+                        {
+                            lock (locker) //only one write operation
+                            {
+                                var dUri = UriFactory.CreateDocumentUri(databaseId, sColl, Hash);
+                                CosmosDB.ReplaceDocumentAsync(dUri, jObj).Wait();
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
                         ex.Message.ToString();
                     }
+
                 }
 
                 if (UseCosmosDB || UseRedis)
@@ -476,10 +470,19 @@ namespace jaindb
 
         public static async Task<bool> WriteHashAsync(string Hash, string Data, string Collection)
         {
+            //write async
             return await Task.Run(() =>
             {
                 return WriteHash(Hash, Data, Collection);
             });
+            /*if (!UseCosmosDB)
+            {
+
+            }
+            else
+            {
+                return WriteHash(Hash, Data, Collection);
+            }*/
         }
 
         public static string ReadHash(string Hash, string Collection)
@@ -598,10 +601,6 @@ namespace jaindb
                         }
 
                         string sColl = Collection;
-                        if (sColl.ToLower() == "_full")
-                            sColl = "Full";
-                        /*if (sColl == "chain")
-                            sColl = "Chain";*/
 
                         var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;
                         JObject jRes = JObject.Parse(sRes.ToString());
@@ -712,79 +711,82 @@ namespace jaindb
 
                 var jObj = oObj;
 
-                //Loop through all ChildObjects
-                foreach (var oChild in jObj.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
+                if (!UseCosmosDB)
                 {
-                    try
+                    //Loop through all ChildObjects
+                    foreach (var oChild in jObj.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
                     {
-                        JToken tRef = oObj.SelectToken(oChild.Path, false);
-
-                        //check if tRfe is valid..
-                        if (tRef == null)
-                            continue;
-
-
-                        string sName = "misc";
-                        if (oChild.Parent.Type == JTokenType.Property)
-                            sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent).Name;
-                        else
-                            sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent.Parent).Name; //it's an array
-
-                        if (sName.StartsWith('@'))
-                            continue;
-
-                        foreach (JProperty jProp in oStatic.SelectToken(oChild.Path).Children().Where(t => t.Type == JTokenType.Property).ToList())
+                        try
                         {
-                            try
+                            JToken tRef = oObj.SelectToken(oChild.Path, false);
+
+                            //check if tRfe is valid..
+                            if (tRef == null)
+                                continue;
+
+
+                            string sName = "misc";
+                            if (oChild.Parent.Type == JTokenType.Property)
+                                sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent).Name;
+                            else
+                                sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent.Parent).Name; //it's an array
+
+                            if (sName.StartsWith('@'))
+                                continue;
+
+                            foreach (JProperty jProp in oStatic.SelectToken(oChild.Path).Children().Where(t => t.Type == JTokenType.Property).ToList())
                             {
-                                if (!jProp.Name.StartsWith('#'))
+                                try
                                 {
-                                    if (jProp.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("#")).Count() == 0)
+                                    if (!jProp.Name.StartsWith('#'))
                                     {
-                                        jProp.Remove();
+                                        if (jProp.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("#")).Count() == 0)
+                                        {
+                                            jProp.Remove();
+                                        }
                                     }
                                 }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine("Error UploadFull_2: " + ex.Message.ToString());
+                                }
                             }
-                            catch (Exception ex)
+
+
+                            //remove all # and @ attributes
+                            foreach (var oKey in tRef.Parent.Descendants().Where(t => t.Type == JTokenType.Property && (((JProperty)t).Name.StartsWith("#") || ((JProperty)t).Name.StartsWith("@"))).ToList())
                             {
-                                Debug.WriteLine("Error UploadFull_2: " + ex.Message.ToString());
+                                try
+                                {
+                                    oKey.Remove();
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine("Error UploadFull_3: " + ex.Message.ToString());
+                                }
                             }
+
+                            WriteHash(ref tRef, ref oStatic, sName);
+                            oObj.SelectToken(oChild.Path).Replace(tRef);
+
                         }
-
-
-                        //remove all # and @ attributes
-                        foreach (var oKey in tRef.Parent.Descendants().Where(t => t.Type == JTokenType.Property && (((JProperty)t).Name.StartsWith("#") || ((JProperty)t).Name.StartsWith("@"))).ToList())
+                        catch (Exception ex)
                         {
-                            try
-                            {
-                                oKey.Remove();
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine("Error UploadFull_3: " + ex.Message.ToString());
-                            }
+                            Debug.WriteLine("Error UploadFull_4: " + ex.Message.ToString());
                         }
-
-                        WriteHash(ref tRef, ref oStatic, sName);
-                        oObj.SelectToken(oChild.Path).Replace(tRef);
-
                     }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine("Error UploadFull_4: " + ex.Message.ToString());
-                    }
-                }
 
-                //remove all # and @ objects
-                foreach (var oKey in oStatic.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
-                {
-                    try
+                    //remove all # and @ objects
+                    foreach (var oKey in oStatic.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
                     {
-                        oKey.Remove();
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine("Error UploadFull_5: " + ex.Message.ToString());
+                        try
+                        {
+                            oKey.Remove();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine("Error UploadFull_5: " + ex.Message.ToString());
+                        }
                     }
                 }
 
@@ -804,14 +806,18 @@ namespace jaindb
                         //Console.WriteLine(JsonConvert.SerializeObject(tChain));
                         if (oNew.index == 1)
                         {
-                            Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") +  " - new " + DeviceID);
+                            Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " - new " + DeviceID);
                         }
                         else
                         {
                             Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " - update " + DeviceID);
                         }
 
-                        WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "Chain");
+                        if (!UseCosmosDB)
+                            WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "Chain");
+                        else
+                            WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "Chain").Wait();
+
 
                         //Add missing attributes
                         if (oStatic["_date"] == null)
@@ -831,8 +837,13 @@ namespace jaindb
                             jTemp.AddFirst(new JProperty("#id", DeviceID));
 
                         //JSort(jTemp);
-
-                        WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_Full");
+                        if (!UseCosmosDB)
+                            WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_Full");
+                        else
+                        {
+                            //No need to save cached document when using CosmosDB
+                            //WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_Full").Wait();
+                        }
                     }
                     else
                     {
@@ -841,7 +852,15 @@ namespace jaindb
                 }
 
                 //JSort(oStatic);
-                WriteHashAsync(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "Assets");
+                if (!UseCosmosDB)
+                    WriteHashAsync(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "Assets");
+                else
+                {
+                    //On CosmosDB, store full document as Asset
+                    if (jTemp["_objectid"] == null)
+                        jTemp.AddFirst(new JProperty("_objectid", DeviceID));
+                    WriteHashAsync(sResult, jTemp.ToString(Formatting.None), "Assets").Wait();
+                }
 
 
                 return sResult;
@@ -859,16 +878,10 @@ namespace jaindb
             try
             {
                 JObject oInv = new JObject();
-                /*if (_cache.TryGetValue("FULL-" + DeviceID + "-" + Index.ToString(), out oInv))
-                {
-                    return oInv;
-                }*/
 
-                //Chech if we have the full data in cache0
                 if (Index == -1)
                 {
                     string sFull = ReadHash(DeviceID, "_full");
-                    //string sFull = cache0.StringGet(DeviceID);
                     if (!string.IsNullOrEmpty(sFull))
                     {
                         return JObject.Parse(sFull);
@@ -878,167 +891,175 @@ namespace jaindb
                 JObject oRaw = GetRawId(DeviceID, Index);
                 string sData = ReadHash(oRaw["_hash"].ToString(), "Assets");
 
-                if (!string.IsNullOrEmpty(sData))
+                if (!UseCosmosDB)
                 {
-                    oInv = JObject.Parse(sData);
-                    try
+                    if (!string.IsNullOrEmpty(sData))
                     {
-                        if (oInv["_index"] == null)
-                            oInv.Add(new JProperty("_index", oRaw["_index"]));
-                        if (oInv["_date"] == null)
-                            oInv.Add(new JProperty("_date", oRaw["_date"]));
-                        if (oInv["_hash"] == null)
-                            oInv.Add(new JProperty("_hash", oRaw["_hash"]));
-                    }
-                    catch { }
-
-                    List<string> lHashes = new List<string>();
-
-                    //Load hashed values
-                    foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
-                    {
-                        lHashes.Add(oTok.Path);
-                    }
-
-                    //Remove merge ##hash with hasehd value
-                    foreach (string sHash in lHashes)
-                    {
+                        oInv = JObject.Parse(sData);
                         try
                         {
-                            JProperty oTok = oInv.SelectToken(sHash).Parent as JProperty;
-                            string sH = oTok.Value.ToString();
-
-                            List<string> aPathItems = oTok.Path.Split('.').ToList();
-                            aPathItems.Reverse();
-                            string sRoot = "";
-                            if (aPathItems.Count > 1)
-                                sRoot = aPathItems[1].Split('[')[0];
-
-                            string sObj = ReadHash(sH, sRoot);
-                            if (!string.IsNullOrEmpty(sObj))
-                            {
-                                var jStatic = JObject.Parse(sObj);
-                                oTok.Parent.Merge(jStatic);
-                                bool bLoop = true;
-                                int i = 0;
-                                //Remove NULL values as a result from merge
-                                while (bLoop)
-                                {
-                                    bLoop = false;
-                                    foreach (var jObj in (oTok.Parent.Descendants().Where(t => (t.Type == (JTokenType.Object) || t.Type == (JTokenType.Array)) && t.HasValues == false).Reverse().ToList()))
-                                    {
-                                        try
-                                        {
-                                            if ((jObj.Type == JTokenType.Object || jObj.Type == JTokenType.Array) && jObj.Parent.Type == JTokenType.Property)
-                                            {
-                                                jObj.Parent.Remove();
-                                                bLoop = true;
-                                                continue;
-                                            }
-
-                                            jObj.Remove();
-                                            bLoop = true;
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Debug.WriteLine("Error GetFull_1: " + ex.Message.ToString());
-                                            if(i <= 100)
-                                                bLoop = true;
-                                            i++;
-                                        }
-                                    }
-                                }
-
-                                /*foreach (var jObj in (oTok.Parent.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
-                                {
-                                    try
-                                    {
-                                         if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Array)
-                                        {
-                                            jObj.Parent.Parent.Remove();
-                                            continue;
-                                        }
-                                        if (jObj.Parent.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
-                                        {
-                                            jObj.Parent.Parent.Remove();
-                                            continue;
-                                        }
-                                        if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
-                                        {
-                                            jObj.Parent.Remove();
-                                            continue;
-                                        }
-                                        else
-                                        {
-                                            jObj.Remove();
-                                        }
-                                    }
-                                    catch(Exception ex)
-                                    {
-                                        Debug.WriteLine("Error GetFull_1: " + ex.Message.ToString());
-                                    }
-                                }*/
-                            }
-                            else
-                            {
-                                sObj.ToString();
-                            }
+                            if (oInv["_index"] == null)
+                                oInv.Add(new JProperty("_index", oRaw["_index"]));
+                            if (oInv["_date"] == null)
+                                oInv.Add(new JProperty("_date", oRaw["_date"]));
+                            if (oInv["_hash"] == null)
+                                oInv.Add(new JProperty("_hash", oRaw["_hash"]));
                         }
-                        catch (Exception ex)
+                        catch { }
+
+                        List<string> lHashes = new List<string>();
+
+                        //Load hashed values
+                        foreach (JProperty oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
                         {
-                            Debug.WriteLine("Error GetFull_2: " + ex.Message.ToString());
+                            lHashes.Add(oTok.Path);
                         }
-                    }
 
-                    //Remove ##hash
-                    foreach (var oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
-                    {
-                        try
-                        {
-                            if (oInv.SelectToken(oTok.Path).Parent.Parent.Children().Count() == 1)
-                                oInv.SelectToken(oTok.Path).Parent.Parent.Remove();
-                            else
-                                oInv.SelectToken(oTok.Path).Parent.Remove();
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine("Error GetFull_3: " + ex.Message.ToString());
-                        }
-                    }
-
-                    try
-                    {
-                        //Remove NULL values
-                        foreach (var oTok in (oInv.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
+                        //Remove merge ##hash with hasehd value
+                        foreach (string sHash in lHashes)
                         {
                             try
                             {
-                                if (oTok.Parent.Count == 1)
-                                {
-                                    oTok.Parent.Remove();
-                                }
+                                JProperty oTok = oInv.SelectToken(sHash).Parent as JProperty;
+                                string sH = oTok.Value.ToString();
 
-                                if (oTok.HasValues)
-                                    oTok.Remove();
+                                List<string> aPathItems = oTok.Path.Split('.').ToList();
+                                aPathItems.Reverse();
+                                string sRoot = "";
+                                if (aPathItems.Count > 1)
+                                    sRoot = aPathItems[1].Split('[')[0];
+
+                                string sObj = ReadHash(sH, sRoot);
+                                if (!string.IsNullOrEmpty(sObj))
+                                {
+                                    var jStatic = JObject.Parse(sObj);
+                                    oTok.Parent.Merge(jStatic);
+                                    bool bLoop = true;
+                                    int i = 0;
+                                    //Remove NULL values as a result from merge
+                                    while (bLoop)
+                                    {
+                                        bLoop = false;
+                                        foreach (var jObj in (oTok.Parent.Descendants().Where(t => (t.Type == (JTokenType.Object) || t.Type == (JTokenType.Array)) && t.HasValues == false).Reverse().ToList()))
+                                        {
+                                            try
+                                            {
+                                                if ((jObj.Type == JTokenType.Object || jObj.Type == JTokenType.Array) && jObj.Parent.Type == JTokenType.Property)
+                                                {
+                                                    jObj.Parent.Remove();
+                                                    bLoop = true;
+                                                    continue;
+                                                }
+
+                                                jObj.Remove();
+                                                bLoop = true;
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                Debug.WriteLine("Error GetFull_1: " + ex.Message.ToString());
+                                                if (i <= 100)
+                                                    bLoop = true;
+                                                i++;
+                                            }
+                                        }
+                                    }
+
+                                    /*foreach (var jObj in (oTok.Parent.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
+                                    {
+                                        try
+                                        {
+                                             if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Array)
+                                            {
+                                                jObj.Parent.Parent.Remove();
+                                                continue;
+                                            }
+                                            if (jObj.Parent.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
+                                            {
+                                                jObj.Parent.Parent.Remove();
+                                                continue;
+                                            }
+                                            if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
+                                            {
+                                                jObj.Parent.Remove();
+                                                continue;
+                                            }
+                                            else
+                                            {
+                                                jObj.Remove();
+                                            }
+                                        }
+                                        catch(Exception ex)
+                                        {
+                                            Debug.WriteLine("Error GetFull_1: " + ex.Message.ToString());
+                                        }
+                                    }*/
+                                }
+                                else
+                                {
+                                    sObj.ToString();
+                                }
                             }
                             catch (Exception ex)
                             {
-                                Debug.WriteLine("Error GetFull_4: " + ex.Message.ToString());
+                                Debug.WriteLine("Error GetFull_2: " + ex.Message.ToString());
                             }
                         }
+
+                        //Remove ##hash
+                        foreach (var oTok in oInv.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("##hash")).ToList())
+                        {
+                            try
+                            {
+                                if (oInv.SelectToken(oTok.Path).Parent.Parent.Children().Count() == 1)
+                                    oInv.SelectToken(oTok.Path).Parent.Parent.Remove();
+                                else
+                                    oInv.SelectToken(oTok.Path).Parent.Remove();
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine("Error GetFull_3: " + ex.Message.ToString());
+                            }
+                        }
+
+                        try
+                        {
+                            //Remove NULL values
+                            foreach (var oTok in (oInv.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
+                            {
+                                try
+                                {
+                                    if (oTok.Parent.Count == 1)
+                                    {
+                                        oTok.Parent.Remove();
+                                    }
+
+                                    if (oTok.HasValues)
+                                        oTok.Remove();
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine("Error GetFull_4: " + ex.Message.ToString());
+                                }
+                            }
+                        }
+                        catch { }
+                        JSort(oInv, true);
+
+                        if (Index == -1)
+                        {
+                            //Cache Full
+                            WriteHashAsync(DeviceID, oInv.ToString(), "_full");
+                        }
+
+                        /*var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache full for 60s
+                        _cache.Set("FULL-" + DeviceID + "-" + Index.ToString(), oInv, cacheEntryOptions);*/
+
+                        return oInv;
                     }
-                    catch { }
-                    JSort(oInv, true);
-
-                    if (Index == -1)
-                    {
-                        WriteHashAsync(DeviceID, oInv.ToString(), "_full");
-                    }
-
-                    /*var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache full for 60s
-                    _cache.Set("FULL-" + DeviceID + "-" + Index.ToString(), oInv, cacheEntryOptions);*/
-
-                    return oInv;
+                }
+                else
+                {
+                    return JObject.Parse(sData);
                 }
 
             }
@@ -1092,7 +1113,7 @@ namespace jaindb
             try
             {
 
-                string sChain = ReadHash(DeviceID, "chain");
+                string sChain = ReadHash(DeviceID, "Chain");
                 var oChain = JsonConvert.DeserializeObject<Blockchain>(sChain);
                 foreach (block oBlock in oChain.Chain.Where(t => t.blocktype != "root"))
                 {
@@ -1799,6 +1820,32 @@ namespace jaindb
         {
             age.ToString();
             List<Change> lRes = new List<Change>();
+
+            /*Parallel.ForEach(GetAllChainsAsync().Result, sID =>
+            {
+                Change oRes = new Change();
+                oRes.id = sID;
+                var jObj = JObject.Parse(ReadHash(sID, "Chain"));
+                oRes.lastChange = new DateTime(jObj["Chain"].Last["timestamp"].Value<long>());
+                if (DateTime.Now.Subtract(oRes.lastChange) > age)
+                {
+                    return;
+                }
+                oRes.index = jObj["Chain"].Last["index"].Value<int>();
+                if (oRes.index > 1)
+                    oRes.changeType = ChangeType.Update;
+                else
+                    oRes.changeType = ChangeType.New;
+
+                if (changeType >= 0)
+                {
+                    if (((int)oRes.changeType) != changeType)
+                        return;
+                }
+
+                lRes.Add(oRes);
+            });*/
+
             foreach (var sID in GetAllChainsAsync().Result)
             {
                 Change oRes = new Change();
@@ -1823,7 +1870,6 @@ namespace jaindb
 
                 lRes.Add(oRes);
             }
-
             return JArray.Parse(JsonConvert.SerializeObject(lRes.OrderBy(t=>t.id).ToList(), Formatting.None));
         }
 
@@ -1848,7 +1894,7 @@ namespace jaindb
                         return lResult;
                     }
 
-                    if(UseCosmosDB)
+                    if (UseCosmosDB)
                     {
                         if (database == null)
                         {
@@ -1858,10 +1904,11 @@ namespace jaindb
                         }
 
                         var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, "Chain");
-                        var docquery = CosmosDB.CreateDocumentQuery(cUri);
-                        foreach(var oDoc in docquery.AsEnumerable())
+
+                        var docquery = CosmosDB.CreateDocumentQuery<Document>(cUri).Select(t => t.Id);
+                        foreach (var oDoc in docquery.AsEnumerable())
                         {
-                            lResult.Add(oDoc.Id);
+                            lResult.Add(oDoc);
                         }
                     }
 

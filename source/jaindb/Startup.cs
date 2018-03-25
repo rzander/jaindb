@@ -237,9 +237,9 @@ namespace jaindb
             {
                 try
                 {
-                    jDB.databaseId = "Assets";
-                    jDB.endpointUrl = "https://localhost:8081";
-                    jDB.authorizationKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
+                    jDB.databaseId = Configuration.GetSection("cosmosdb:databaseId").Value;
+                    jDB.endpointUrl = Configuration.GetSection("cosmosdb:endpointUrl").Value;
+                    jDB.authorizationKey = Configuration.GetSection("cosmosdb:authorizationKey").Value;
                     jDB.CosmosDB = new DocumentClient(new Uri(jDB.endpointUrl), jDB.authorizationKey);
 
                     jDB.CosmosDB.OpenAsync();
