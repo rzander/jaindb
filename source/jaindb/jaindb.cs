@@ -202,6 +202,9 @@ namespace jaindb
                             var jObj = JObject.Parse(Data);
                             JSort(jObj);
 
+                            if (jObj["#id"] == null)
+                                jObj.Add("#id", Hash);
+
                             string sID = jObj["#id"].ToString();
 
                             //Store FullContent for 30Days
