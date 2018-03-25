@@ -243,10 +243,13 @@ namespace jaindb
                     jDB.CosmosDB = new DocumentClient(new Uri(jDB.endpointUrl), jDB.authorizationKey);
 
                     jDB.CosmosDB.OpenAsync();
-
                     jDB.UseCosmosDB = true;
                 }
-                catch { }
+                catch
+                {
+                    jDB.UseCosmosDB = false;
+                    jDB.UseFileStore = true;
+                }
             }
 
             if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
