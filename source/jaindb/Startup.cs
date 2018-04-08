@@ -265,7 +265,24 @@ namespace jaindb
                     int.TryParse(Configuration.GetSection("jaindb:PoWComplexitity").Value, out iComplexity);
                 }
             }
-            jDB.PoWComplexitity = iComplexity;
+
+            int iReadOnly = 0;
+            if (!int.TryParse(Environment.GetEnvironmentVariable("ReadOnly"), out iReadOnly))
+            {
+                if (!int.TryParse(Configuration.GetSection("ReadOnly").Value, out iReadOnly))
+                {
+                    int.TryParse(Configuration.GetSection("jaindb:ReadOnly").Value, out iReadOnly);
+                }
+            }
+            if (iReadOnly == 1)
+            {
+                jDB.ReadOnly = true;
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Note: JainDB is running in 'ReadOnly' mode !");
+                Console.ResetColor();
+                Console.WriteLine();
+            }
         }
 
 

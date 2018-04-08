@@ -73,6 +73,7 @@ namespace jaindb
 
         public static string BlockType = "INV";
         public static int PoWComplexitity = 0; //Proof of Work complexity; 0 = no PoW; 8 = 8 trailing bits of the block hash must be '0'
+        public static bool ReadOnly = false;
 
         public static string CalculateHash(string input)
         {
@@ -146,6 +147,8 @@ namespace jaindb
 
         public static void WriteHash(ref JToken oRoot, ref JObject oStatic, string Collection)
         {
+            if (ReadOnly)
+                return;
             try
             {
                 //JSort(oStatic);
@@ -181,6 +184,9 @@ namespace jaindb
 
         public static bool WriteHash(string Hash, string Data, string Collection)
         {
+            if (ReadOnly)
+                return false;
+
             try
             {
                 //Cache result in Memory
@@ -473,6 +479,9 @@ namespace jaindb
 
         public static async Task<bool> WriteHashAsync(string Hash, string Data, string Collection)
         {
+            if (ReadOnly)
+                return false;
+
             //write async
             return await Task.Run(() =>
             {
@@ -487,7 +496,6 @@ namespace jaindb
                 return WriteHash(Hash, Data, Collection);
             }*/
         }
-
         public static string ReadHash(string Hash, string Collection)
         {
             string sResult = "";
@@ -654,6 +662,9 @@ namespace jaindb
 
         public static string UploadFull(string JSON, string DeviceID)
         {
+            if (ReadOnly)
+                return "";
+
             try
             {
                 JObject oObj = JObject.Parse(JSON);

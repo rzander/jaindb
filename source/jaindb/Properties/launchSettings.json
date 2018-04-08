@@ -21,6 +21,7 @@
       "environmentVariables": {
         "ReportPW": "password",
         "WebPort": "5000",
+        "ReadOnly": "0",
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DisableAuth": "1",
         "ReportUser": "DEMO"
