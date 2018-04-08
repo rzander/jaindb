@@ -53,6 +53,7 @@ namespace jaindb
         public static bool UseCosmosDB;
         public static bool UseRedis;
         public static bool UseFileStore;
+        public static bool UseRethinkDB = true;
 
         internal static string databaseId;
         internal static string endpointUrl;
@@ -74,6 +75,15 @@ namespace jaindb
         public static string BlockType = "INV";
         public static int PoWComplexitity = 0; //Proof of Work complexity; 0 = no PoW; 8 = 8 trailing bits of the block hash must be '0'
         public static bool ReadOnly = false;
+
+        internal static RethinkDb.Driver.RethinkDB R = RethinkDb.Driver.RethinkDB.R;
+        internal static RethinkDb.Driver.Net.Connection conn = R.Connection()
+                    .Hostname("localhost")
+                    .Port(28015)
+                    .Timeout(60)
+                    .Db("jaindb")
+                    .Connect();
+        internal static List<string> RethinkTables = new List<string>();
 
         public static string CalculateHash(string input)
         {
@@ -198,6 +208,37 @@ namespace jaindb
 
                 if (string.IsNullOrEmpty(Data) || Data == "null")
                     return true;
+
+                if(UseRethinkDB)
+                {
+                    try
+                    {
+                        if (!RethinkTables.Contains(Collection))
+                        {
+                            try
+                            {
+                                lock (locker) //only one write operation
+                                {
+                                    R.TableCreate(Collection).OptArg("primary_key", "#id").Run(conn);
+                                    RethinkTables.Add(Collection);
+                                }
+                            }
+                            catch { }
+                        }
+                        JObject jObj = JObject.Parse(Data);
+
+                        if (jObj["#id"] == null)
+                            jObj.Add("#id", Hash);
+
+                        var iR = R.Table(Collection).Insert(jObj).RunAsync(conn);
+                        
+                        return true;
+                    }
+                    catch(Exception ex)
+                    {
+                        ex.Message.ToString();
+                    }
+                }
 
                 if (UseRedis)
                 {
@@ -482,6 +523,7 @@ namespace jaindb
             if (ReadOnly)
                 return false;
 
+            //return WriteHash(Hash, Data, Collection);
             //write async
             return await Task.Run(() =>
             {
@@ -556,6 +598,27 @@ namespace jaindb
                                 }
                                 return sResult;
                         }
+                    }
+
+                    if(UseRethinkDB)
+                    {
+                        try
+                        {
+                            JObject oRes = R.Table(Collection).Get(Hash).Run<JObject>(conn);
+                            if (oRes != null)
+                                sResult = oRes.ToString();
+
+                            //Cache result in Memory
+                            if (!string.IsNullOrEmpty(sResult))
+                            {
+                                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(30)); //cache hash for 30s
+                                _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
+                            }
+                            return sResult;
+                        }
+                        catch { }
+
+                        return "";
                     }
 
                     if (UseFileStore)
@@ -895,7 +958,7 @@ namespace jaindb
 
                 if (Index == -1)
                 {
-                    string sFull = ReadHash(DeviceID, "_full");
+                    string sFull = ReadHash(DeviceID, "_Full");
                     if (!string.IsNullOrEmpty(sFull))
                     {
                         return JObject.Parse(sFull);
@@ -1908,6 +1971,12 @@ namespace jaindb
                         return lResult;
                     }
 
+                    if(UseRethinkDB)
+                    {
+                        var oRes =  R.Table("Chain").GetField("#id").RunCursor<string>(conn).BufferedItems;
+                        lResult.AddRange(oRes);
+                    }
+
                     if (UseCosmosDB)
                     {
                         if (database == null)
@@ -1955,6 +2024,7 @@ namespace jaindb
                 {
                     var cache5 = RedisConnectorHelper.Connection.GetDatabase(5);
                     string sBlocks = cache5.StringGet("latestBlocks");
+
                     if (string.IsNullOrEmpty(sBlocks))
                     {
                         try
@@ -1972,6 +2042,20 @@ namespace jaindb
                                     }
                                     catch { }
                                 }
+                            }
+
+                            if(UseRethinkDB)
+                            {
+                                foreach (var sID in GetAllChainsAsync().Result)
+                                {
+                                    try
+                                    {
+                                        var oRes = R.Table("Chain").Get(sID).GetField("Chain").Nth(-1).GetField("data").RunCursor<string>(conn).BufferedItems;
+                                        lResult.AddRange(oRes);
+                                    }
+                                    catch { }
+                                }
+
                             }
                         }
                         catch { }
@@ -2017,9 +2101,9 @@ namespace jaindb
             List<string> lResult = new List<string>();
             try
             {
+                List<string> latestBlocks = GetLatestBlocksAsync().Result;
                 if (UseRedis)
                 {
-                    List<string> latestBlocks = GetLatestBlocksAsync().Result;
                     foreach (string sRawID in latestBlocks)
                     {
                         try
@@ -2046,6 +2130,19 @@ namespace jaindb
             try
             {
                 if (UseRedis)
+                {
+                    var tFind = await FindHashOnContentAsync(searchstring);
+
+                    tFind.AsParallel().ForAll(t =>
+                    {
+                        foreach (string sName in FindLatestRawWithHash(new List<string>() { t }, KeyID))
+                        {
+                            lResult.Add(sName);
+                        }
+                    });
+                }
+
+                if(UseRethinkDB)
                 {
                     var tFind = await FindHashOnContentAsync(searchstring);
 

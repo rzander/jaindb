@@ -252,7 +252,34 @@ namespace jaindb
                 }
             }
 
-            if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
+            if ((int.Parse(Configuration.GetSection("UseRethinkDB").Value ?? Configuration.GetSection("jaindb:UseRethinkDB").Value) == 1) || (Environment.GetEnvironmentVariable("UseRethinkDB") == "1"))
+            {
+                try
+                {
+                    jDB.conn = jDB.R.Connection()
+                        .Hostname(Configuration.GetSection("rethinkdb:server").Value)
+                        .Port(int.Parse(Configuration.GetSection("rethinkdb:port").Value))
+                        .Timeout(60)
+                        .Db(Configuration.GetSection("rethinkdb:database").Value)
+                        .Connect();
+
+                    //Create DB if missing
+                    if (!((string[])jDB.R.DbList().Run<string[]>(jDB.conn)).Contains(Configuration.GetSection("rethinkdb:database").Value))
+                    {
+                        jDB.R.DbCreate(Configuration.GetSection("rethinkdb:database").Value).Run(jDB.conn);
+                    }
+
+                    //Get Tables
+                    jDB.RethinkTables = ((string[])jDB.R.TableList().Run<string[]>(jDB.conn)).ToList();
+                }
+                catch(Exception ex)
+                {
+                    jDB.UseRethinkDB = false;
+                    jDB.UseFileStore = true;
+                }
+            }
+
+                if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
             {
                 jDB.UseFileStore = true;
             }
