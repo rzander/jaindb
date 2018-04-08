@@ -77,12 +77,8 @@ namespace jaindb
         public static bool ReadOnly = false;
 
         internal static RethinkDb.Driver.RethinkDB R = RethinkDb.Driver.RethinkDB.R;
-        internal static RethinkDb.Driver.Net.Connection conn = R.Connection()
-                    .Hostname("localhost")
-                    .Port(28015)
-                    .Timeout(60)
-                    .Db("jaindb")
-                    .Connect();
+        internal static RethinkDb.Driver.Net.Connection conn;
+
         internal static List<string> RethinkTables = new List<string>();
 
         public static string CalculateHash(string input)
