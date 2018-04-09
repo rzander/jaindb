@@ -16,6 +16,7 @@ Jaindb can store data fragments on:
 - File System (slow but simple)
 - Redis Cache (fast and easy to setup)
 - CosmosDB (scalable cloud service)
+- RethinkDB (fast and easy to setup)
 
 It splits the original data into blocks (JSON Objects) that can be referenced from other data sources..
 An example on inventory data of an audio device on a computer:
