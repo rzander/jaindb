@@ -17,7 +17,7 @@ namespace JainDBTest
         [Priority(0)]
         public void Test_Upload()
         {
-            if(System.IO.Directory.Exists("wwwroot"))
+            if (System.IO.Directory.Exists("wwwroot"))
                 System.IO.Directory.Delete("wwwroot", true); //cleanup existing data
 
             Console.WriteLine("Upload Test Object...");
@@ -64,6 +64,35 @@ namespace JainDBTest
             if (bValid)
                 Console.WriteLine("Blockchain data does match with cached data.");
 
+        }
+
+        [TestMethod]
+        [Priority(2)]
+        public void Test_Query()
+        {
+            Console.WriteLine("Query data...");
+            jDB.UseFileStore = true;
+            int i = jDB.Query("obj1", "", "").Count();
+            Assert.IsTrue(i > 0);
+        }
+
+        [TestMethod]
+        [Priority(3)]
+        public void Test_QueryAll()
+        {
+            Console.WriteLine("QueryAll data...");
+            jDB.UseFileStore = true;
+            int i = jDB.QueryAll("obj1", "", "").Count();
+            Assert.IsTrue(i > 0);
+        }
+        [TestMethod]
+        [Priority(3)]
+        public void Test_Changes()
+        {
+            Console.WriteLine("get changes...");
+            jDB.UseFileStore = true;
+            int i = jDB.GetChanges(new TimeSpan(1,0,0)).Count();
+            Assert.IsTrue(i > 0);
         }
     }
 }
