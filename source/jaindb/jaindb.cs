@@ -53,7 +53,7 @@ namespace jaindb
         public static bool UseCosmosDB;
         public static bool UseRedis;
         public static bool UseFileStore;
-        public static bool UseRethinkDB = true;
+        public static bool UseRethinkDB;
 
         internal static string databaseId;
         internal static string endpointUrl;
