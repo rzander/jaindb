@@ -9,6 +9,7 @@ RUN apt-get update
 
 RUN cp /app/wwwroot/bin /usr/local -r
 RUN rm -f -r /app/wwwroot/bin
+
 #RUN apt-get install -y make gcc wget
 #RUN apt-get install -y --no-install-recommends ca-certificates
 #RUN mkdir -p /app/wwwroot/redis
@@ -23,7 +24,16 @@ RUN rm -f -r /app/wwwroot/bin
 #RUN make -C /app/wwwroot/redis install
 #RUN rm -f /app/wwwroot/redis.tar.gz
 #RUN rm -f /app/redis.tar.gz
+#RUN mkdir -p /app/wwwroot/bin
+#RUN cp /app/wwwroot/redis/src/redis-benchmark /app/wwwroot/bin
+#RUN cp /app/wwwroot/redis/src/redis-check-aof /app/wwwroot/bin
+#RUN cp /app/wwwroot/redis/src/redis-check-rdb /app/wwwroot/bin
+#RUN cp /app/wwwroot/redis/src/redis-cli /app/wwwroot/bin
+#RUN cp /app/wwwroot/redis/src/redis-sentinel /app/wwwroot/bin
+#RUN cp /app/wwwroot/redis/src/redis-server /app/wwwroot/bin
 #RUN rm -r /app/wwwroot/redis
+
+
 ENV localURL "http://localhost"
 ENV WebPort 5000
 ENV UseRedis 1

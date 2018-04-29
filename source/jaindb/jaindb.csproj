@@ -13,8 +13,8 @@
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json</PackageTags>
     <Version>0.9.0</Version>
-    <AssemblyVersion>0.9.0.67</AssemblyVersion>
-    <FileVersion>0.9.0.67</FileVersion>
+    <AssemblyVersion>0.9.0.68</AssemblyVersion>
+    <FileVersion>0.9.0.68</FileVersion>
     <StartupObject>jaindb.Program</StartupObject>
     <UserSecretsId>fcfd6c0a-e53c-46cb-8a9d-b786c0579861</UserSecretsId>
   </PropertyGroup>
@@ -68,7 +68,7 @@
     <PackageReference Include="Microsoft.VisualStudio.Web.BrowserLink" Version="2.0.2" />
     <PackageReference Include="Moon.AspNetCore.Authentication.Basic" Version="4.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
-    <PackageReference Include="RethinkDb.Driver" Version="2.3.22" />
+    <PackageReference Include="RethinkDb.Driver" Version="2.3.23" />
     <PackageReference Include="StackExchange.Redis" Version="1.2.6" />
   </ItemGroup>
 
@@ -78,6 +78,9 @@
 
   <ItemGroup>
     <None Update="inventory.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Start.cmd">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
