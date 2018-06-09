@@ -12,9 +12,9 @@
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json</PackageTags>
-    <Version>0.9.9</Version>
-    <AssemblyVersion>0.9.9.70</AssemblyVersion>
-    <FileVersion>0.9.9.70</FileVersion>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.72</AssemblyVersion>
+    <FileVersion>0.0.0.72</FileVersion>
     <StartupObject>jaindb.Program</StartupObject>
     <UserSecretsId>fcfd6c0a-e53c-46cb-8a9d-b786c0579861</UserSecretsId>
   </PropertyGroup>
