@@ -106,7 +106,7 @@ namespace jaindb
             try
             {
                 //Check in MemoryCache
-                if (_cache.TryGetValue("ID-" + name, out sResult))
+                if (_cache.TryGetValue("ID-" + name + value, out sResult))
                 {
                     return sResult;
                 }
@@ -120,7 +120,7 @@ namespace jaindb
                         if (!string.IsNullOrEmpty(sResult))
                         {
                             var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 1min
-                            _cache.Set("ID-" + name, sResult, cacheEntryOptions);
+                            _cache.Set("ID-" + name + value, sResult, cacheEntryOptions);
                         }
 
                         return sResult;
@@ -135,7 +135,7 @@ namespace jaindb
                         if (!string.IsNullOrEmpty(sResult))
                         {
                             var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
-                            _cache.Set("ID-" + name, sResult, cacheEntryOptions);
+                            _cache.Set("ID-" + name + value, sResult, cacheEntryOptions);
                         }
 
                         return sResult;
