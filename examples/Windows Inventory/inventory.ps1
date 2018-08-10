@@ -224,9 +224,13 @@ $object | Add-Member -MemberType NoteProperty -Name "Software" -Value ($SW| Sort
 $Services = get-service | Select-Object -ExcludeProperty MachineName, Site, Container, @{N = 'id'; E = { $_.Name}}
 $object | Add-Member -MemberType NoteProperty -Name "Services" -Value ($Services )
 
+#OS Version details
+$UBR = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name UBR).UBR
+
 #Cleanup
 $object."LogicalDisk" | % { $_."@FreeSpace" = normalize($_."@FreeSpace")}
 $object.Computer."TotalPhysicalMemory" = normalize($object.Computer."TotalPhysicalMemory")
+$object.OS.Version = $object.OS.Version + "." + $UBR
 #$object.NetworkAdapter | % { $_.Speed = normalize($_.Speed)}
 
 
