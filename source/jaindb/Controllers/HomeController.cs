@@ -290,7 +290,7 @@ namespace jaindb.Controllers
                 //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
                 var query = QueryHelpers.ParseQuery(sQuery);
 
-                return jDB.Query(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value);
+                return jDB.Query(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$where").Value);
             }
             return null;
         }

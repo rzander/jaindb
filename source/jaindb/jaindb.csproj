@@ -13,8 +13,8 @@
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json</PackageTags>
     <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.73</AssemblyVersion>
-    <FileVersion>1.0.0.73</FileVersion>
+    <AssemblyVersion>1.0.0.74</AssemblyVersion>
+    <FileVersion>1.0.0.74</FileVersion>
     <StartupObject>jaindb.Program</StartupObject>
     <UserSecretsId>fcfd6c0a-e53c-46cb-8a9d-b786c0579861</UserSecretsId>
   </PropertyGroup>
@@ -55,7 +55,7 @@
 
   <ItemGroup>
     <PackageReference Include="JsonDiffPatch.Net" Version="2.1.0" />
-    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.3.0" />
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.4.0" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.1.1" />
