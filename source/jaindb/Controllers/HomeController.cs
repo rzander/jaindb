@@ -43,16 +43,16 @@ namespace jaindb.Controllers
 
         [HttpPost]
         [Route("upload/{Id}")]
-        public string Upload(string JSON, string Id)
+        public string Upload(string JSON, string Id, string blockType = "INV")
         {
             var oGet = new StreamReader(Request.Body, true).ReadToEndAsync();
 
-            return jDB.UploadFull(oGet.Result.ToString(), Id);
+            return jDB.UploadFull(oGet.Result.ToString(), Id, blockType);
         }
 
         [HttpPost]
         [Route("uploadxml/{Id}")]
-        public string UploadXML(string XML, string Id)
+        public string UploadXML(string XML, string Id, string blockType = "INV")
         {
             var oGet = new StreamReader(Request.Body, true).ReadToEndAsync();
 
@@ -61,7 +61,7 @@ namespace jaindb.Controllers
             //Check if we have a value in sJSON
             if (!string.IsNullOrEmpty(sJSON))
             {
-                return jDB.UploadFull(sJSON, Id);
+                return jDB.UploadFull(sJSON, Id, blockType);
             }
 
             return "";
@@ -156,7 +156,7 @@ namespace jaindb.Controllers
         [HttpGet]
         [Authorize]
         [Route("full")]
-        public JObject Full()
+        public JObject Full(string blockType = "INV")
         {
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
             string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
@@ -170,13 +170,13 @@ namespace jaindb.Controllers
             if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "index").Value, out int index))
                 index = -1;
 
-            return jDB.GetFull(sKey, index);
+            return jDB.GetFull(sKey, index, blockType);
         }
 
         [HttpGet]
         [Authorize]
         [Route("diff")]
-        public JObject Diff()
+        public JObject Diff(string blockType = "INV")
         {
             this.Url.ToString();
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
@@ -204,7 +204,8 @@ namespace jaindb.Controllers
                 if (!int.TryParse(query.FirstOrDefault(t => t.Key.ToLower() == "mode").Value, out int mode))
                     mode = 0;
 
-                return jDB.GetDiff(sKey, index, mode, rindex);
+
+                return jDB.GetDiff(sKey, index, mode, rindex, blockType);
             }
             return null;
         }

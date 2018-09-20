@@ -209,14 +209,28 @@ namespace jaindb
                 return sb.ToString();
             }
 
-            public block GetLastBlock()
+            public block GetLastBlock(string blockType = "")
             {
-                return Chain.FirstOrDefault(t =>Chain.Count(q=> ByteArrayToString(q.previous_hash) == ByteArrayToString(t.hash)) == 0);
+                if (string.IsNullOrEmpty(blockType))
+                    return Chain.FirstOrDefault(t => Chain.Count(q => ByteArrayToString(q.previous_hash) == ByteArrayToString(t.hash)) == 0);
+                else
+                {
+                    var oBlock = Chain.FirstOrDefault(t => Chain.Count(q => ByteArrayToString(q.previous_hash) == ByteArrayToString(t.hash)) == 0 && (t.blocktype == blockType));
+
+                    //return genesis block if no other block was found
+                    if (oBlock == null)
+                        return GetBlock(0);
+                    else
+                        return oBlock;
+                }
             }
 
-            public block GetBlock(int index)
+            public block GetBlock(int index, string blockType = "")
             {
-                return Chain.FirstOrDefault(t => t.index == index);
+                if (string.IsNullOrEmpty(blockType))
+                    return Chain.FirstOrDefault(t => t.index == index);
+                else
+                    return Chain.FirstOrDefault(t => t.index == index && t.blocktype == blockType);
             }
         }
 

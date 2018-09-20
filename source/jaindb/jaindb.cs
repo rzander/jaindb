@@ -716,10 +716,13 @@ namespace jaindb
             return oChain;
         }
 
-        public static string UploadFull(string JSON, string DeviceID)
+        public static string UploadFull(string JSON, string DeviceID, string blockType = "")
         {
             if (ReadOnly)
                 return "";
+
+            if (string.IsNullOrEmpty(blockType))
+                blockType = BlockType;
 
             try
             {
@@ -894,6 +897,8 @@ namespace jaindb
                             oStatic.AddFirst(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
                         if (oStatic["_index"] == null)
                             oStatic.AddFirst(new JProperty("_index", oNew.index));
+                        if (oStatic["_type"] == null)
+                            oStatic.AddFirst(new JProperty("_type", blockType));
                         if (oStatic["#id"] == null)
                             oStatic.AddFirst(new JProperty("#id", DeviceID));
 
@@ -903,12 +908,19 @@ namespace jaindb
                             jTemp.AddFirst(new JProperty("_hash", oNew.data));
                         if (jTemp["_date"] == null)
                             jTemp.AddFirst(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
+                        if (jTemp["_type"] == null)
+                            jTemp.AddFirst(new JProperty("_type", blockType));
                         if (jTemp["#id"] == null)
                             jTemp.AddFirst(new JProperty("#id", DeviceID));
 
                         //JSort(jTemp);
                         if (!UseCosmosDB)
-                            WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_Full");
+                        {
+                            if (blockType == BlockType)
+                                WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_Full");
+                            else
+                                WriteHashAsync(DeviceID + "_" + blockType, jTemp.ToString(Formatting.None), "_Full");
+                        }
                         else
                         {
                             //No need to save cached document when using CosmosDB
@@ -923,7 +935,12 @@ namespace jaindb
 
                 //JSort(oStatic);
                 if (!UseCosmosDB)
-                    WriteHashAsync(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "Assets");
+                {
+                    if (blockType == BlockType)
+                        WriteHashAsync(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "Assets");
+                    else
+                        WriteHashAsync(sResult + "_" + blockType, oStatic.ToString(Newtonsoft.Json.Formatting.None), "Assets");
+                }
                 else
                 {
                     //On CosmosDB, store full document as Asset
@@ -943,23 +960,36 @@ namespace jaindb
             return "";
         }
 
-        public static JObject GetFull(string DeviceID, int Index = -1)
+        public static JObject GetFull(string DeviceID, int Index = -1, string blockType = "")
         {
             try
             {
                 JObject oInv = new JObject();
 
+                if (string.IsNullOrEmpty(blockType))
+                    blockType = BlockType;
+
                 if (Index == -1)
                 {
-                    string sFull = ReadHash(DeviceID, "_Full");
+                    string sFull = "";
+                    if (blockType == BlockType)
+                        sFull = ReadHash(DeviceID, "_Full");
+                    else
+                        sFull = ReadHash(DeviceID + "_" + blockType, "_Full");
+
                     if (!string.IsNullOrEmpty(sFull))
                     {
                         return JObject.Parse(sFull);
                     }
                 }
 
-                JObject oRaw = GetRawId(DeviceID, Index);
-                string sData = ReadHash(oRaw["_hash"].ToString(), "Assets");
+                JObject oRaw = GetRawId(DeviceID, Index, blockType);
+
+                string sData = "";
+                if (blockType == BlockType)
+                    sData = ReadHash(oRaw["_hash"].ToString(), "_Assets");
+                else
+                    sData = ReadHash(oRaw["_hash"].ToString() + "_" + blockType, "_Assets");
 
                 if (!UseCosmosDB)
                 {
@@ -1141,9 +1171,12 @@ namespace jaindb
             return new JObject();
         }
 
-        public static JObject GetRawId(string DeviceID, int Index = -1)
+        public static JObject GetRawId(string DeviceID, int Index = -1, string blockType = "")
         {
             JObject jResult = new JObject();
+
+            if (string.IsNullOrEmpty(blockType))
+                blockType = BlockType;
 
             try
             {
@@ -1154,13 +1187,13 @@ namespace jaindb
                 if (Index == -1)
                 {
                     oChain = GetChain(DeviceID);
-                    lBlock = oChain.GetLastBlock();
+                    lBlock = oChain.GetLastBlock(blockType);
 
                 }
                 else
                 {
                     oChain = GetChain(DeviceID);
-                    lBlock = oChain.GetBlock(Index);
+                    lBlock = oChain.GetBlock(Index, blockType);
                 }
 
 
@@ -1177,15 +1210,19 @@ namespace jaindb
             return jResult;
         }
 
-        public static JObject GetHistory(string DeviceID)
+        public static JObject GetHistory(string DeviceID, string blockType = "")
         {
             JObject jResult = new JObject();
+
+            if (string.IsNullOrEmpty(blockType))
+                blockType = BlockType;
+
             try
             {
 
                 string sChain = ReadHash(DeviceID, "Chain");
                 var oChain = JsonConvert.DeserializeObject<Blockchain>(sChain);
-                foreach (block oBlock in oChain.Chain.Where(t => t.blocktype != "root"))
+                foreach (block oBlock in oChain.Chain.Where(t => t.blocktype == blockType))
                 {
                     try
                     {
@@ -1272,8 +1309,11 @@ namespace jaindb
             return jResult;
         }
 
-        public static JObject GetDiff(string DeviceId, int IndexLeft, int mode = -1, int IndexRight = -1)
+        public static JObject GetDiff(string DeviceId, int IndexLeft, int mode = -1, int IndexRight = -1, string blockType = "")
         {
+            if (string.IsNullOrEmpty(blockType))
+                blockType = BlockType;
+
             try
             {
                 var right = GetFull(DeviceId, IndexRight);
