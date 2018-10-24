@@ -72,7 +72,7 @@ namespace JainDBTest
         {
             Console.WriteLine("Query data...");
             jDB.UseFileStore = true;
-            int i = jDB.Query("obj1", "", "").Count();
+            int i = jDB.QueryAsync("obj1", "", "", "").Result.Count();
             Assert.IsTrue(i > 0);
         }
 

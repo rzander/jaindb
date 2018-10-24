@@ -196,7 +196,7 @@ getinv -Name "Printer" -WMIClass "Win32_Printer" -Properties @("DeviceID","Capab
 $user = Get-LocalUser | Select-Object Description, Enabled, UserMayChangePassword, PasswordRequired, Name, @{N = '@PasswordLastSet'; E = {[System.DateTime](($_.PasswordLastSet).ToUniversalTime())}}, @{N = 'id'; E = {$_.SID}} | Sort-Object -Property Name
 $object | Add-Member -MemberType NoteProperty -Name "LocalUsers" -Value ($user)
 
-$locAdmin = Get-LocalGroupMember -SID S-1-5-32-544 | Select-Object @{N = 'Name'; E = {$_.Name.Replace($($env:Computername) + "\", "")}}, PrincipalSource, ObjectClass | Sort-Object -Property Name
+$locAdmin = Get-LocalGroupMember -SID S-1-5-32-544 | Select-Object @{N = 'Name'; E = {$_.Name.Replace($($env:Computername) + "\", "")}}, ObjectClass, @{Name = 'id'; Expression = {$_.SID.Value}} | Sort-Object -Property Name
 $object | Add-Member -MemberType NoteProperty -Name "LocalAdmins" -Value ($locAdmin)
 
 $locGroup = Get-LocalGroup | Select-Object Description, Name, PrincipalSource, ObjectClass, @{N = 'id'; E = {$_.SID}}  | Sort-Object -Property Name
