@@ -18,14 +18,13 @@ using System.Net.NetworkInformation;
 using Moon.AspNetCore.Authentication.Basic;
 using System.Threading.Tasks;
 using System.Security.Claims;
-using jaindb;
 using Microsoft.AspNetCore.Mvc.Authorization;
 
 namespace jaindb
 {
     public class Startup
     {
-        public Startup(IHostingEnvironment env)
+        public Startup(IHostingEnvironment env, IConfiguration configuration)
         {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
@@ -33,9 +32,12 @@ namespace jaindb
                 .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
                 .AddEnvironmentVariables();
             Configuration = builder.Build();
+            //Configuration = configuration;
+            Env = env;
         }
 
-        public IConfigurationRoot Configuration { get; }
+        public IConfiguration Configuration { get; }
+        public IHostingEnvironment Env { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -60,16 +62,6 @@ namespace jaindb
                 };
             });
 
-            //Custom Authentication Provider
-            /*services.AddAuthentication(options =>
-            {
-                // the scheme name has to match the value we're going to use in AuthenticationBuilder.AddScheme(...)
-                options.DefaultAuthenticateScheme = "Custom Scheme";
-                options.DefaultChallengeScheme = "Custom Scheme";
-            }).AddCustomAuth(o => { });*/
-
-            // Add framework services.
-            //services.AddMvc();
             services.AddMvc(options =>
             {
                 options.OutputFormatters.RemoveType<StringOutputFormatter>();
@@ -103,7 +95,7 @@ namespace jaindb
             }
             else
             {
-                app.UseExceptionHandler("/Home/Error");
+                app.UseExceptionHandler("/JainDB/Error");
             }
 
             app.UseAuthentication();
@@ -114,7 +106,7 @@ namespace jaindb
             {
                 routes.MapRoute(
                     name: "default",
-                    template: "{controller=Home}/{action=Index}/{id?}");
+                    template: "{controller=JainDB}/{action=Index}/{id?}");
             }); 
         }
 
@@ -171,9 +163,9 @@ namespace jaindb
             Console.WriteLine("-------------------------------------------------------------------");
             Console.WriteLine(" ");
 
-            string sHashType = Environment.GetEnvironmentVariable("HashType");
+            string sHashType = Environment.GetEnvironmentVariable("HashType") ?? "";
             if (string.IsNullOrEmpty(sHashType))
-                sHashType = Configuration.GetSection("jaindb:HashType").Value ?? Configuration.GetSection("HashType").Value;
+                sHashType = Configuration.GetSection("jaindb:HashType").Value ?? Configuration.GetSection("HashType").Value ?? "md5";
 
             switch (sHashType.ToLower())
             {
@@ -191,7 +183,7 @@ namespace jaindb
                     break;
             }
 
-            if ((int.Parse(Configuration.GetSection("UseRedis").Value ?? Configuration.GetSection("jaindb:UseRedis").Value) == 1) || (Environment.GetEnvironmentVariable("UseRedis")) == "1")
+            if ((int.Parse(Configuration.GetSection("UseRedis").Value ?? Configuration.GetSection("jaindb:UseRedis").Value) == 1) || (Environment.GetEnvironmentVariable("UseRedis") ?? "0") == "1")
             {
                 try
                 {

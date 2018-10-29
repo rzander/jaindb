@@ -34,7 +34,7 @@ RUN rm -f -r /app/wwwroot/bin
 ##RUN rm -r /app/wwwroot/redis
 
 
-ENV localURL "http://localhost"
+#ENV localURL "http://localhost"
 ENV WebPort 5000
 ENV UseRedis 1
 ENV UseRethinkDB 0

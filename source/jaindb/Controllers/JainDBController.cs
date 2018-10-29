@@ -15,31 +15,34 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
-using System.Collections.Generic;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Extensions;
 
 namespace jaindb.Controllers
 {
     [Produces("application/json")]
-    public class HomeController : Controller
+    public class JainDBController : Controller
     {
         private readonly IConfiguration _config;
         private readonly ILogger _logger;
         private IMemoryCache _cache;
+        private readonly IHostingEnvironment _env;
 
-        public HomeController(IConfiguration config, ILogger<HomeController> logger, IMemoryCache memoryCache)
+        public JainDBController(IConfiguration config, ILogger<JainDBController> logger, IMemoryCache memoryCache, IHostingEnvironment env)
         {
             _config = config;
             _logger = logger;
             _cache = memoryCache;
+            _env = env;
             jDB._cache = memoryCache;
         }
 
-        [HttpGet]
-        public ActionResult get()
-        {
-            string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-            return Content("JainDB (c) 2018 by Roger Zander; Version: " + sVersion);
-        }
+        //[HttpGet]
+        //public ActionResult get()
+        //{
+        //    string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+        //    return Content("JainDB (c) 2018 by Roger Zander; Version: " + sVersion);
+        //}
 
         [HttpPost]
         [Route("upload/{Id}")]
@@ -96,13 +99,18 @@ namespace jaindb.Controllers
                 return sResult;
             }
 
-            if (System.IO.File.Exists("/app/wwwroot/inventory.ps1"))
+            if (System.IO.File.Exists(Path.Combine(_env.WebRootPath,  "inventory.ps1")))
             {
-                string sFile = System.IO.File.ReadAllText("/app/wwwroot/inventory.ps1");
-                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
-                    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace(":%WebPort%", "");
-                else
-                    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
+                string sFile = System.IO.File.ReadAllText(Path.Combine(_env.WebRootPath, "inventory.ps1"));
+
+                string sLocalURL = Request.GetEncodedUrl().Replace("/getps", "");
+
+                //if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
+                //    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace(":%WebPort%", "");
+                //else
+                //    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
+
+                sResult = sFile.Replace("%LocalURL%", sLocalURL).Replace(":%WebPort%", "");
 
                 //Cache result in Memory
                 if (!string.IsNullOrEmpty(sResult))
@@ -114,40 +122,40 @@ namespace jaindb.Controllers
                 return sResult;
             }
 
-            string sCurrDir = System.IO.Directory.GetCurrentDirectory();
-            if (System.IO.File.Exists(sCurrDir + "/wwwroot/inventory.ps1"))
-            {
-                string sFile = System.IO.File.ReadAllText(sCurrDir + "/wwwroot/inventory.ps1");
-                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
-                    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace(":%WebPort%", "");
-                else
-                    sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
+            //string sCurrDir = System.IO.Directory.GetCurrentDirectory();
+            //if (System.IO.File.Exists(sCurrDir + "/wwwroot/inventory.ps1"))
+            //{
+            //    string sFile = System.IO.File.ReadAllText(sCurrDir + "/wwwroot/inventory.ps1");
+            //    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WebPort")))
+            //        sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace(":%WebPort%", "");
+            //    else
+            //        sResult = sFile.Replace("%LocalURL%", Environment.GetEnvironmentVariable("localURL")).Replace("%WebPort%", Environment.GetEnvironmentVariable("WebPort"));
 
-                //Cache result in Memory
-                if (!string.IsNullOrEmpty(sResult))
-                {
-                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
-                    _cache.Set("GetPS", sResult, cacheEntryOptions);
-                }
+            //    //Cache result in Memory
+            //    if (!string.IsNullOrEmpty(sResult))
+            //    {
+            //        var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
+            //        _cache.Set("GetPS", sResult, cacheEntryOptions);
+            //    }
 
-                return sResult;
-            }
+            //    return sResult;
+            //}
 
-            try
-            {
-                string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
-                sResult = sFile2.Replace("%LocalURL%", "http://localhost").Replace("%WebPort%", "5000");
+            //try
+            //{
+            //    string sFile2 = System.IO.File.ReadAllText("wwwroot/inventory.ps1");
+            //    sResult = sFile2.Replace("%LocalURL%", "http://localhost").Replace("%WebPort%", "5000");
 
-                //Cache result in Memory
-                if (!string.IsNullOrEmpty(sResult))
-                {
-                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
-                    _cache.Set("GetPS", sResult, cacheEntryOptions);
-                }
+            //    //Cache result in Memory
+            //    if (!string.IsNullOrEmpty(sResult))
+            //    {
+            //        var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
+            //        _cache.Set("GetPS", sResult, cacheEntryOptions);
+            //    }
 
-                return sResult;
-            }
-            catch { }
+            //    return sResult;
+            //}
+            //catch { }
 
             return sResult;
 

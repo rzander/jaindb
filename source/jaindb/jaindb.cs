@@ -130,7 +130,7 @@ namespace jaindb
                     if (UseFileStore || UseCosmosDB)
                     {
 
-                        sResult = File.ReadAllText(Path.Combine(FilePath, "_Key" + "\\" + name.TrimStart('#', '@') + "\\" + value + ".json"));
+                        sResult = File.ReadAllText(Path.Combine(FilePath, "_Key", name.TrimStart('#', '@'), value + ".json"));
 
                         //Cache result in Memory
                         if (!string.IsNullOrEmpty(sResult))
@@ -206,7 +206,7 @@ namespace jaindb
                 if (string.IsNullOrEmpty(Data) || Data == "null")
                     return true;
 
-                if(UseRethinkDB)
+                if (UseRethinkDB)
                 {
                     try
                     {
@@ -228,10 +228,10 @@ namespace jaindb
                             jObj.Add("#id", Hash);
 
                         var iR = R.Table(Collection).Insert(jObj).RunAsync(conn);
-                        
+
                         return true;
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         ex.Message.ToString();
                     }
@@ -286,14 +286,10 @@ namespace jaindb
 
                             if (UseFileStore)
                             {
-                                if (!Directory.Exists("wwwroot\\" + Collection))
-                                    Directory.CreateDirectory("wwwroot\\" + Collection);
 
-                                if (!File.Exists("wwwroot\\" + Collection + "\\" + Hash + ".json")) //We do not have to create the same hash file twice...
                                 {
                                     lock (locker) //only one write operation
                                     {
-                                        File.WriteAllText("wwwroot\\" + Collection + "\\" + Hash + ".json", Data);
                                     }
                                 }
                             }
@@ -326,7 +322,7 @@ namespace jaindb
                 if (UseCosmosDB)
                 {
                     string sColl = Collection;
-                    
+
                     if (database == null)
                     {
                         database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
@@ -421,7 +417,7 @@ namespace jaindb
                                             {
                                                 if (oSubSub.ToString() != sID)
                                                 {
-                                                    string sDir = Path.Combine(FilePath, "_Key" + "\\" + oSub.Name.ToLower().TrimStart('#'));
+                                                    string sDir = Path.Combine(FilePath, "_Key", oSub.Name.ToLower().TrimStart('#'));
 
                                                     //Remove invalid Characters in Path
                                                     foreach (var sChar in Path.GetInvalidPathChars())
@@ -432,7 +428,7 @@ namespace jaindb
                                                     if (!Directory.Exists(sDir))
                                                         Directory.CreateDirectory(sDir);
 
-                                                    File.WriteAllText(sDir + "\\" + oSubSub.ToString() + ".json", sID);
+                                                    File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
                                                 }
                                             }
                                             catch { }
@@ -447,7 +443,7 @@ namespace jaindb
                                             {
                                                 try
                                                 {
-                                                    string sDir = Path.Combine(FilePath, "_Key" + "\\" + oSub.Name.ToLower().TrimStart('#'));
+                                                    string sDir = Path.Combine(FilePath, "_Key", oSub.Name.ToLower().TrimStart('#'));
 
                                                     //Remove invalid Characters in Path
                                                     foreach (var sChar in Path.GetInvalidPathChars())
@@ -458,7 +454,7 @@ namespace jaindb
                                                     if (!Directory.Exists(sDir))
                                                         Directory.CreateDirectory(sDir);
 
-                                                    File.WriteAllText(sDir + "\\" + (string)oSub.Value + ".json", sID);
+                                                    File.WriteAllText(Path.Combine(sDir, (string)oSub.Value + ".json"), sID);
                                                 }
                                                 catch { }
                                             }
@@ -469,23 +465,23 @@ namespace jaindb
 
                             lock (locker) //only one write operation
                             {
-                                File.WriteAllText(Path.Combine(FilePath, Collection + "\\" + Hash + ".json"), Data);
+                                File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                             }
                             break;
 
                         case "chain":
                             lock (locker) //only one write operation
                             {
-                                File.WriteAllText(Path.Combine(FilePath, Collection + "\\" + Hash + ".json"), Data);
+                                File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                             }
                             break;
 
                         default:
-                            if (!File.Exists(Path.Combine(FilePath, Collection + "\\" + Hash + ".json"))) //We do not have to create the same hash file twice...
+                            if (!File.Exists(Path.Combine(FilePath, Collection, Hash + ".json"))) //We do not have to create the same hash file twice...
                             {
                                 lock (locker) //only one write operation
                                 {
-                                    File.WriteAllText(Path.Combine(FilePath, Collection + "\\" + Hash + ".json"), Data);
+                                    File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                                 }
                             }
                             break;
@@ -499,11 +495,11 @@ namespace jaindb
                 if (!Directory.Exists(Path.Combine(FilePath, Collection)))
                     Directory.CreateDirectory(Path.Combine(FilePath, Collection));
 
-                if (!File.Exists(Path.Combine(FilePath, Collection + "\\" + Hash + ".json"))) //We do not have to create the same hash file twice...
+                if (!File.Exists(Path.Combine(FilePath, Collection, Hash + ".json"))) //We do not have to create the same hash file twice...
                 {
                     lock (locker) //only one write operation
                     {
-                        File.WriteAllText(Path.Combine(FilePath, Collection + "\\" + Hash + ".json"), Data);
+                        File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                     }
                 }
 
@@ -595,7 +591,7 @@ namespace jaindb
                         }
                     }
 
-                    if(UseRethinkDB)
+                    if (UseRethinkDB)
                     {
                         try
                         {
@@ -626,7 +622,7 @@ namespace jaindb
                             Hash = Hash.Replace(sChar.ToString(), "");
                         }
 
-                        sResult = File.ReadAllText(Path.Combine(FilePath, Coll2 + "\\" + Hash + ".json"));
+                        sResult = File.ReadAllText(Path.Combine(FilePath, Coll2, Hash + ".json"));
 
 #if DEBUG
                         //Check if hashes are valid...
@@ -1550,7 +1546,7 @@ namespace jaindb
             where = System.Net.WebUtility.UrlDecode(where);
 
             List<string> lExclude = new List<string>();
-            List<string> lWhere= new List<string>();
+            List<string> lWhere = new List<string>();
 
             if (!string.IsNullOrEmpty(exclude))
             {
@@ -1578,7 +1574,7 @@ namespace jaindb
                     var jObj = GetFull(sHash);
 
                     //Where filter..
-                    if(lWhere.Count > 0)
+                    if (lWhere.Count > 0)
                     {
                         bool bWhere = false;
                         foreach (string sWhere in lWhere)
@@ -1634,7 +1630,7 @@ namespace jaindb
                             catch { }
                         }
 
-                        if(bWhere)
+                        if (bWhere)
                         {
                             continue;
                         }
@@ -2045,7 +2041,7 @@ namespace jaindb
 
         public class Change
         {
-            public ChangeType changeType; 
+            public ChangeType changeType;
             public DateTime lastChange;
             public int index;
             public string id;
@@ -2087,7 +2083,7 @@ namespace jaindb
                 oRes.id = sID;
                 var jObj = JObject.Parse(ReadHash(sID, "_Chain"));
                 oRes.lastChange = new DateTime(jObj["Chain"].Last["timestamp"].Value<long>());
-                if(DateTime.Now.Subtract(oRes.lastChange) > age)
+                if (DateTime.Now.Subtract(oRes.lastChange) > age)
                 {
                     continue;
                 }
@@ -2097,15 +2093,15 @@ namespace jaindb
                 else
                     oRes.changeType = ChangeType.New;
 
-                if(changeType >= 0)
+                if (changeType >= 0)
                 {
-                    if(((int)oRes.changeType) != changeType)
+                    if (((int)oRes.changeType) != changeType)
                         continue;
                 }
 
                 lRes.Add(oRes);
             }
-            return JArray.Parse(JsonConvert.SerializeObject(lRes.OrderBy(t=>t.id).ToList(), Formatting.None));
+            return JArray.Parse(JsonConvert.SerializeObject(lRes.OrderBy(t => t.id).ToList(), Formatting.None));
         }
 
         /// <summary>
@@ -2129,9 +2125,9 @@ namespace jaindb
                         return lResult;
                     }
 
-                    if(UseRethinkDB)
+                    if (UseRethinkDB)
                     {
-                        var oRes =  R.Table("Chain").GetField("#id").RunCursor<string>(conn).BufferedItems;
+                        var oRes = R.Table("Chain").GetField("#id").RunCursor<string>(conn).BufferedItems;
                         lResult.AddRange(oRes);
                     }
 
@@ -2202,7 +2198,7 @@ namespace jaindb
                                 }
                             }
 
-                            if(UseRethinkDB)
+                            if (UseRethinkDB)
                             {
                                 foreach (var sID in GetAllChainsAsync().Result)
                                 {
@@ -2300,7 +2296,7 @@ namespace jaindb
                     });
                 }
 
-                if(UseRethinkDB)
+                if (UseRethinkDB)
                 {
                     var tFind = await FindHashOnContentAsync(searchstring);
 
