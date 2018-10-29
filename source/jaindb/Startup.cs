@@ -266,6 +266,7 @@ namespace jaindb
                 }
                 catch(Exception ex)
                 {
+                    Debug.WriteLine(ex.Message);
                     jDB.UseRethinkDB = false;
                     jDB.UseFileStore = true;
                 }

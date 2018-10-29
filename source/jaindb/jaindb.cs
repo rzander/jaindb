@@ -284,12 +284,16 @@ namespace jaindb
                                 }
                             }
 
-                            if (UseFileStore)
+                            if (UseFileStore) //in case if Redis and FileStore
                             {
+                                if (!Directory.Exists(Path.Combine(FilePath, Collection)))
+                                    Directory.CreateDirectory(Path.Combine(FilePath, Collection));
 
+                                if (!File.Exists(Path.Combine(FilePath, Collection, Hash + ".json"))) //We do not have to create the same hash file twice...
                                 {
                                     lock (locker) //only one write operation
                                     {
+                                        File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                                     }
                                 }
                             }
@@ -492,6 +496,7 @@ namespace jaindb
             }
             catch (Exception ex)
             {
+                Debug.WriteLine(ex.Message);
                 if (!Directory.Exists(Path.Combine(FilePath, Collection)))
                     Directory.CreateDirectory(Path.Combine(FilePath, Collection));
 
@@ -1146,7 +1151,7 @@ namespace jaindb
                         if (Index == -1)
                         {
                             //Cache Full
-                            WriteHashAsync(DeviceID, oInv.ToString(), "_full");
+                            WriteHashAsync(DeviceID, oInv.ToString(), "_full").ConfigureAwait(false);
                         }
 
                         /*var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache full for 60s
