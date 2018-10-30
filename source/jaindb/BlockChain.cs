@@ -148,7 +148,7 @@ namespace jaindb
 
                     var oNew = new block()
                     {
-                        index = iIndex,
+                        index = ParentBlock.index + 1,
                         timestamp = DateTime.Now.Ticks,
                         previous_hash = ParentBlock.hash,
                         blocktype = Blocktype,
@@ -219,7 +219,7 @@ namespace jaindb
 
                     //return genesis block if no other block was found
                     if (oBlock == null)
-                        return GetBlock(0);
+                        return GetBlock(0, "root");
                     else
                         return oBlock;
                 }

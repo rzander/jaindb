@@ -1007,6 +1007,10 @@ namespace jaindb
                                 oInv.Add(new JProperty("_date", oRaw["_date"]));
                             if (oInv["_hash"] == null)
                                 oInv.Add(new JProperty("_hash", oRaw["_hash"]));
+
+                            //Set index and date from blockchain as the index and hash can be from a previous block
+                            oInv["_index"] = oRaw["_index"];
+                            oInv["_date"] = oRaw["_inventoryDate"];
                         }
                         catch { }
 
