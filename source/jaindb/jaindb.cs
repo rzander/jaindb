@@ -299,14 +299,14 @@ namespace jaindb
                             }
                             break;
 
-                        case "chain":
+                        case "_chain":
                             var jObj3 = JObject.Parse(Data);
                             JSort(jObj3);
 
                             cache3.StringSetAsync(Hash, jObj3.ToString(Newtonsoft.Json.Formatting.None));
                             break;
 
-                        case "assets":
+                        case "_assets":
                             var jObj4 = JObject.Parse(Data);
                             JSort(jObj4);
 
@@ -704,7 +704,7 @@ namespace jaindb
         public static Blockchain GetChain(string DeviceID)
         {
             Blockchain oChain;
-            string sData = ReadHash(DeviceID, "_Chain");
+            string sData = ReadHash(DeviceID, "_chain");
             if (string.IsNullOrEmpty(sData))
             {
                 oChain = new Blockchain("", "root", 0);
@@ -890,9 +890,9 @@ namespace jaindb
                         }
 
                         if (!UseCosmosDB)
-                            WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_Chain").ConfigureAwait(false);
+                            WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_chain").ConfigureAwait(false);
                         else
-                            WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_Chain").Wait();
+                            WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_chain").Wait();
 
 
                         //Add missing attributes
@@ -920,9 +920,9 @@ namespace jaindb
                         if (!UseCosmosDB)
                         {
                             if (blockType == BlockType)
-                                WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_Full").ConfigureAwait(false);
+                                WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full").ConfigureAwait(false);
                             else
-                                WriteHashAsync(DeviceID + "_" + blockType, jTemp.ToString(Formatting.None), "_Full").ConfigureAwait(false);
+                                WriteHashAsync(DeviceID + "_" + blockType, jTemp.ToString(Formatting.None), "_full").ConfigureAwait(false);
                         }
                         else
                         {
@@ -940,9 +940,9 @@ namespace jaindb
                 if (!UseCosmosDB)
                 {
                     if (blockType == BlockType)
-                        WriteHashAsync(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "_Assets").ConfigureAwait(false);
+                        WriteHashAsync(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "_assets").ConfigureAwait(false);
                     else
-                        WriteHashAsync(sResult + "_" + blockType, oStatic.ToString(Newtonsoft.Json.Formatting.None), "_Assets").ConfigureAwait(false);
+                        WriteHashAsync(sResult + "_" + blockType, oStatic.ToString(Newtonsoft.Json.Formatting.None), "_assets").ConfigureAwait(false);
                 }
                 else
                 {
@@ -976,9 +976,9 @@ namespace jaindb
                 {
                     string sFull = "";
                     if (blockType == BlockType)
-                        sFull = ReadHash(DeviceID, "_Full");
+                        sFull = ReadHash(DeviceID, "_full");
                     else
-                        sFull = ReadHash(DeviceID + "_" + blockType, "_Full");
+                        sFull = ReadHash(DeviceID + "_" + blockType, "_full");
 
                     if (!string.IsNullOrEmpty(sFull))
                     {
@@ -990,9 +990,9 @@ namespace jaindb
 
                 string sData = "";
                 if (blockType == BlockType)
-                    sData = ReadHash(oRaw["_hash"].ToString(), "_Assets");
+                    sData = ReadHash(oRaw["_hash"].ToString(), "_assets");
                 else
-                    sData = ReadHash(oRaw["_hash"].ToString() + "_" + blockType, "_Assets");
+                    sData = ReadHash(oRaw["_hash"].ToString() + "_" + blockType, "_assets");
 
                 if (!UseCosmosDB)
                 {
@@ -1227,7 +1227,7 @@ namespace jaindb
             try
             {
 
-                string sChain = ReadHash(DeviceID, "_Chain");
+                string sChain = ReadHash(DeviceID, "_chain");
                 var oChain = JsonConvert.DeserializeObject<Blockchain>(sChain);
                 foreach (block oBlock in oChain.Chain.Where(t => t.blocktype == blockType))
                 {
@@ -1276,7 +1276,7 @@ namespace jaindb
 
             try
             {
-                string sChain = ReadHash(DeviceID, "_Chain");
+                string sChain = ReadHash(DeviceID, "_chain");
                 var oChain = JsonConvert.DeserializeObject<Blockchain>(sChain);
                 foreach (block oBlock in oChain.Chain.Where(t => t.blocktype == blockType))
                 {
@@ -1788,7 +1788,7 @@ namespace jaindb
                     {
                         bool foundData = false;
 
-                        JObject jObj = GetRaw(ReadHash(oObj, "assets"), paths);
+                        JObject jObj = GetRaw(ReadHash(oObj, "_assets"), paths);
 
                         if (paths.Contains("*") || paths.Contains(".."))
                         {
@@ -2090,7 +2090,7 @@ namespace jaindb
             {
                 Change oRes = new Change();
                 oRes.id = sID;
-                var jObj = JObject.Parse(ReadHash(sID, "_Chain"));
+                var jObj = JObject.Parse(ReadHash(sID, "_chain"));
                 oRes.lastChange = new DateTime(jObj["Chain"].Last["timestamp"].Value<long>());
                 if (DateTime.Now.Subtract(oRes.lastChange) > age)
                 {
@@ -2339,7 +2339,7 @@ namespace jaindb
                         try
                         {
 
-                            var jObj = JObject.Parse(ReadHash(sID, "chain"));
+                            var jObj = JObject.Parse(ReadHash(sID, "_chain"));
                             //var jObj = JObject.Parse(cache3.StringGet(sID));
 
                             foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
@@ -2349,7 +2349,7 @@ namespace jaindb
                                     string sBlockID = sBlock.Value<string>();
                                     if (!string.IsNullOrEmpty(sBlockID))
                                     {
-                                        var jBlock = GetRaw(ReadHash(sBlockID, "assets"));
+                                        var jBlock = GetRaw(ReadHash(sBlockID, "_assets"));
                                         //var jBlock = GetRaw(cache4.StringGet(sBlockID));
                                         jBlock.Remove("#id"); //old Version of jainDB 
                                         //jBlock.Remove("_date");
@@ -2402,7 +2402,7 @@ namespace jaindb
                     {
                         try
                         {
-                            var jObj = JObject.Parse(ReadHash(sID, "_Chain"));
+                            var jObj = JObject.Parse(ReadHash(sID, "_chain"));
                             foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
                             {
                                 try
@@ -2410,7 +2410,7 @@ namespace jaindb
                                     string sBlockID = sBlock.Value<string>();
                                     if (!string.IsNullOrEmpty(sBlockID))
                                     {
-                                        var jBlock = GetRaw(ReadHash(sBlockID, "_Assets"));
+                                        var jBlock = GetRaw(ReadHash(sBlockID, "_assets"));
                                         jBlock.Remove("#id"); //old Version of jainDB 
                                         //jBlock.Remove("_date");
                                         jBlock.Remove("_index");

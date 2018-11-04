@@ -12,9 +12,9 @@
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json</PackageTags>
-    <Version>1.0.1</Version>
-    <AssemblyVersion>1.0.1.81</AssemblyVersion>
-    <FileVersion>1.0.1.81</FileVersion>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>1.0.1.82</AssemblyVersion>
+    <FileVersion>1.0.1.82</FileVersion>
     <StartupObject></StartupObject>
     <UserSecretsId>fcfd6c0a-e53c-46cb-8a9d-b786c0579861</UserSecretsId>
     <ApplicationIcon>JainDB_Logo.ico</ApplicationIcon>
@@ -28,12 +28,6 @@
 
   <ItemGroup>
     <Content Remove="wwwroot\bin\bin.zip" />
-    <Content Remove="wwwroot\bin\redis-benchmark" />
-    <Content Remove="wwwroot\bin\redis-check-aof" />
-    <Content Remove="wwwroot\bin\redis-check-rdb" />
-    <Content Remove="wwwroot\bin\redis-cli" />
-    <Content Remove="wwwroot\bin\redis-sentinel" />
-    <Content Remove="wwwroot\bin\redis-server" />
     <Content Remove="wwwroot\redis.sh" />
   </ItemGroup>
 
@@ -90,24 +84,6 @@
     <None Include="AuthProvider\CustomAuthExtensions.cs" />
     <None Include="AuthProvider\CustomAuthHandler.cs" />
     <None Include="AuthProvider\CustomAuthOptions.cs" />
-    <None Include="wwwroot\bin\redis-benchmark">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <None Include="wwwroot\bin\redis-check-aof">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <None Include="wwwroot\bin\redis-check-rdb">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <None Include="wwwroot\bin\redis-cli">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <None Include="wwwroot\bin\redis-sentinel">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <None Include="wwwroot\bin\redis-server">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -119,6 +95,24 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Update="wwwroot\bin\redis-benchmark">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\bin\redis-check-aof">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\bin\redis-check-rdb">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\bin\redis-cli">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\bin\redis-sentinel">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\bin\redis-server">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
     <Content Update="wwwroot\formatters-styles\annotated.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
