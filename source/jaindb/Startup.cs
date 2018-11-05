@@ -263,6 +263,8 @@ namespace jaindb
 
                     //Get Tables
                     jDB.RethinkTables = ((string[])jDB.R.TableList().Run<string[]>(jDB.conn)).ToList();
+
+                    jDB.UseRethinkDB = true;
                 }
                 catch(Exception ex)
                 {
