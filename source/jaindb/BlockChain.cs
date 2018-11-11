@@ -278,7 +278,6 @@ namespace jaindb
 
                     //Do a ProofOfWork if complexity is > 0
                     bool DoWork = true;
-                    DateTime dStart = DateTime.Now;
 
                     if (_complexity > 0 && nonce != 0 && DoWork)
                     {
@@ -300,8 +299,6 @@ namespace jaindb
                             } while (!Hash.checkTrailingZero(bHash, _complexity, sGoal));
                         }
                     }
-                    TimeSpan tDur = DateTime.Now - dStart;
-                    tDur.TotalMilliseconds.ToString();
 
                     hash = bHash;
 

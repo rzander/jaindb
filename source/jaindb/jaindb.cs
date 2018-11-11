@@ -131,7 +131,7 @@ namespace jaindb
                     if (UseFileStore || UseCosmosDB)
                     {
 
-                        sResult = File.ReadAllText(Path.Combine(FilePath, "_Key", name.TrimStart('#', '@'), value + ".json"));
+                        sResult = File.ReadAllText(Path.Combine(FilePath, "_key", name.TrimStart('#', '@'), value + ".json"));
 
                         //Cache result in Memory
                         if (!string.IsNullOrEmpty(sResult))
@@ -255,12 +255,23 @@ namespace jaindb
                         if (jObj["#id"] == null)
                             jObj.Add("#id", Hash);
 
-                        //ISSUE1: Insert doen NOT update existing record
-                        //ISSUE2: RethinkDB does convert the timestamp so the chain becomes invalid !!!!
-                        var iR = R.Table(Collection).Insert(jObj).RunAsync<JObject>(conn); // RunAsync(conn); 
 
-                        if (Collection == "_chain")
-                            iR.Wait(); //wait until chain is stored...
+                        switch(Collection)
+                        {
+                            case "_chain":
+                                var iR = R.Table(Collection).Insert(jObj).RunAtom<JObject>(conn); // Update
+                                break;
+                            case "_full":
+                                R.Table(Collection).Insert(jObj).RunAtomAsync<JObject>(conn); // Update
+                                break;
+                            case "_assets":
+                                R.Table(Collection).Insert(jObj).RunAtomAsync<JObject>(conn); // Update
+                                break;
+                            default:
+                                R.Table(Collection).Insert(jObj).RunAsync<JObject>(conn); // Insert Async
+                                break;
+
+                        }
 
                         return true;
                     }
