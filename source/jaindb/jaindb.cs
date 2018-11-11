@@ -95,6 +95,7 @@ namespace jaindb
             }
         }
 
+
         /// <summary>
         /// Lookup Key ID's to search for Objects based on their Key
         /// </summary>
@@ -154,14 +155,18 @@ namespace jaindb
 
         public static void WriteHash(ref JToken oRoot, ref JObject oStatic, string Collection)
         {
+            Collection = Collection.ToLower(); //all lowercase
+
             if (ReadOnly)
                 return;
             try
             {
+                if (!oRoot.HasValues)
+                    return;
+
                 //JSort(oStatic);
                 string sHash = CalculateHash(oRoot.ToString(Newtonsoft.Json.Formatting.None));
-                if (string.IsNullOrEmpty(sHash))
-                    return;
+
                 string sPath = oRoot.Path;
 
                 var oClass = oStatic.SelectToken(sPath);// as JObject;
@@ -170,15 +175,25 @@ namespace jaindb
                 {
                     if (oClass.Type == JTokenType.Object)
                     {
-                        ((JObject)oClass).Add("##hash", sHash);
-                        if (!UseCosmosDB)
-                            WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection).ConfigureAwait(false);
-                        else
+                        if (oClass["##hash"] == null)
                         {
-                            //No need to save hashes when using CosmosDB
-                            //WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection).Wait();
+                            ((JObject)oClass).Add("##hash", sHash);
+                            if (!UseCosmosDB)
+                            {
+                                if (UseFileStore)
+                                    WriteHash(sHash, oRoot.ToString(Formatting.None), Collection); //not async, it's faster
+                                if (UseRedis)
+                                    WriteHash(sHash, oRoot.ToString(Formatting.None), Collection); //not async, it's faster
+                                if (UseRethinkDB)
+                                    WriteHash(sHash, oRoot.ToString(Formatting.None), Collection); //not async, it's faster
+                            }
+                            else
+                            {
+                                //No need to save hashes when using CosmosDB
+                                //WriteHashAsync(sHash, oRoot.ToString(Formatting.None), Collection).Wait();
+                            }
+                            oRoot = oClass;
                         }
-                        oRoot = oClass;
                     }
                 }
 
@@ -191,20 +206,33 @@ namespace jaindb
 
         public static bool WriteHash(string Hash, string Data, string Collection)
         {
+            Collection = Collection.ToLower();
+
             if (ReadOnly)
                 return false;
 
             try
             {
-                //Cache result in Memory
-                if (!string.IsNullOrEmpty(Data))
-                {
-                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
-                    _cache.Set("RH-" + Collection + "-" + Hash, Data, cacheEntryOptions);
-                }
-
                 if (string.IsNullOrEmpty(Data) || Data == "null")
                     return true;
+
+                //Check if MemoryCache is initialized
+                if (_cache == null)
+                {
+                    _cache = new MemoryCache(new MemoryCacheOptions());
+                }
+
+                string sResult = "";
+                //Try to get value from Memory
+                if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
+                {
+                    if (sResult == Data)
+                        return true; //Do not write the hash again
+                }
+
+                //Cache Data
+                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(30)); //cache hash for 30s
+                _cache.Set("RH-" + Collection + "-" + Hash, Data, cacheEntryOptions);
 
                 if (UseRethinkDB)
                 {
@@ -227,7 +255,12 @@ namespace jaindb
                         if (jObj["#id"] == null)
                             jObj.Add("#id", Hash);
 
-                        var iR = R.Table(Collection).Insert(jObj).RunAsync(conn);
+                        //ISSUE1: Insert doen NOT update existing record
+                        //ISSUE2: RethinkDB does convert the timestamp so the chain becomes invalid !!!!
+                        var iR = R.Table(Collection).Insert(jObj).RunAsync<JObject>(conn); // RunAsync(conn); 
+
+                        if (Collection == "_chain")
+                            iR.Wait(); //wait until chain is stored...
 
                         return true;
                     }
@@ -334,7 +367,6 @@ namespace jaindb
                             database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
                     }
 
-
                     var collquery = CosmosDB.CreateDocumentCollectionQuery(database.SelfLink, new FeedOptions() { MaxItemCount = 1 });
                     var oCollExists = collquery.Where(t => t.Id == sColl).AsEnumerable().Any();
                     if (!oCollExists)
@@ -405,8 +437,8 @@ namespace jaindb
 
                             string sID = jObj["#id"].ToString();
 
-                            if (!Directory.Exists(Path.Combine(FilePath, "_Key")))
-                                Directory.CreateDirectory(Path.Combine(FilePath, "_Key"));
+                            if (!Directory.Exists(Path.Combine(FilePath, "_key")))
+                                Directory.CreateDirectory(Path.Combine(FilePath, "_key"));
 
                             //Store KeyNames
                             foreach (JProperty oSub in jObj.Properties())
@@ -421,7 +453,7 @@ namespace jaindb
                                             {
                                                 if (oSubSub.ToString() != sID)
                                                 {
-                                                    string sDir = Path.Combine(FilePath, "_Key", oSub.Name.ToLower().TrimStart('#'));
+                                                    string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
 
                                                     //Remove invalid Characters in Path
                                                     foreach (var sChar in Path.GetInvalidPathChars())
@@ -447,7 +479,7 @@ namespace jaindb
                                             {
                                                 try
                                                 {
-                                                    string sDir = Path.Combine(FilePath, "_Key", oSub.Name.ToLower().TrimStart('#'));
+                                                    string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
 
                                                     //Remove invalid Characters in Path
                                                     foreach (var sChar in Path.GetInvalidPathChars())
@@ -473,7 +505,7 @@ namespace jaindb
                             }
                             break;
 
-                        case "chain":
+                        case "_chain":
                             lock (locker) //only one write operation
                             {
                                 File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
@@ -525,18 +557,13 @@ namespace jaindb
             {
                 return WriteHash(Hash, Data, Collection);
             });
-            /*if (!UseCosmosDB)
-            {
-
-            }
-            else
-            {
-                return WriteHash(Hash, Data, Collection);
-            }*/
         }
+
         public static string ReadHash(string Hash, string Collection)
         {
             string sResult = "";
+            Collection = Collection.ToLower();
+
             try
             {
                 //Check if MemoryCache is initialized
@@ -545,64 +572,46 @@ namespace jaindb
                     _cache = new MemoryCache(new MemoryCacheOptions());
                 }
 
+
                 //Try to get value from Memory
                 if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
                 {
                     return sResult;
                 }
-                else
+
+                if (UseRedis)
                 {
-                    if (UseRedis)
+                    switch (Collection)
                     {
-                        switch (Collection.ToLower())
-                        {
-                            case "_full":
-                                return cache0.StringGet(Hash);
+                        case "_full":
+                            return cache0.StringGet(Hash);
 
-                            case "_chain":
-                                return cache3.StringGet(Hash);
+                        case "_chain":
+                            return cache3.StringGet(Hash);
 
-                            case "_assets":
-                                return cache4.StringGet(Hash);
+                        case "_assets":
+                            return cache4.StringGet(Hash);
 
-                            default:
-                                sResult = cache2.StringGet(Hash);
+                        default:
+                            sResult = cache2.StringGet(Hash);
 
 #if DEBUG
-                                //Check if hashes are valid...
-                                var jData = JObject.Parse(sResult);
-                                /*if (jData["#id"] != null)
-                                    jData.Remove("#id");*/
-                                if (jData["_date"] != null)
-                                    jData.Remove("_date");
-                                if (jData["_index"] != null)
-                                    jData.Remove("_index");
+                            //Check if hashes are valid...
+                            var jData = JObject.Parse(sResult);
+                            /*if (jData["#id"] != null)
+                                jData.Remove("#id");*/
+                            if (jData["_date"] != null)
+                                jData.Remove("_date");
+                            if (jData["_index"] != null)
+                                jData.Remove("_index");
 
-                                string s1 = CalculateHash(jData.ToString(Formatting.None));
-                                if (Hash != s1)
-                                {
-                                    s1.ToString();
-                                    return "";
-                                }
+                            string s1 = CalculateHash(jData.ToString(Formatting.None));
+                            if (Hash != s1)
+                            {
+                                s1.ToString();
+                                return "";
+                            }
 #endif
-
-                                //Cache result in Memory
-                                if (!string.IsNullOrEmpty(sResult))
-                                {
-                                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(30)); //cache hash for 30s
-                                    _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
-                                }
-                                return sResult;
-                        }
-                    }
-
-                    if (UseRethinkDB)
-                    {
-                        try
-                        {
-                            JObject oRes = R.Table(Collection).Get(Hash).Run<JObject>(conn);
-                            if (oRes != null)
-                                sResult = oRes.ToString();
 
                             //Cache result in Memory
                             if (!string.IsNullOrEmpty(sResult))
@@ -611,13 +620,41 @@ namespace jaindb
                                 _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
                             }
                             return sResult;
-                        }
-                        catch { }
+                    }
+                }
 
-                        return "";
+                if (UseRethinkDB)
+                {
+                    try
+                    {
+                        JObject oRes = R.Table(Collection).Get(Hash).Run<JObject>(conn);
+                        if (oRes != null)
+                            sResult = oRes.ToString();
+
+
+                        if (Collection != "_chain")
+                        {
+                            //Cache result in Memory
+                            if (!string.IsNullOrEmpty(sResult))
+                            {
+                                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
+                                _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
+                            }
+                        }
+
+                        return sResult;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(ex.Message);
                     }
 
-                    if (UseFileStore)
+                    return "";
+                }
+
+                if (UseFileStore)
+                {
+                    try
                     {
                         string Coll2 = Collection;
                         //Remove invalid Characters in Path anf File
@@ -631,7 +668,7 @@ namespace jaindb
 
 #if DEBUG
                         //Check if hashes are valid...
-                        if (Collection.ToLower() != "_full" && Collection.ToLower() != "_chain" && Collection.ToLower() != "_assets")
+                        if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
                         {
                             var jData = JObject.Parse(sResult);
                             /*if (jData["#id"] != null)
@@ -649,49 +686,51 @@ namespace jaindb
                             }
                         }
 #endif
-
-
                         //Cache result in Memory
                         if (!string.IsNullOrEmpty(sResult))
                         {
                             var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
                             _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
                         }
-
-                        return sResult;
                     }
-
-                    if (UseCosmosDB)
+                    catch (Exception ex)
                     {
-                        if (database == null)
-                        {
-                            database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
-                            if (database == null)
-                                database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
-                        }
-
-                        string sColl = Collection;
-
-                        var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;
-                        JObject jRes = JObject.Parse(sRes.ToString());
-                        jRes.Remove("id");
-                        jRes.Remove("_rid");
-                        jRes.Remove("_ts");
-                        jRes.Remove("_etag");
-                        jRes.Remove("_self");
-                        jRes.Remove("_attachments");
-
-                        sResult = jRes.ToString(Newtonsoft.Json.Formatting.None);
-
-                        //Cache result in Memory
-                        if (!string.IsNullOrEmpty(sResult))
-                        {
-                            var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
-                            _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
-                        }
-                        return sResult;
+                        Debug.WriteLine("Error ReadHash_1: " + ex.Message.ToString());
                     }
+                    return sResult;
                 }
+
+                if (UseCosmosDB)
+                {
+                    if (database == null)
+                    {
+                        database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
+                        if (database == null)
+                            database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
+                    }
+
+                    string sColl = Collection;
+
+                    var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;
+                    JObject jRes = JObject.Parse(sRes.ToString());
+                    jRes.Remove("id");
+                    jRes.Remove("_rid");
+                    jRes.Remove("_ts");
+                    jRes.Remove("_etag");
+                    jRes.Remove("_self");
+                    jRes.Remove("_attachments");
+
+                    sResult = jRes.ToString(Newtonsoft.Json.Formatting.None);
+
+                    //Cache result in Memory
+                    if (!string.IsNullOrEmpty(sResult))
+                    {
+                        var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
+                        _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
+                    }
+                    return sResult;
+                }
+
             }
             catch (Exception ex)
             {
@@ -872,6 +911,7 @@ namespace jaindb
                 string sResult = CalculateHash(oStatic.ToString(Newtonsoft.Json.Formatting.None));
 
                 var oBlock = oChain.GetLastBlock();
+
                 if (oBlock.data != sResult)
                 {
                     var oNew = oChain.MineNewBlock(oBlock, BlockType);
@@ -890,9 +930,9 @@ namespace jaindb
                         }
 
                         if (!UseCosmosDB)
-                            WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_chain").ConfigureAwait(false);
+                            WriteHash(DeviceID, JsonConvert.SerializeObject(oChain), "_chain");
                         else
-                            WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_chain").Wait();
+                            WriteHash(DeviceID, JsonConvert.SerializeObject(oChain), "chain");
 
 
                         //Add missing attributes
@@ -920,9 +960,9 @@ namespace jaindb
                         if (!UseCosmosDB)
                         {
                             if (blockType == BlockType)
-                                WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full").ConfigureAwait(false);
+                                WriteHash(DeviceID, jTemp.ToString(Formatting.None), "_full");
                             else
-                                WriteHashAsync(DeviceID + "_" + blockType, jTemp.ToString(Formatting.None), "_full").ConfigureAwait(false);
+                                WriteHash(DeviceID + "_" + blockType, jTemp.ToString(Formatting.None), "_full");
                         }
                         else
                         {
@@ -935,21 +975,41 @@ namespace jaindb
                         Console.WriteLine("Blockchain is NOT valid... " + DeviceID);
                     }
                 }
+                else
+                {
+                    //Do not touch Blockchain, but store the Full JSON for reporting
+                    if (jTemp["_index"] == null)
+                        jTemp.AddFirst(new JProperty("_index", oBlock.index));
+                    if (jTemp["_hash"] == null)
+                        jTemp.AddFirst(new JProperty("_hash", oBlock.data));
+                    if (jTemp["_date"] == null)
+                        jTemp.AddFirst(new JProperty("_date", DateTime.Now.ToUniversalTime()));
+                    if (jTemp["_type"] == null)
+                        jTemp.AddFirst(new JProperty("_type", blockType));
+                    if (jTemp["#id"] == null)
+                        jTemp.AddFirst(new JProperty("#id", DeviceID));
+
+                    //JSort(jTemp);
+
+                    //Only store Full data for default BlockType
+                    if (blockType == BlockType)
+                        WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full").ConfigureAwait(false);
+                }
 
                 //JSort(oStatic);
                 if (!UseCosmosDB)
                 {
                     if (blockType == BlockType)
-                        WriteHashAsync(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "_assets").ConfigureAwait(false);
+                        WriteHash(sResult, oStatic.ToString(Newtonsoft.Json.Formatting.None), "_assets");
                     else
-                        WriteHashAsync(sResult + "_" + blockType, oStatic.ToString(Newtonsoft.Json.Formatting.None), "_assets").ConfigureAwait(false);
+                        WriteHash(sResult + "_" + blockType, oStatic.ToString(Newtonsoft.Json.Formatting.None), "_assets");
                 }
                 else
                 {
                     //On CosmosDB, store full document as Asset
                     if (jTemp["_objectid"] == null)
                         jTemp.AddFirst(new JProperty("_objectid", DeviceID));
-                    WriteHashAsync(sResult, jTemp.ToString(Formatting.None), "Assets").Wait();
+                    WriteHash(sResult, jTemp.ToString(Formatting.None), "assets");
                 }
 
 
@@ -1070,36 +1130,6 @@ namespace jaindb
                                             }
                                         }
                                     }
-
-                                    /*foreach (var jObj in (oTok.Parent.Descendants().Where(t => t.Type == (JTokenType.Object) && t.HasValues == false).Reverse().ToList()))
-                                    {
-                                        try
-                                        {
-                                             if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Array)
-                                            {
-                                                jObj.Parent.Parent.Remove();
-                                                continue;
-                                            }
-                                            if (jObj.Parent.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
-                                            {
-                                                jObj.Parent.Parent.Remove();
-                                                continue;
-                                            }
-                                            if (jObj.Parent.Count == 1 && jObj.Parent.Type == JTokenType.Property)
-                                            {
-                                                jObj.Parent.Remove();
-                                                continue;
-                                            }
-                                            else
-                                            {
-                                                jObj.Remove();
-                                            }
-                                        }
-                                        catch(Exception ex)
-                                        {
-                                            Debug.WriteLine("Error GetFull_1: " + ex.Message.ToString());
-                                        }
-                                    }*/
                                 }
                                 else
                                 {
@@ -1155,7 +1185,7 @@ namespace jaindb
                         if (Index == -1)
                         {
                             //Cache Full
-                            WriteHashAsync(DeviceID, oInv.ToString(), "_full").ConfigureAwait(false);
+                            WriteHash(DeviceID, oInv.ToString(), "_full");
                         }
 
                         /*var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache full for 60s
@@ -1205,7 +1235,7 @@ namespace jaindb
 
 
                 int index = lBlock.index;
-                DateTime dInvDate = new DateTime(lBlock.timestamp);
+                DateTime dInvDate = new DateTime(lBlock.timestamp).ToUniversalTime();
                 string sRawId = lBlock.data;
 
                 jResult.Add(new JProperty("_index", index));
@@ -1570,9 +1600,6 @@ namespace jaindb
             if (string.IsNullOrEmpty(select))
                 select = "#id"; //,#Name,_inventoryDate
 
-            //int i = 0;
-            DateTime dStart = DateTime.Now;
-            //JObject lRes = new JObject();
             JArray aRes = new JArray();
             List<string> lLatestHash = await GetAllChainsAsync();
             foreach (string sHash in lLatestHash)
@@ -1762,16 +1789,24 @@ namespace jaindb
 
         }
 
-        public static JArray QueryAll(string paths, string select, string exclude)
+        public static JArray QueryAll(string paths, string select, string exclude, string where)
         {
             paths = System.Net.WebUtility.UrlDecode(paths);
             select = System.Net.WebUtility.UrlDecode(select);
             exclude = System.Net.WebUtility.UrlDecode(exclude);
+            where = System.Net.WebUtility.UrlDecode(where);
+
             List<string> lExclude = new List<string>();
+            List<string> lWhere = new List<string>();
 
             if (!string.IsNullOrEmpty(exclude))
             {
                 lExclude = exclude.Split(";").ToList();
+            }
+
+            if (!string.IsNullOrEmpty(where))
+            {
+                lWhere = where.Split(";").ToList();
             }
 
             if (string.IsNullOrEmpty(select))
@@ -1799,7 +1834,69 @@ namespace jaindb
                             catch { }
                         }
 
-                        //JObject jObj = GetRaw(cache4.StringGet(oObj), paths);
+                        //Where filter..
+                        if (lWhere.Count > 0)
+                        {
+                            bool bWhere = false;
+                            foreach (string sWhere in lWhere)
+                            {
+                                try
+                                {
+                                    string sPath = sWhere;
+                                    string sVal = "";
+                                    string sOp = "";
+                                    if (sWhere.Contains("=="))
+                                    {
+                                        sVal = sWhere.Split("==")[1];
+                                        sOp = "eq";
+                                        sPath = sWhere.Split("==")[0];
+                                    }
+                                    if (sWhere.Contains("!="))
+                                    {
+                                        sVal = sWhere.Split("!=")[1];
+                                        sOp = "ne";
+                                        sPath = sWhere.Split("!=")[0];
+                                    }
+
+                                    var jRes = jObj.SelectToken(sPath);
+                                    if (jRes == null)
+                                    {
+                                        bWhere = true;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        switch (sOp)
+                                        {
+                                            case "eq":
+                                                if (sVal != jRes.ToString())
+                                                {
+                                                    bWhere = true;
+                                                    continue;
+                                                }
+                                                break;
+                                            case "ne":
+                                                if (sVal == jRes.ToString())
+                                                {
+                                                    bWhere = true;
+                                                    continue;
+                                                }
+                                                break;
+                                            default:
+                                                bWhere = true;
+                                                continue;
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            if (bWhere)
+                            {
+                                continue;
+                            }
+                        }
+
                         JObject oRes = new JObject();
 
                         foreach (string sAttrib in select.Split(';'))
@@ -1911,7 +2008,6 @@ namespace jaindb
                             }
                         }
                     }
-                    GC.Collect();
                     return aRes;
                 }
 
@@ -1929,6 +2025,69 @@ namespace jaindb
                                 jObj = GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
                             }
                             catch { }
+                        }
+
+                        //Where filter..
+                        if (lWhere.Count > 0)
+                        {
+                            bool bWhere = false;
+                            foreach (string sWhere in lWhere)
+                            {
+                                try
+                                {
+                                    string sPath = sWhere;
+                                    string sVal = "";
+                                    string sOp = "";
+                                    if (sWhere.Contains("=="))
+                                    {
+                                        sVal = sWhere.Split("==")[1];
+                                        sOp = "eq";
+                                        sPath = sWhere.Split("==")[0];
+                                    }
+                                    if (sWhere.Contains("!="))
+                                    {
+                                        sVal = sWhere.Split("!=")[1];
+                                        sOp = "ne";
+                                        sPath = sWhere.Split("!=")[0];
+                                    }
+
+                                    var jRes = jObj.SelectToken(sPath);
+                                    if (jRes == null)
+                                    {
+                                        bWhere = true;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        switch (sOp)
+                                        {
+                                            case "eq":
+                                                if (sVal != jRes.ToString())
+                                                {
+                                                    bWhere = true;
+                                                    continue;
+                                                }
+                                                break;
+                                            case "ne":
+                                                if (sVal == jRes.ToString())
+                                                {
+                                                    bWhere = true;
+                                                    continue;
+                                                }
+                                                break;
+                                            default:
+                                                bWhere = true;
+                                                continue;
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            if (bWhere)
+                            {
+                                continue;
+                            }
                         }
 
                         JObject oRes = new JObject();
@@ -2037,7 +2196,6 @@ namespace jaindb
                             }
                         }
                     }
-                    GC.Collect();
                     return aRes;
                 }
             }
@@ -2061,38 +2219,13 @@ namespace jaindb
             age.ToString();
             List<Change> lRes = new List<Change>();
 
-            /*Parallel.ForEach(GetAllChainsAsync().Result, sID =>
-            {
-                Change oRes = new Change();
-                oRes.id = sID;
-                var jObj = JObject.Parse(ReadHash(sID, "Chain"));
-                oRes.lastChange = new DateTime(jObj["Chain"].Last["timestamp"].Value<long>());
-                if (DateTime.Now.Subtract(oRes.lastChange) > age)
-                {
-                    return;
-                }
-                oRes.index = jObj["Chain"].Last["index"].Value<int>();
-                if (oRes.index > 1)
-                    oRes.changeType = ChangeType.Update;
-                else
-                    oRes.changeType = ChangeType.New;
-
-                if (changeType >= 0)
-                {
-                    if (((int)oRes.changeType) != changeType)
-                        return;
-                }
-
-                lRes.Add(oRes);
-            });*/
-
             foreach (var sID in GetAllChainsAsync().Result)
             {
                 Change oRes = new Change();
                 oRes.id = sID;
                 var jObj = JObject.Parse(ReadHash(sID, "_chain"));
                 oRes.lastChange = new DateTime(jObj["Chain"].Last["timestamp"].Value<long>());
-                if (DateTime.Now.Subtract(oRes.lastChange) > age)
+                if (DateTime.Now.ToUniversalTime().Subtract(oRes.lastChange) > age)
                 {
                     continue;
                 }
@@ -2136,7 +2269,7 @@ namespace jaindb
 
                     if (UseRethinkDB)
                     {
-                        var oRes = R.Table("Chain").GetField("#id").RunCursor<string>(conn).BufferedItems;
+                        var oRes = R.Table("_chain").GetField("#id").RunCursor<string>(conn).BufferedItems;
                         lResult.AddRange(oRes);
                     }
 
@@ -2149,7 +2282,7 @@ namespace jaindb
                                 database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
                         }
 
-                        var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, "Chain");
+                        var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, "chain");
 
                         var docquery = CosmosDB.CreateDocumentQuery<Document>(cUri).Select(t => t.Id);
                         foreach (var oDoc in docquery.AsEnumerable())
@@ -2160,7 +2293,7 @@ namespace jaindb
 
                     if (UseFileStore)
                     {
-                        foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_Chain")).GetFiles("*.json"))
+                        foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
                         {
                             lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
                         }
@@ -2213,7 +2346,7 @@ namespace jaindb
                                 {
                                     try
                                     {
-                                        var oRes = R.Table("Chain").Get(sID).GetField("Chain").Nth(-1).GetField("data").RunCursor<string>(conn).BufferedItems;
+                                        var oRes = R.Table("_chain").Get(sID).GetField("Chain").Nth(-1).GetField("data").RunCursor<string>(conn).BufferedItems;
                                         lResult.AddRange(oRes);
                                     }
                                     catch { }
@@ -2340,7 +2473,6 @@ namespace jaindb
                         {
 
                             var jObj = JObject.Parse(ReadHash(sID, "_chain"));
-                            //var jObj = JObject.Parse(cache3.StringGet(sID));
 
                             foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
                             {
@@ -2372,7 +2504,6 @@ namespace jaindb
                                         //jBlock.Add("#id", sID);
 
                                         string sResult = UploadToREST(URL + "/upload/" + sID, jBlock.ToString(Formatting.None));
-                                        //System.Threading.Thread.Sleep(50);
                                         if (!string.IsNullOrEmpty(sResult.Trim('"')))
                                         {
                                             Console.WriteLine("Exported: " + sResult);
@@ -2382,6 +2513,73 @@ namespace jaindb
                                         {
                                             jBlock.ToString();
                                         }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine("Error: " + ex.Message);
+                                    bResult = false;
+                                }
+                            }
+                            //Thread.Sleep(100);
+
+                            Console.WriteLine("Exported Asset: " + sID);
+                        }
+                        catch { bResult = false; }
+                    }
+                }
+
+                if (UseRethinkDB)
+                {
+                    foreach (var sID in GetAllChainsAsync().Result) //Keep it single threaded, to prevent Redis Timeouts
+                    {
+                        try
+                        {
+
+                            var jObj = JObject.Parse(ReadHash(sID, "_chain"));
+                            //var jObj = JObject.Parse(cache3.StringGet(sID));
+
+                            foreach (var sBlock in jObj.SelectTokens("Chain[*].data"))
+                            {
+                                try
+                                {
+                                    string sBlockID = sBlock.Value<string>();
+                                    if (!string.IsNullOrEmpty(sBlockID))
+                                    {
+                                        var jBlock = GetRaw(ReadHash(sBlockID, "_assets"));
+                                        jBlock.Remove("#id"); //old Version of jainDB 
+                                        //jBlock.Remove("_date");
+                                        jBlock.Remove("_index");
+
+                                        //Remove Objects from Chain
+                                        foreach (string sRemObj in RemoveObjects.Split(';'))
+                                        {
+                                            try
+                                            {
+                                                foreach (var oTok in jBlock.Descendants().Where(t => t.Path == sRemObj).ToList())
+                                                {
+                                                    oTok.Remove();
+                                                    break;
+                                                }
+                                            }
+                                            catch { }
+                                        }
+
+                                        //jBlock.Add("#id", sID);
+
+
+                                        string sResult = UploadToREST(URL + "/upload/" + sID, jBlock.ToString(Formatting.None));  //UploadToREST(URL + "/upload/" + sID, jBlock.ToString(Formatting.None));
+                                                                                                                                  //System.Threading.Thread.Sleep(50);
+                                        if (!string.IsNullOrEmpty(sResult.Trim('"')))
+                                        {
+                                            Console.WriteLine("Exported: " + sResult);
+                                            iCount++;
+                                        }
+                                        else
+                                        {
+                                            jBlock.ToString();
+                                        }
+
                                     }
                                 }
                                 catch (Exception ex)
@@ -2485,6 +2683,14 @@ namespace jaindb
 
         }
 
+        public static async Task<string> UploadToRESTAsync(string URL, string content)
+        {
+            return await Task.Run(() =>
+            {
+                return UploadToREST(URL, content);
+            });
+        }
+
         public static void JSort(JObject jObj, bool deep = false)
         {
             var props = jObj.Properties().ToList();
@@ -2510,6 +2716,34 @@ namespace jaindb
                 if (prop.Value is JObject)
                     JSort((JObject)prop.Value);
             }
+        }
+
+        public static int totalDeviceCount(string sPath = "")
+        {
+            int iCount = 0;
+            try
+            {
+                //Check in MemoryCache
+                if (_cache.TryGetValue("totalDeviceCount", out iCount))
+                {
+                    return iCount;
+                }
+
+                if (UseFileStore)
+                {
+                    if (string.IsNullOrEmpty(sPath))
+                        sPath = Path.Combine(FilePath, "_chain");
+
+                    if (Directory.Exists(sPath))
+                        iCount = Directory.GetFiles(sPath).Count(); //count Blockchain Files
+
+                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 60s
+                    _cache.Set("totalDeviceCount", iCount, cacheEntryOptions);
+                }
+            }
+            catch { }
+
+            return iCount;
         }
     }
 }

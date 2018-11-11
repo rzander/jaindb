@@ -60,10 +60,9 @@ namespace JainDBTest
             string sFull = jDB.CalculateHash(oFull.ToString(Newtonsoft.Json.Formatting.None));
 
             bool bValid = (sChain == sFull);
-            Assert.IsTrue(bValid);
             if (bValid)
                 Console.WriteLine("Blockchain data does match with cached data.");
-
+            Assert.IsTrue(bValid);
         }
 
         [TestMethod]
@@ -82,7 +81,7 @@ namespace JainDBTest
         {
             Console.WriteLine("QueryAll data...");
             jDB.UseFileStore = true;
-            int i = jDB.QueryAll("obj1", "", "").Count();
+            int i = jDB.QueryAll("obj1", "", "", "").Count();
             Assert.IsTrue(i > 0);
         }
         [TestMethod]

@@ -13,8 +13,8 @@
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json</PackageTags>
     <Version>1.0.2</Version>
-    <AssemblyVersion>1.0.1.82</AssemblyVersion>
-    <FileVersion>1.0.1.82</FileVersion>
+    <AssemblyVersion>1.0.1.83</AssemblyVersion>
+    <FileVersion>1.0.1.83</FileVersion>
     <StartupObject></StartupObject>
     <UserSecretsId>fcfd6c0a-e53c-46cb-8a9d-b786c0579861</UserSecretsId>
     <ApplicationIcon>JainDB_Logo.ico</ApplicationIcon>

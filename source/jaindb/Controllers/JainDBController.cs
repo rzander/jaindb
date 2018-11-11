@@ -17,6 +17,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Extensions;
+using System.Threading.Tasks;
 
 namespace jaindb.Controllers
 {
@@ -49,7 +50,6 @@ namespace jaindb.Controllers
         public string Upload(string JSON, string Id, string blockType = "INV")
         {
             var oGet = new StreamReader(Request.Body, true).ReadToEndAsync();
-
             return jDB.UploadFull(oGet.Result.ToString(), Id, blockType);
         }
 
@@ -290,8 +290,6 @@ namespace jaindb.Controllers
         [Route("query")]
         public JArray Query()
         {
-            DateTime dStart = DateTime.Now;
-
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
             string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
             if (sPath != "/favicon.ico")
@@ -309,17 +307,18 @@ namespace jaindb.Controllers
         [Route("queryAll")]
         public JArray QueryAll()
         {
-            this.Url.ToString();
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
-            if (sPath != "/favicon.ico")
-            {
-                //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
-                var query = QueryHelpers.ParseQuery(sQuery);
+            string sPath = _env.WebRootPath;
+            jDB.FilePath = sPath;
 
-                return jDB.QueryAll(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value);
-            }
-            return null;
+            string sQuery = this.Request.QueryString.ToString();
+
+            var query = System.Web.HttpUtility.ParseQueryString(sQuery);
+
+            string qpath = (query[null] ?? "").Replace(',', ';');
+            string qsel = (query["$select"] ?? "").Replace(',', ';');
+            string qexc = (query["$exclude"] ?? "").Replace(',', ';');
+            string qwhe = (query["$where"] ?? "").Replace(',', ';');
+            return jDB.QueryAll(qpath, qsel, qexc, qwhe);
         }
 
         [HttpGet]
@@ -338,6 +337,26 @@ namespace jaindb.Controllers
                     sKey = jDB.LookupID(query.First().Key, query.First().Value);
 
                 return jDB.GetHistory(sKey);
+            }
+            return null;
+        }
+
+        [HttpGet]
+        [Authorize]
+        [Route("GetHistory")]
+        public JArray GetHistory()
+        {
+            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
+            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            if (sPath != "/favicon.ico")
+            {
+                var query = QueryHelpers.ParseQuery(sQuery);
+                string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
+
+                if (string.IsNullOrEmpty(sKey))
+                    sKey = jDB.LookupID(query.First().Key, query.First().Value);
+
+                return jDB.GetJHistory(sKey);
             }
             return null;
         }
@@ -619,6 +638,14 @@ namespace jaindb.Controllers
             }
 
             return htmlTable.ToString();
+        }
+
+        [HttpGet]
+        [Authorize]
+        [Route("totalDeviceCount")]
+        public int totalDeviceCount(string sPath = "")
+        {
+            return jDB.totalDeviceCount(sPath);
         }
 
         //Handle all other Requests
