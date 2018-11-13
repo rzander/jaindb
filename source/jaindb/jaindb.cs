@@ -433,7 +433,7 @@ namespace jaindb
                         else
                         {
                             var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
-                            CosmosDB.CreateDocumentAsync(cUri, jObj);
+                            CosmosDB.CreateDocumentAsync(cUri, jObj).Wait(200);
                         }
                     }
                     catch (Exception ex)
@@ -1087,7 +1087,7 @@ namespace jaindb
                 if (string.IsNullOrEmpty(blockType))
                     blockType = BlockType;
 
-                if (Index == -1)
+                if (Index == -1 && !UseCosmosDB)
                 {
                     string sFull = "";
                     if (blockType == BlockType)
@@ -1653,7 +1653,12 @@ namespace jaindb
             }
 
             if (string.IsNullOrEmpty(select))
-                select = "#id"; //,#Name,_inventoryDate
+            {
+                if (!UseCosmosDB)
+                    select = "#id"; //,#Name,_inventoryDate
+                else
+                    select = "id";
+            }
 
             JArray aRes = new JArray();
             List<string> lLatestHash = await GetAllChainsAsync();
@@ -1728,15 +1733,24 @@ namespace jaindb
                     }
 
                     JObject oRes = new JObject();
+                    //if(UseCosmosDB)
+                    //{
+                    //    string sID = jObj["#id"].Value<string>();
+                    //    jObj.Add("id", sID);
+                    //}
                     foreach (string sAttrib in select.Split(';'))
                     {
-                        //var jVal = jObj[sAttrib];
-                        var jVal = jObj.SelectToken(sAttrib);
-
-                        if (jVal != null)
+                        try
                         {
-                            oRes.Add(sAttrib.Trim(), jVal);
+                            //var jVal = jObj[sAttrib];
+                            var jVal = jObj.SelectToken(sAttrib);
+
+                            if (jVal != null)
+                            {
+                                oRes.Add(sAttrib.Trim(), jVal);
+                            }
                         }
+                        catch { }
                     }
                     if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
                     {
@@ -1839,7 +1853,6 @@ namespace jaindb
                 }
             }
 
-            GC.Collect();
             return aRes;
 
         }
@@ -2987,6 +3000,16 @@ namespace jaindb
 
                     if (Directory.Exists(sPath))
                         iCount = Directory.GetFiles(sPath).Count(); //count Blockchain Files
+
+                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 60s
+                    _cache.Set("totalDeviceCount", iCount, cacheEntryOptions);
+                }
+
+                if (UseCosmosDB)
+                {
+                    //var oAssets = CosmosDB.CreateDocumentQuery(UriFactory. (databaseId, "assets"), "SELECT VALUE COUNT(c.id) FROM c");
+                    var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "chain"), "SELECT c.id FROM c");
+                    iCount =  oAssets.ToList().Count();
 
                     var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 60s
                     _cache.Set("totalDeviceCount", iCount, cacheEntryOptions);
