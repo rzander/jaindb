@@ -56,11 +56,11 @@ namespace jaindb
         public static string FilePath = "wwwroot";
         public static bool UseRethinkDB;
 
-        internal static string databaseId;
-        internal static string endpointUrl;
-        internal static string authorizationKey;
-        internal static DocumentClient CosmosDB;
-        internal static Database database;
+        public static string databaseId;
+        public static string endpointUrl;
+        public static string authorizationKey;
+        public static DocumentClient CosmosDB;
+        public static Database database;
 
         internal static IDatabase cache0;
         internal static IDatabase cache1;
@@ -81,6 +81,7 @@ namespace jaindb
         internal static RethinkDb.Driver.Net.Connection conn;
 
         internal static List<string> RethinkTables = new List<string>();
+        internal static List<string> CosmosTables = new List<string>();
 
         public static string CalculateHash(string input)
         {
@@ -231,7 +232,7 @@ namespace jaindb
                 }
 
                 //Cache Data
-                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(30)); //cache hash for 30s
+                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
                 _cache.Set("RH-" + Collection + "-" + Hash, Data, cacheEntryOptions);
 
                 if (UseRethinkDB)
@@ -378,13 +379,17 @@ namespace jaindb
                             database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
                     }
 
-                    var collquery = CosmosDB.CreateDocumentCollectionQuery(database.SelfLink, new FeedOptions() { MaxItemCount = 1 });
-                    var oCollExists = collquery.Where(t => t.Id == sColl).AsEnumerable().Any();
-                    if (!oCollExists)
+                    if (!CosmosTables.Contains(sColl))
                     {
-                        lock (locker) //only one write operation
+                        var collquery = CosmosDB.CreateDocumentCollectionQuery(database.SelfLink, new FeedOptions() { MaxItemCount = 1 });
+                        var oCollExists = collquery.Where(t => t.Id == sColl).AsEnumerable().Any();
+                        if (!oCollExists)
                         {
-                            CosmosDB.CreateDocumentCollectionAsync(database.SelfLink, new DocumentCollection { Id = sColl }).Wait();
+                            lock (locker) //only one write operation
+                            {
+                                CosmosDB.CreateDocumentCollectionAsync(database.SelfLink, new DocumentCollection { Id = sColl }).Wait();
+                                CosmosTables.Add(sColl);
+                            }
                         }
                     }
 
@@ -397,23 +402,38 @@ namespace jaindb
                     jObj.Remove("#id");
                     try
                     {
-                        var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
-                        var docquery = CosmosDB.CreateDocumentQuery(cUri, new FeedOptions() { MaxItemCount = 1 });
-                        var oDocExists = docquery.Where(t => t.Id == Hash).AsEnumerable().Any();
-                        if (!oDocExists)
+                        if (sColl == "chain")
                         {
-                            lock (locker) //only one write operation
+                            //lock (locker) //only one write operation
+                            //{
+                            //    //var dUri = UriFactory.CreateDocumentUri(databaseId, sColl, Hash);
+                            //    var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
+                            //    CosmosDB.UpsertDocumentAsync(cUri, jObj).Wait();
+                            //}
+
+                            var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
+                            var docquery = CosmosDB.CreateDocumentQuery(cUri, new FeedOptions() { MaxItemCount = 1 });
+                            var oDocExists = docquery.Where(t => t.Id == Hash).AsEnumerable().Any();
+                            if (!oDocExists)
                             {
-                                CosmosDB.CreateDocumentAsync(cUri, jObj).Wait();
+                                lock (locker) //only one write operation
+                                {
+                                    CosmosDB.CreateDocumentAsync(cUri, jObj).Wait();
+                                }
+                            }
+                            else
+                            {
+                                lock (locker) //only one write operation
+                                {
+                                    var dUri = UriFactory.CreateDocumentUri(databaseId, sColl, Hash);
+                                    CosmosDB.ReplaceDocumentAsync(dUri, jObj).Wait();
+                                }
                             }
                         }
                         else
                         {
-                            lock (locker) //only one write operation
-                            {
-                                var dUri = UriFactory.CreateDocumentUri(databaseId, sColl, Hash);
-                                CosmosDB.ReplaceDocumentAsync(dUri, jObj).Wait();
-                            }
+                            var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
+                            CosmosDB.CreateDocumentAsync(cUri, jObj);
                         }
                     }
                     catch (Exception ex)
@@ -721,16 +741,27 @@ namespace jaindb
                     }
 
                     string sColl = Collection;
+                    switch (Collection)
+                    {
+                        case "_assets":
+                            sColl = "assets";
+                            break;
+                        case "_chain":
+                            sColl = "chain";
+                            break;
+                    }
 
                     var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;
                     JObject jRes = JObject.Parse(sRes.ToString());
+                    string sID = jRes["id"].Value<string>();
+
                     jRes.Remove("id");
                     jRes.Remove("_rid");
                     jRes.Remove("_ts");
                     jRes.Remove("_etag");
                     jRes.Remove("_self");
                     jRes.Remove("_attachments");
-
+                    jRes.Add("#id", sID);
                     sResult = jRes.ToString(Newtonsoft.Json.Formatting.None);
 
                     //Cache result in Memory
@@ -754,7 +785,12 @@ namespace jaindb
         public static Blockchain GetChain(string DeviceID)
         {
             Blockchain oChain;
-            string sData = ReadHash(DeviceID, "_chain");
+            string sData = "";
+            if(!UseCosmosDB)
+                sData = ReadHash(DeviceID, "_chain");
+            else
+                sData = ReadHash(DeviceID, "chain");
+
             if (string.IsNullOrEmpty(sData))
             {
                 oChain = new Blockchain("", "root", 0);
@@ -993,8 +1029,13 @@ namespace jaindb
                         jTemp.AddFirst(new JProperty("_index", oBlock.index));
                     if (jTemp["_hash"] == null)
                         jTemp.AddFirst(new JProperty("_hash", oBlock.data));
-                    if (jTemp["_date"] == null)
-                        jTemp.AddFirst(new JProperty("_date", DateTime.Now.ToUniversalTime()));
+
+                    if (!UseCosmosDB) //do update _date on CosmosDB
+                    {
+                        if (jTemp["_date"] == null)
+                            jTemp.AddFirst(new JProperty("_date", DateTime.Now.ToUniversalTime()));
+                    }
+
                     if (jTemp["_type"] == null)
                         jTemp.AddFirst(new JProperty("_type", blockType));
                     if (jTemp["#id"] == null)
@@ -1002,9 +1043,12 @@ namespace jaindb
 
                     //JSort(jTemp);
 
-                    //Only store Full data for default BlockType
-                    if (blockType == BlockType)
-                        WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full").ConfigureAwait(false);
+                    if (!UseCosmosDB)
+                    {
+                        //Only store Full data for default BlockType
+                        if (blockType == BlockType)
+                            WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full").ConfigureAwait(false);
+                    }
                 }
 
                 //JSort(oStatic);
@@ -1821,7 +1865,12 @@ namespace jaindb
             }
 
             if (string.IsNullOrEmpty(select))
-                select = "#id"; //,#Name,_inventoryDate
+            {
+                if (!UseCosmosDB)
+                    select = "#id"; //,#Name,_inventoryDate
+                else
+                    select = "id";
+            }
 
             //JObject lRes = new JObject();
             JArray aRes = new JArray();
@@ -1912,13 +1961,17 @@ namespace jaindb
 
                         foreach (string sAttrib in select.Split(';'))
                         {
-                            //var jVal = jObj[sAttrib];
-                            var jVal = jObj.SelectToken(sAttrib);
-
-                            if (jVal != null)
+                            try
                             {
-                                oRes.Add(sAttrib.Trim(), jVal);
+                                //var jVal = jObj[sAttrib];
+                                var jVal = jObj.SelectToken(sAttrib);
+
+                                if (jVal != null)
+                                {
+                                    oRes.Add(sAttrib.Trim(), jVal);
+                                }
                             }
+                            catch { }
                         }
 
                         if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
@@ -2105,13 +2158,200 @@ namespace jaindb
 
                         foreach (string sAttrib in select.Split(';'))
                         {
-                            //var jVal = jObj[sAttrib];
-                            var jVal = jObj.SelectToken(sAttrib);
-
-                            if (jVal != null)
+                            try
                             {
-                                oRes.Add(sAttrib.Trim(), jVal);
+                                //var jVal = jObj[sAttrib];
+                                var jVal = jObj.SelectToken(sAttrib);
+
+                                if (jVal != null)
+                                {
+                                    oRes.Add(sAttrib.Trim(), jVal);
+                                }
                             }
+                            catch { }
+                        }
+
+                        if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
+                        {
+                            //Generate list of excluded paths
+                            List<string> sExclPath = new List<string>();
+                            foreach (string sExclude in lExclude)
+                            {
+                                foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
+                                {
+                                    sExclPath.Add(oRem.Path);
+                                }
+                            }
+
+                            foreach (string path in paths.Split(';'))
+                            {
+                                try
+                                {
+                                    var oToks = jObj.SelectTokens(path.Trim(), false);
+
+                                    if (oToks.Count() == 0)
+                                    {
+                                        if (!foundData)
+                                        {
+                                            oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
+                                            continue;
+                                        }
+                                    }
+
+                                    foreach (JToken oTok in oToks)
+                                    {
+                                        try
+                                        {
+                                            if (oTok.Type == JTokenType.Object)
+                                            {
+                                                oRes.Merge(oTok);
+                                                //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
+                                                continue;
+                                            }
+                                            if (oTok.Type == JTokenType.Array)
+                                            {
+                                                oRes.Add(new JProperty(path, oTok));
+                                            }
+                                            if (oTok.Type == JTokenType.Property)
+                                                oRes.Add(oTok.Parent);
+
+                                            if (oTok.Type == JTokenType.String)
+                                            {
+                                                //check if path is excluded
+                                                if (!sExclPath.Contains(oTok.Path))
+                                                    oRes.Add(oTok.Path, oTok.ToString());
+                                            }
+
+                                            if (oTok.Type == JTokenType.Date)
+                                                oRes.Add(oTok.Parent);
+
+                                            foundData = true;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                                        }
+
+                                    }
+
+                                    /*if (oToks.Count() == 0)
+                                        oRes = new JObject(); */
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                                }
+                            }
+                        }
+
+                        if (oRes.HasValues)
+                        {
+                            string sHa = CalculateHash(oRes.ToString(Formatting.None));
+                            if (!lHashes.Contains(sHa))
+                            {
+                                aRes.Add(oRes);
+                                lHashes.Add(sHa);
+                            }
+
+                            //Remove excluded Properties
+                            foreach (string sExclude in lExclude)
+                            {
+                                foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
+                                {
+                                    oRem.Parent.Remove();
+                                    //oRes.Remove(oRem.Path);
+                                }
+                            }
+                        }
+                    }
+                    return aRes;
+                }
+
+                if(UseCosmosDB)
+                {
+                    var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "assets"), "SELECT * FROM c");
+                    foreach (var oAsset in oAssets)
+                    {
+                        bool foundData = false;
+                        JObject jObj = oAsset;
+                        //Where filter..
+                        if (lWhere.Count > 0)
+                        {
+                            bool bWhere = false;
+                            foreach (string sWhere in lWhere)
+                            {
+                                try
+                                {
+                                    string sPath = sWhere;
+                                    string sVal = "";
+                                    string sOp = "";
+                                    if (sWhere.Contains("=="))
+                                    {
+                                        sVal = sWhere.Split("==")[1];
+                                        sOp = "eq";
+                                        sPath = sWhere.Split("==")[0];
+                                    }
+                                    if (sWhere.Contains("!="))
+                                    {
+                                        sVal = sWhere.Split("!=")[1];
+                                        sOp = "ne";
+                                        sPath = sWhere.Split("!=")[0];
+                                    }
+
+                                    var jRes = jObj.SelectToken(sPath);
+                                    if (jRes == null)
+                                    {
+                                        bWhere = true;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        switch (sOp)
+                                        {
+                                            case "eq":
+                                                if (sVal != jRes.ToString())
+                                                {
+                                                    bWhere = true;
+                                                    continue;
+                                                }
+                                                break;
+                                            case "ne":
+                                                if (sVal == jRes.ToString())
+                                                {
+                                                    bWhere = true;
+                                                    continue;
+                                                }
+                                                break;
+                                            default:
+                                                bWhere = true;
+                                                continue;
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            if (bWhere)
+                            {
+                                continue;
+                            }
+                        }
+
+                        JObject oRes = new JObject();
+
+                        foreach (string sAttrib in select.Split(';'))
+                        {
+                            try
+                            {
+                                //var jVal = jObj[sAttrib];
+                                var jVal = jObj.SelectToken(sAttrib);
+
+                                if (jVal != null)
+                                {
+                                    oRes.Add(sAttrib.Trim(), jVal);
+                                }
+                            }
+                            catch { }
                         }
 
                         if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return

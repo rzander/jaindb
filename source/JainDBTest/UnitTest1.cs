@@ -1,4 +1,5 @@
 using jaindb;
+using Microsoft.Azure.Documents.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json.Linq;
 using System;
@@ -92,6 +93,37 @@ namespace JainDBTest
             jDB.UseFileStore = true;
             int i = jDB.GetChanges(new TimeSpan(1,0,0)).Count();
             Assert.IsTrue(i > 0);
+        }
+
+        [TestMethod]
+        [Priority(99)]
+        public void Bulk_Upload()
+        {
+            if (System.IO.Directory.Exists("wwwroot"))
+                System.IO.Directory.Delete("wwwroot", true); //cleanup existing data
+
+            Console.WriteLine("Upload Test Object...");
+            string sTST = System.IO.File.ReadAllText("./test.json");
+            jDB.UseFileStore = false;
+            jDB.databaseId = "assets";
+            jDB.endpointUrl = "https://localhost:8081";
+            jDB.authorizationKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
+            jDB.CosmosDB = new DocumentClient(new Uri(jDB.endpointUrl), jDB.authorizationKey);
+
+            jDB.CosmosDB.OpenAsync();
+            jDB.UseCosmosDB = true;
+
+            var oDATA = JObject.Parse(sTST);
+            oDATA.Add("TSTKey", 0);
+
+            for(int i = 0; i < 100; i++ )
+            {
+                oDATA["TSTKey"] = i;
+                string sHash = jaindb.jDB.UploadFull(oDATA.ToString(Newtonsoft.Json.Formatting.None), "test1");
+                Console.WriteLine("... Hash:" + sHash);
+                //Thread.Sleep(100); //wait 3s to store all files..
+            }
+
         }
     }
 }
