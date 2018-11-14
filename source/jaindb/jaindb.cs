@@ -433,7 +433,7 @@ namespace jaindb
                         else
                         {
                             var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
-                            CosmosDB.CreateDocumentAsync(cUri, jObj).Wait(200);
+                            Console.WriteLine("RU charge:" + CosmosDB.CreateDocumentAsync(cUri, jObj).Result.ResponseHeaders["x-ms-request-charge"]);
                         }
                     }
                     catch (Exception ex)
@@ -3009,8 +3009,8 @@ namespace jaindb
                 {
                     //var oAssets = CosmosDB.CreateDocumentQuery(UriFactory. (databaseId, "assets"), "SELECT VALUE COUNT(c.id) FROM c");
                     var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "chain"), "SELECT c.id FROM c");
-                    iCount =  oAssets.ToList().Count();
-
+                    Console.WriteLine("RU charge:" + oAssets.AsDocumentQuery().ExecuteNextAsync().Result.ResponseHeaders["x-ms-request-charge"]);
+                    iCount = oAssets.ToList().Count();
                     var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 60s
                     _cache.Set("totalDeviceCount", iCount, cacheEntryOptions);
                 }

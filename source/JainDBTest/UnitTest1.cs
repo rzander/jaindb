@@ -95,6 +95,7 @@ namespace JainDBTest
             Assert.IsTrue(i > 0);
         }
 
+        [Ignore]
         [TestMethod]
         [Priority(99)]
         public void Bulk_Upload()
