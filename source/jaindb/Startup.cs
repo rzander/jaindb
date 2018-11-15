@@ -305,6 +305,11 @@ namespace jaindb
                 Console.ResetColor();
                 Console.WriteLine();
             }
+
+
+            jDB.FilePath = Path.Combine(Env.WebRootPath, "jaindb");
+            jDB.wwwPath = Env.WebRootPath;
+            jDB.loadPlugins();
         }
 
 

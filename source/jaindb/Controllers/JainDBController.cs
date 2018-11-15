@@ -307,9 +307,6 @@ namespace jaindb.Controllers
         [Route("queryAll")]
         public JArray QueryAll()
         {
-            string sPath = _env.WebRootPath;
-            jDB.FilePath = sPath;
-
             string sQuery = this.Request.QueryString.ToString();
 
             var query = System.Web.HttpUtility.ParseQueryString(sQuery);

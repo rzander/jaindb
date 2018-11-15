@@ -2,6 +2,7 @@
 //          jaindb (c) Copyright 2018 by Roger Zander
 // ************************************************************************************
 
+using JainDBProvider;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
@@ -16,6 +17,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static jaindb.BlockChain;
@@ -54,6 +56,7 @@ namespace jaindb
         public static bool UseRedis;
         public static bool UseFileStore;
         public static string FilePath = "wwwroot";
+        public static string wwwPath = "wwwroot";
         public static bool UseRethinkDB;
 
         public static string databaseId;
@@ -62,14 +65,14 @@ namespace jaindb
         public static DocumentClient CosmosDB;
         public static Database database;
 
-        internal static IDatabase cache0;
-        internal static IDatabase cache1;
-        internal static IDatabase cache2;
-        internal static IDatabase cache3;
-        internal static IDatabase cache4;
-        internal static IServer srv;
+        public static IDatabase cache0;
+        public static IDatabase cache1;
+        public static IDatabase cache2;
+        public static IDatabase cache3;
+        public static IDatabase cache4;
+        public static IServer srv;
 
-        internal static IMemoryCache _cache;
+        public static IMemoryCache _cache;
 
         public static hashType HashType = hashType.MD5;
 
@@ -77,11 +80,28 @@ namespace jaindb
         public static int PoWComplexitity = 0; //Proof of Work complexity; 0 = no PoW; 8 = 8 trailing bits of the block hash must be '0'
         public static bool ReadOnly = false;
 
-        internal static RethinkDb.Driver.RethinkDB R = RethinkDb.Driver.RethinkDB.R;
-        internal static RethinkDb.Driver.Net.Connection conn;
+        public static RethinkDb.Driver.RethinkDB R = RethinkDb.Driver.RethinkDB.R;
+        public static RethinkDb.Driver.Net.Connection conn;
 
-        internal static List<string> RethinkTables = new List<string>();
-        internal static List<string> CosmosTables = new List<string>();
+        public static List<string> RethinkTables = new List<string>();
+        public static List<string> CosmosTables = new List<string>();
+
+        internal static Dictionary<string, IStore> _Plugins = new Dictionary<string, IStore>();
+
+        public static void loadPlugins()
+        {
+            ICollection<IStore> plugins = GenericPluginLoader<IStore>.LoadPlugins(Path.Combine(wwwPath, "Plugins"));
+            foreach (var item in plugins)
+            {
+                _Plugins.Add(item.Name, item);
+                Console.WriteLine(item.Name);
+                item.Settings = new Dictionary<string, string>();
+                item.Settings.Add("FilePath", FilePath);
+                item.Settings.Add("wwwPath", wwwPath);
+                item.Init();
+
+            }
+        }
 
         public static string CalculateHash(string input)
         {
@@ -214,27 +234,17 @@ namespace jaindb
 
             try
             {
-                if (string.IsNullOrEmpty(Data) || Data == "null")
-                    return true;
-
-                //Check if MemoryCache is initialized
-                if (_cache == null)
+                foreach (var item in _Plugins.OrderBy(t=>t.Key))
                 {
-                    _cache = new MemoryCache(new MemoryCacheOptions());
+                    try
+                    {
+                        if (item.Value.WriteHash(Hash, Data, Collection))
+                            return true; //exit if return value is true
+                    }
+                    catch { }
                 }
 
-                string sResult = "";
-                //Try to get value from Memory
-                if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
-                {
-                    if (sResult == Data)
-                        return true; //Do not write the hash again
-                }
-
-                //Cache Data
-                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
-                _cache.Set("RH-" + Collection + "-" + Hash, Data, cacheEntryOptions);
-
+                return true;
                 if (UseRethinkDB)
                 {
                     try
@@ -597,6 +607,27 @@ namespace jaindb
 
             try
             {
+                foreach (var item in _Plugins.OrderBy(t => t.Key))
+                {
+                    try
+                    {
+                        sResult = item.Value.ReadHash(Hash, Collection);
+
+                        if (!string.IsNullOrEmpty(sResult))
+                        {
+                            //Write Hash to the first Plugin if the current plugin is not the first one
+                            if(item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
+                            {
+                                _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(Hash, sResult, Collection);
+                            }
+                            return sResult;
+                        }
+                    }
+                    catch { }
+                }
+
+                return sResult;
+
                 //Check if MemoryCache is initialized
                 if (_cache == null)
                 {
@@ -1890,6 +1921,196 @@ namespace jaindb
             List<string> lHashes = new List<string>();
             try
             {
+                foreach (var item in _Plugins.OrderBy(t => t.Key))
+                {
+                    try
+                    {
+                        bool bHasValues = false;
+                        foreach (var jObj in item.Value.GetRawAssets(""))
+                        {
+                            bHasValues = true;
+                            bool foundData = false;
+                            //Where filter..
+                            if (lWhere.Count > 0)
+                            {
+                                bool bWhere = false;
+                                foreach (string sWhere in lWhere)
+                                {
+                                    try
+                                    {
+                                        string sPath = sWhere;
+                                        string sVal = "";
+                                        string sOp = "";
+                                        if (sWhere.Contains("=="))
+                                        {
+                                            sVal = sWhere.Split("==")[1];
+                                            sOp = "eq";
+                                            sPath = sWhere.Split("==")[0];
+                                        }
+                                        if (sWhere.Contains("!="))
+                                        {
+                                            sVal = sWhere.Split("!=")[1];
+                                            sOp = "ne";
+                                            sPath = sWhere.Split("!=")[0];
+                                        }
+
+                                        var jRes = jObj.SelectToken(sPath);
+                                        if (jRes == null)
+                                        {
+                                            bWhere = true;
+                                            continue;
+                                        }
+                                        else
+                                        {
+                                            switch (sOp)
+                                            {
+                                                case "eq":
+                                                    if (sVal != jRes.ToString())
+                                                    {
+                                                        bWhere = true;
+                                                        continue;
+                                                    }
+                                                    break;
+                                                case "ne":
+                                                    if (sVal == jRes.ToString())
+                                                    {
+                                                        bWhere = true;
+                                                        continue;
+                                                    }
+                                                    break;
+                                                default:
+                                                    bWhere = true;
+                                                    continue;
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                }
+
+                                if (bWhere)
+                                {
+                                    continue;
+                                }
+                            }
+
+                            JObject oRes = new JObject();
+
+                            foreach (string sAttrib in select.Split(';'))
+                            {
+                                try
+                                {
+                                    //var jVal = jObj[sAttrib];
+                                    var jVal = jObj.SelectToken(sAttrib);
+
+                                    if (jVal != null)
+                                    {
+                                        oRes.Add(sAttrib.Trim(), jVal);
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
+                            {
+                                //Generate list of excluded paths
+                                List<string> sExclPath = new List<string>();
+                                foreach (string sExclude in lExclude)
+                                {
+                                    foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
+                                    {
+                                        sExclPath.Add(oRem.Path);
+                                    }
+                                }
+
+                                foreach (string path in paths.Split(';'))
+                                {
+                                    try
+                                    {
+                                        var oToks = jObj.SelectTokens(path.Trim(), false);
+
+                                        if (oToks.Count() == 0)
+                                        {
+                                            if (!foundData)
+                                            {
+                                                oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
+                                                continue;
+                                            }
+                                        }
+
+                                        foreach (JToken oTok in oToks)
+                                        {
+                                            try
+                                            {
+                                                if (oTok.Type == JTokenType.Object)
+                                                {
+                                                    oRes.Merge(oTok);
+                                                    //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
+                                                    continue;
+                                                }
+                                                if (oTok.Type == JTokenType.Array)
+                                                {
+                                                    oRes.Add(new JProperty(path, oTok));
+                                                }
+                                                if (oTok.Type == JTokenType.Property)
+                                                    oRes.Add(oTok.Parent);
+
+                                                if (oTok.Type == JTokenType.String)
+                                                {
+                                                    //check if path is excluded
+                                                    if (!sExclPath.Contains(oTok.Path))
+                                                        oRes.Add(oTok.Path, oTok.ToString());
+                                                }
+
+                                                if (oTok.Type == JTokenType.Date)
+                                                    oRes.Add(oTok.Parent);
+
+                                                foundData = true;
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                                            }
+
+                                        }
+
+                                        /*if (oToks.Count() == 0)
+                                            oRes = new JObject(); */
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
+                                    }
+                                }
+                            }
+
+                            if (oRes.HasValues)
+                            {
+                                string sHa = CalculateHash(oRes.ToString(Formatting.None));
+                                if (!lHashes.Contains(sHa))
+                                {
+                                    aRes.Add(oRes);
+                                    lHashes.Add(sHa);
+                                }
+
+                                //Remove excluded Properties
+                                foreach (string sExclude in lExclude)
+                                {
+                                    foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
+                                    {
+                                        oRem.Parent.Remove();
+                                        //oRes.Remove(oRem.Path);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (bHasValues)
+                            return aRes;
+                    }
+                    catch { }
+                }
+
+                return aRes;
                 if (UseRedis)
                 {
                     foreach (var oObj in srv.Keys(4, "*"))
@@ -2090,7 +2311,7 @@ namespace jaindb
 
                 if (UseFileStore)
                 {
-                    foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_Assets")).GetFiles("*.json"))
+                    foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_assets")).GetFiles("*.json"))
                     {
                         bool foundData = false;
                         JObject jObj = GetRaw(File.ReadAllText(oFile.FullName), paths);
@@ -2280,7 +2501,7 @@ namespace jaindb
                     return aRes;
                 }
 
-                if(UseCosmosDB)
+                if (UseCosmosDB)
                 {
                     var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "assets"), "SELECT * FROM c");
                     foreach (var oAsset in oAssets)
@@ -2985,7 +3206,28 @@ namespace jaindb
         public static int totalDeviceCount(string sPath = "")
         {
             int iCount = 0;
-            try
+
+            foreach (var item in _Plugins.OrderBy(t => t.Key))
+            {
+                try
+                {
+                    iCount = item.Value.totalDeviceCount();
+
+                    if (iCount > -1)
+                    {
+                        //Write Hash to the first Plugin if the current plugin is not the first one
+                        if (item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
+                        {
+                            _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash("", iCount.ToString() , "totaldevicecount");
+                        }
+                        return iCount;
+                    }
+                }
+                catch { }
+            }
+
+
+                    try
             {
                 //Check in MemoryCache
                 if (_cache.TryGetValue("totalDeviceCount", out iCount))
@@ -3018,6 +3260,64 @@ namespace jaindb
             catch { }
 
             return iCount;
+        }
+
+        public static class GenericPluginLoader<T>
+        {
+            public static ICollection<T> LoadPlugins(string path)
+            {
+                string[] dllFileNames = null;
+
+                if (Directory.Exists(path))
+                {
+                    dllFileNames = Directory.GetFiles(path, "*.dll");
+
+                    ICollection<Assembly> assemblies = new List<Assembly>(dllFileNames.Length);
+                    foreach (string dllFile in dllFileNames)
+                    {
+                        AssemblyName an = AssemblyName.GetAssemblyName(dllFile);
+                        //Assembly assembly = Assembly.Load(an);
+                        Assembly assembly = Assembly.LoadFile(dllFile);
+                        assemblies.Add(assembly);
+                    }
+
+                    Type pluginType = typeof(T);
+                    ICollection<Type> pluginTypes = new List<Type>();
+                    foreach (Assembly assembly in assemblies)
+                    {
+                        if (assembly != null)
+                        {
+                            Type[] types = assembly.GetTypes();
+
+                            foreach (Type type in types)
+                            {
+                                if (type.IsInterface || type.IsAbstract)
+                                {
+                                    continue;
+                                }
+                                else
+                                {
+                                    if (type.GetInterface(pluginType.FullName) != null)
+                                    {
+                                        pluginTypes.Add(type);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    ICollection<T> plugins = new List<T>(pluginTypes.Count);
+                    foreach (Type type in pluginTypes)
+                    {
+                        T plugin = (T)Activator.CreateInstance(type);
+                        plugins.Add(plugin);
+                    }
+
+                    return plugins;
+                }
+
+                return null;
+            }
         }
     }
 }
