@@ -35,7 +35,7 @@ namespace jaindb.Controllers
             _logger = logger;
             _cache = memoryCache;
             _env = env;
-            jDB._cache = memoryCache;
+            //jDB._cache = memoryCache;
         }
 
         //[HttpGet]

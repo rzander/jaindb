@@ -1,0 +1,8 @@
+﻿{
+  "ReadOnly": false,
+  "SlidingExpiration": 0,
+  "ContinueAfterWrite": true,
+  "CacheFull": true,
+  "CacheKeys": true,
+  "RedisConnectionString":  "localhost:6379"
+}

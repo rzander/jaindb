@@ -16,6 +16,7 @@ namespace Plugin_MemoryCache
         private long SlidingExpiration = -1;
         private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
+        private bool CacheKeys = true;
 
         private JObject JConfig = new JObject();
 
@@ -36,6 +37,11 @@ namespace Plugin_MemoryCache
 
             try
             {
+                if (!File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
+                {
+                    File.WriteAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json"), Properties.Resources.Plugin_MemoryCache);
+                }
+
                 if (File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
                 {
                     JConfig = JObject.Parse(File.ReadAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")));
@@ -43,11 +49,14 @@ namespace Plugin_MemoryCache
                     SlidingExpiration = JConfig["SlidingExpiration"].Value<long>();
                     ContinueAfterWrite = JConfig["ContinueAfterWrite"].Value<bool>();
                     CacheFull = JConfig["CacheFull"].Value<bool>();
+                    CacheKeys = JConfig["CacheKeys"].Value<bool>();
                 }
                 else
                 {
                     JConfig = new JObject();
                 }
+
+                _cache = new MemoryCache(new MemoryCacheOptions());
             }
             catch { }
         }
@@ -62,14 +71,59 @@ namespace Plugin_MemoryCache
 
             Collection = Collection.ToLower();
 
-            if(Collection == "_full")
+            if (Collection == "_full")
             {
-                if(!CacheFull) //exit if ChacheFull is not set
+                if (!CacheFull) //exit if ChacheFull is not set
                 {
                     if (ContinueAfterWrite)
                         return false;
                     else
                         return true;
+                }
+
+                if (CacheKeys)
+                {
+                    var jObj = JObject.Parse(Data);
+                    jaindb.jDB.JSort(jObj);
+
+                    string sID = jObj["#id"].ToString();
+
+                    //Store KeyNames
+                    foreach (JProperty oSub in jObj.Properties())
+                    {
+                        if (oSub.Name.StartsWith("#"))
+                        {
+                            if (oSub.Value.Type == JTokenType.Array)
+                            {
+                                foreach (var oSubSub in oSub.Values())
+                                {
+                                    try
+                                    {
+                                        if (oSubSub.ToString() != sID)
+                                        {
+                                            WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                        }
+                                    }
+                                    catch { }
+                                }
+
+                            }
+                            else
+                            {
+                                if (!string.IsNullOrEmpty((string)oSub.Value))
+                                {
+                                    if (oSub.Value.ToString() != sID)
+                                    {
+                                        try
+                                        {
+                                            WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                        }
+                                        catch { }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -86,10 +140,10 @@ namespace Plugin_MemoryCache
             {
                 if (sResult == Data)
                 {
-                    if(ContinueAfterWrite)
-                        return false; 
+                    if (ContinueAfterWrite)
+                        return false;
                     else
-                        return true; 
+                        return true;
                 }
             }
 
@@ -114,12 +168,12 @@ namespace Plugin_MemoryCache
         public string ReadHash(string Hash, string Collection)
         {
             string sResult = "";
+
             //Check if MemoryCache is initialized
             if (_cache == null)
             {
                 _cache = new MemoryCache(new MemoryCacheOptions());
             }
-
 
             //Try to get value from Memory
             if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
@@ -147,6 +201,40 @@ namespace Plugin_MemoryCache
         public IEnumerable<JObject> GetRawAssets(string paths)
         {
             return null; //We cannot list objects
+        }
+
+        public string LookupID(string name, string value)
+        {
+            string sResult = null;
+            //Check in MemoryCache
+            if (_cache.TryGetValue("ID-" + name.ToLower() + value.ToLower(), out sResult))
+            {
+                return sResult;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public bool WriteLookupID(string name, string value, string id)
+        {
+            try
+            {
+                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds
+                _cache.Set("ID-" + name.ToLower() + value.ToLower(), id, cacheEntryOptions);
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public List<string> GetAllIDs()
+        {
+            return new List<string>();
         }
     }
 

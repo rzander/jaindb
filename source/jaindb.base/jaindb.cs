@@ -6,10 +6,8 @@ using JainDBProvider;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
-using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,28 +22,6 @@ using static jaindb.BlockChain;
 
 namespace jaindb
 {
-    public class RedisConnectorHelper
-    {
-        public static string RedisServer = "localhost";
-        public static int RedisPort = 6379;
-
-        static RedisConnectorHelper()
-        {
-            RedisConnectorHelper.lazyConnection = new Lazy<ConnectionMultiplexer>(() =>
-            {
-                ConfigurationOptions oOpt = new ConfigurationOptions();
-                oOpt.EndPoints.Add(RedisServer + ":" + RedisPort.ToString());
-                oOpt.AbortOnConnectFail = true;
-
-                return ConnectionMultiplexer.Connect(oOpt);
-            });
-        }
-
-        private static Lazy<ConnectionMultiplexer> lazyConnection;
-
-        public static ConnectionMultiplexer Connection => lazyConnection.Value;
-    }
-
     public static class jDB
     {
         public enum hashType { MD5, SHA2_256 } //Implemented Hash types
@@ -59,21 +35,6 @@ namespace jaindb
         public static string wwwPath = "wwwroot";
         public static bool UseRethinkDB;
 
-        public static string databaseId;
-        public static string endpointUrl;
-        public static string authorizationKey;
-        public static DocumentClient CosmosDB;
-        public static Database database;
-
-        public static IDatabase cache0;
-        public static IDatabase cache1;
-        public static IDatabase cache2;
-        public static IDatabase cache3;
-        public static IDatabase cache4;
-        public static IServer srv;
-
-        public static IMemoryCache _cache;
-
         public static hashType HashType = hashType.MD5;
 
         public static string BlockType = "INV";
@@ -84,13 +45,16 @@ namespace jaindb
         public static RethinkDb.Driver.Net.Connection conn;
 
         public static List<string> RethinkTables = new List<string>();
-        public static List<string> CosmosTables = new List<string>();
+
 
         internal static Dictionary<string, IStore> _Plugins = new Dictionary<string, IStore>();
 
-        public static void loadPlugins()
+        public static void loadPlugins(string PluginPath = "")
         {
-            ICollection<IStore> plugins = GenericPluginLoader<IStore>.LoadPlugins(Path.Combine(wwwPath, "Plugins"));
+            if (string.IsNullOrEmpty(PluginPath))
+                PluginPath = AppDomain.CurrentDomain.BaseDirectory;
+
+            ICollection<IStore> plugins = GenericPluginLoader<IStore>.LoadPlugins(PluginPath);
             foreach (var item in plugins)
             {
                 _Plugins.Add(item.Name, item);
@@ -99,7 +63,6 @@ namespace jaindb
                 item.Settings.Add("FilePath", FilePath);
                 item.Settings.Add("wwwPath", wwwPath);
                 item.Init();
-
             }
         }
 
@@ -128,43 +91,27 @@ namespace jaindb
             string sResult = "";
             try
             {
-                //Check in MemoryCache
-                if (_cache.TryGetValue("ID-" + name.ToLower() + value.ToLower(), out sResult))
+                foreach (var item in _Plugins.OrderBy(t => t.Key))
                 {
-                    return sResult;
-                }
-                else
-                {
-                    if (UseRedis)
+                    try
                     {
-                        sResult = cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
+                        sResult = item.Value.LookupID(name, value);
 
-                        //Cache result in Memory
                         if (!string.IsNullOrEmpty(sResult))
                         {
-                            var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 1min
-                            _cache.Set("ID-" + name.ToLower() + value.ToLower(), sResult, cacheEntryOptions);
+                            //Write Hash to the first Plugin if the current plugin is not the first one
+                            if (item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
+                            {
+                                _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteLookupID(name, value, sResult);
+                            }
+                            return sResult;
                         }
-
-                        return sResult;
                     }
-
-                    if (UseFileStore || UseCosmosDB)
-                    {
-
-                        sResult = File.ReadAllText(Path.Combine(FilePath, "_key", name.TrimStart('#', '@'), value + ".json"));
-
-                        //Cache result in Memory
-                        if (!string.IsNullOrEmpty(sResult))
-                        {
-                            var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(300)); //cache ID for 5min
-                            _cache.Set("ID-" + name.ToLower() + value.ToLower(), sResult, cacheEntryOptions);
-                        }
-
-                        return sResult;
-
-                    }
+                    catch { }
                 }
+
+
+                return sResult;
             }
             catch (Exception ex)
             {
@@ -292,280 +239,8 @@ namespace jaindb
                     }
                 }
 
-                if (UseRedis)
-                {
-                    switch (Collection.ToLower())
-                    {
-                        case "_full":
-                            //DB 0 = Full Inv
-                            var jObj = JObject.Parse(Data);
-                            JSort(jObj);
-
-                            if (jObj["#id"] == null)
-                                jObj.Add("#id", Hash);
-
-                            string sID = jObj["#id"].ToString();
-
-                            //Store FullContent for 30Days
-                            cache0.StringSetAsync(sID, jObj.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(30, 0, 0, 0));
-
-                            //Store KeyNames for 90Days
-                            foreach (JProperty oSub in jObj.Properties())
-                            {
-                                if (oSub.Name.StartsWith("#"))
-                                {
-                                    if (oSub.Value.Type == JTokenType.Array)
-                                    {
-                                        foreach (var oSubSub in oSub.Values())
-                                        {
-                                            if (oSubSub.ToString() != sID)
-                                            {
-                                                //Store Keys in lower case
-                                                cache1.StringSetAsync(oSub.Name.ToLower().TrimStart('#') + "/" + oSubSub.ToString().ToLower(), sID, new TimeSpan(90, 0, 0, 0));
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if (!string.IsNullOrEmpty((string)oSub.Value))
-                                        {
-                                            if (oSub.Value.ToString() != sID)
-                                            {
-                                                //Store Keys in lower case
-                                                cache1.StringSetAsync(oSub.Name.ToLower().TrimStart('#') + "/" + oSub.Value.ToString().ToLower(), sID, new TimeSpan(90, 0, 0, 0));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (UseFileStore) //in case if Redis and FileStore
-                            {
-                                if (!Directory.Exists(Path.Combine(FilePath, Collection)))
-                                    Directory.CreateDirectory(Path.Combine(FilePath, Collection));
-
-                                if (!File.Exists(Path.Combine(FilePath, Collection, Hash + ".json"))) //We do not have to create the same hash file twice...
-                                {
-                                    lock (locker) //only one write operation
-                                    {
-                                        File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
-                                    }
-                                }
-                            }
-                            break;
-
-                        case "_chain":
-                            var jObj3 = JObject.Parse(Data);
-                            JSort(jObj3);
-
-                            cache3.StringSetAsync(Hash, jObj3.ToString(Newtonsoft.Json.Formatting.None));
-                            break;
-
-                        case "_assets":
-                            var jObj4 = JObject.Parse(Data);
-                            JSort(jObj4);
-
-                            cache4.StringSetAsync(Hash, jObj4.ToString(Newtonsoft.Json.Formatting.None));
-                            break;
-
-                        default:
-                            var jObj2 = JObject.Parse(Data);
-                            JSort(jObj2);
-
-                            cache2.StringSetAsync(Hash, jObj2.ToString(Newtonsoft.Json.Formatting.None));
-                            break;
-                    }
-
-                }
-
-                if (UseCosmosDB)
-                {
-                    string sColl = Collection;
-
-                    if (database == null)
-                    {
-                        database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
-                        if (database == null)
-                            database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
-                    }
-
-                    if (!CosmosTables.Contains(sColl))
-                    {
-                        var collquery = CosmosDB.CreateDocumentCollectionQuery(database.SelfLink, new FeedOptions() { MaxItemCount = 1 });
-                        var oCollExists = collquery.Where(t => t.Id == sColl).AsEnumerable().Any();
-                        if (!oCollExists)
-                        {
-                            lock (locker) //only one write operation
-                            {
-                                CosmosDB.CreateDocumentCollectionAsync(database.SelfLink, new DocumentCollection { Id = sColl }).Wait();
-                                CosmosTables.Add(sColl);
-                            }
-                        }
-                    }
-
-                    //string sJ = "{ \"Id\" : \"" + Hash + "\"," + Data.TrimStart('{');
-                    var jObj = JObject.Parse(Data);
-                    if (jObj.GetValue("id") == null)
-                    {
-                        jObj.Add("id", Hash);
-                    }
-                    jObj.Remove("#id");
-                    try
-                    {
-                        if (sColl == "chain")
-                        {
-                            //lock (locker) //only one write operation
-                            //{
-                            //    //var dUri = UriFactory.CreateDocumentUri(databaseId, sColl, Hash);
-                            //    var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
-                            //    CosmosDB.UpsertDocumentAsync(cUri, jObj).Wait();
-                            //}
-
-                            var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
-                            var docquery = CosmosDB.CreateDocumentQuery(cUri, new FeedOptions() { MaxItemCount = 1 });
-                            var oDocExists = docquery.Where(t => t.Id == Hash).AsEnumerable().Any();
-                            if (!oDocExists)
-                            {
-                                lock (locker) //only one write operation
-                                {
-                                    CosmosDB.CreateDocumentAsync(cUri, jObj).Wait();
-                                }
-                            }
-                            else
-                            {
-                                lock (locker) //only one write operation
-                                {
-                                    var dUri = UriFactory.CreateDocumentUri(databaseId, sColl, Hash);
-                                    CosmosDB.ReplaceDocumentAsync(dUri, jObj).Wait();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
-                            Console.WriteLine("RU charge:" + CosmosDB.CreateDocumentAsync(cUri, jObj).Result.ResponseHeaders["x-ms-request-charge"]);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        ex.Message.ToString();
-                    }
-
-                }
-
                 if (UseCosmosDB || UseRedis)
                     return true;
-
-                if (UseFileStore)
-                {
-                    //Remove invalid Characters in Path and Hash
-                    foreach (var sChar in Path.GetInvalidPathChars())
-                    {
-                        Collection = Collection.Replace(sChar.ToString(), "");
-                        Hash = Hash.Replace(sChar.ToString(), "");
-                    }
-
-                    string sCol = Path.Combine(FilePath, Collection);
-                    if (!Directory.Exists(sCol))
-                        Directory.CreateDirectory(sCol);
-
-                    switch (Collection.ToLower())
-                    {
-                        case "_full":
-                            //DB 0 = Full Inv
-                            var jObj = JObject.Parse(Data);
-                            JSort(jObj);
-
-                            string sID = jObj["#id"].ToString();
-
-                            if (!Directory.Exists(Path.Combine(FilePath, "_key")))
-                                Directory.CreateDirectory(Path.Combine(FilePath, "_key"));
-
-                            //Store KeyNames
-                            foreach (JProperty oSub in jObj.Properties())
-                            {
-                                if (oSub.Name.StartsWith("#"))
-                                {
-                                    if (oSub.Value.Type == JTokenType.Array)
-                                    {
-                                        foreach (var oSubSub in oSub.Values())
-                                        {
-                                            try
-                                            {
-                                                if (oSubSub.ToString() != sID)
-                                                {
-                                                    string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
-
-                                                    //Remove invalid Characters in Path
-                                                    foreach (var sChar in Path.GetInvalidPathChars())
-                                                    {
-                                                        sDir = sDir.Replace(sChar.ToString(), "");
-                                                    }
-
-                                                    if (!Directory.Exists(sDir))
-                                                        Directory.CreateDirectory(sDir);
-
-                                                    File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
-                                                }
-                                            }
-                                            catch { }
-                                        }
-
-                                    }
-                                    else
-                                    {
-                                        if (!string.IsNullOrEmpty((string)oSub.Value))
-                                        {
-                                            if (oSub.Value.ToString() != sID)
-                                            {
-                                                try
-                                                {
-                                                    string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
-
-                                                    //Remove invalid Characters in Path
-                                                    foreach (var sChar in Path.GetInvalidPathChars())
-                                                    {
-                                                        sDir = sDir.Replace(sChar.ToString(), "");
-                                                    }
-
-                                                    if (!Directory.Exists(sDir))
-                                                        Directory.CreateDirectory(sDir);
-
-                                                    File.WriteAllText(Path.Combine(sDir, (string)oSub.Value + ".json"), sID);
-                                                }
-                                                catch { }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            lock (locker) //only one write operation
-                            {
-                                File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
-                            }
-                            break;
-
-                        case "_chain":
-                            lock (locker) //only one write operation
-                            {
-                                File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
-                            }
-                            break;
-
-                        default:
-                            if (!File.Exists(Path.Combine(FilePath, Collection, Hash + ".json"))) //We do not have to create the same hash file twice...
-                            {
-                                lock (locker) //only one write operation
-                                {
-                                    File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
-                                }
-                            }
-                            break;
-                    }
-
-                    return true;
-                }
             }
             catch (Exception ex)
             {
@@ -628,63 +303,6 @@ namespace jaindb
 
                 return sResult;
 
-                //Check if MemoryCache is initialized
-                if (_cache == null)
-                {
-                    _cache = new MemoryCache(new MemoryCacheOptions());
-                }
-
-
-                //Try to get value from Memory
-                if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
-                {
-                    return sResult;
-                }
-
-                if (UseRedis)
-                {
-                    switch (Collection)
-                    {
-                        case "_full":
-                            return cache0.StringGet(Hash);
-
-                        case "_chain":
-                            return cache3.StringGet(Hash);
-
-                        case "_assets":
-                            return cache4.StringGet(Hash);
-
-                        default:
-                            sResult = cache2.StringGet(Hash);
-
-#if DEBUG
-                            //Check if hashes are valid...
-                            var jData = JObject.Parse(sResult);
-                            /*if (jData["#id"] != null)
-                                jData.Remove("#id");*/
-                            if (jData["_date"] != null)
-                                jData.Remove("_date");
-                            if (jData["_index"] != null)
-                                jData.Remove("_index");
-
-                            string s1 = CalculateHash(jData.ToString(Formatting.None));
-                            if (Hash != s1)
-                            {
-                                s1.ToString();
-                                return "";
-                            }
-#endif
-
-                            //Cache result in Memory
-                            if (!string.IsNullOrEmpty(sResult))
-                            {
-                                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(30)); //cache hash for 30s
-                                _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
-                            }
-                            return sResult;
-                    }
-                }
-
                 if (UseRethinkDB)
                 {
                     try
@@ -697,11 +315,6 @@ namespace jaindb
                         if (Collection != "_chain")
                         {
                             //Cache result in Memory
-                            if (!string.IsNullOrEmpty(sResult))
-                            {
-                                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
-                                _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
-                            }
                         }
 
                         return sResult;
@@ -712,96 +325,6 @@ namespace jaindb
                     }
 
                     return "";
-                }
-
-                if (UseFileStore)
-                {
-                    try
-                    {
-                        string Coll2 = Collection;
-                        //Remove invalid Characters in Path anf File
-                        foreach (var sChar in Path.GetInvalidPathChars())
-                        {
-                            Coll2 = Coll2.Replace(sChar.ToString(), "");
-                            Hash = Hash.Replace(sChar.ToString(), "");
-                        }
-
-                        sResult = File.ReadAllText(Path.Combine(FilePath, Coll2, Hash + ".json"));
-
-#if DEBUG
-                        //Check if hashes are valid...
-                        if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
-                        {
-                            var jData = JObject.Parse(sResult);
-                            /*if (jData["#id"] != null)
-                                jData.Remove("#id");*/
-                            if (jData["_date"] != null)
-                                jData.Remove("_date");
-                            if (jData["_index"] != null)
-                                jData.Remove("_index");
-
-                            string s1 = CalculateHash(jData.ToString(Formatting.None));
-                            if (Hash != s1)
-                            {
-                                s1.ToString();
-                                return "";
-                            }
-                        }
-#endif
-                        //Cache result in Memory
-                        if (!string.IsNullOrEmpty(sResult))
-                        {
-                            var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
-                            _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine("Error ReadHash_1: " + ex.Message.ToString());
-                    }
-                    return sResult;
-                }
-
-                if (UseCosmosDB)
-                {
-                    if (database == null)
-                    {
-                        database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
-                        if (database == null)
-                            database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
-                    }
-
-                    string sColl = Collection;
-                    switch (Collection)
-                    {
-                        case "_assets":
-                            sColl = "assets";
-                            break;
-                        case "_chain":
-                            sColl = "chain";
-                            break;
-                    }
-
-                    var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;
-                    JObject jRes = JObject.Parse(sRes.ToString());
-                    string sID = jRes["id"].Value<string>();
-
-                    jRes.Remove("id");
-                    jRes.Remove("_rid");
-                    jRes.Remove("_ts");
-                    jRes.Remove("_etag");
-                    jRes.Remove("_self");
-                    jRes.Remove("_attachments");
-                    jRes.Add("#id", sID);
-                    sResult = jRes.ToString(Newtonsoft.Json.Formatting.None);
-
-                    //Cache result in Memory
-                    if (!string.IsNullOrEmpty(sResult))
-                    {
-                        var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache hash for 60s
-                        _cache.Set("RH-" + Collection + "-" + Hash, sResult, cacheEntryOptions);
-                    }
-                    return sResult;
                 }
 
             }
@@ -1273,10 +796,6 @@ namespace jaindb
                             //Cache Full
                             WriteHash(DeviceID, oInv.ToString(), "_full");
                         }
-
-                        /*var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache full for 60s
-                        _cache.Set("FULL-" + DeviceID + "-" + Index.ToString(), oInv, cacheEntryOptions);*/
-
                         return oInv;
                     }
                 }
@@ -1369,22 +888,6 @@ namespace jaindb
 
         public static JArray GetJHistory(string DeviceID, string blockType = "")
         {
-            string sResult = "";
-
-            try
-            {
-                //Check in MemoryCache
-                if (_cache.TryGetValue("HIST - " + DeviceID + " - " + blockType, out sResult))
-                {
-                    //Try to get value from Memory
-                    if (!string.IsNullOrEmpty(sResult))
-                    {
-                        return JArray.Parse(sResult);
-                    }
-                }
-            }
-            catch { }
-
             JArray jResult = new JArray();
 
             if (string.IsNullOrEmpty(blockType))
@@ -1405,13 +908,6 @@ namespace jaindb
                         jResult.Add(jTemp);
                     }
                     catch { }
-                }
-
-                //Cache result in Memory
-                if (!string.IsNullOrEmpty(sResult))
-                {
-                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 60s
-                    _cache.Set("HIST - " + DeviceID + " - " + blockType, jResult.ToString(Formatting.None), cacheEntryOptions);
                 }
             }
             catch { }
@@ -1647,19 +1143,19 @@ namespace jaindb
         /// <returns></returns>
         public static List<string> Search(string searchkey, string KeyID = "#id")
         {
-            if (string.IsNullOrEmpty(searchkey))
-                return new List<string>();
+            //if (string.IsNullOrEmpty(searchkey))
+            //    return new List<string>();
 
-            if (string.IsNullOrEmpty(KeyID))
-                KeyID = "#id";
+            //if (string.IsNullOrEmpty(KeyID))
+            //    KeyID = "#id";
 
-            if (KeyID.Contains(','))
-                KeyID = KeyID.Split(',')[0];
+            //if (KeyID.Contains(','))
+            //    KeyID = KeyID.Split(',')[0];
 
             List<string> lNames = new List<string>();
 
-            lNames = FindLatestAsync(System.Net.WebUtility.UrlDecode(searchkey), "#" + KeyID.TrimStart('?').TrimStart('#')).Result;
-            lNames.Sort();
+            //lNames = FindLatestAsync(System.Net.WebUtility.UrlDecode(searchkey), "#" + KeyID.TrimStart('?').TrimStart('#')).Result;
+            //lNames.Sort();
             return lNames.Union(lNames).ToList();
         }
 
@@ -2111,578 +1607,6 @@ namespace jaindb
                 }
 
                 return aRes;
-                if (UseRedis)
-                {
-                    foreach (var oObj in srv.Keys(4, "*"))
-                    {
-                        bool foundData = false;
-
-                        JObject jObj = GetRaw(ReadHash(oObj, "_assets"), paths);
-
-                        if (paths.Contains("*") || paths.Contains(".."))
-                        {
-                            try
-                            {
-                                jObj = GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
-                            }
-                            catch { }
-                        }
-
-                        //Where filter..
-                        if (lWhere.Count > 0)
-                        {
-                            bool bWhere = false;
-                            foreach (string sWhere in lWhere)
-                            {
-                                try
-                                {
-                                    string sPath = sWhere;
-                                    string sVal = "";
-                                    string sOp = "";
-                                    if (sWhere.Contains("=="))
-                                    {
-                                        sVal = sWhere.Split("==")[1];
-                                        sOp = "eq";
-                                        sPath = sWhere.Split("==")[0];
-                                    }
-                                    if (sWhere.Contains("!="))
-                                    {
-                                        sVal = sWhere.Split("!=")[1];
-                                        sOp = "ne";
-                                        sPath = sWhere.Split("!=")[0];
-                                    }
-
-                                    var jRes = jObj.SelectToken(sPath);
-                                    if (jRes == null)
-                                    {
-                                        bWhere = true;
-                                        continue;
-                                    }
-                                    else
-                                    {
-                                        switch (sOp)
-                                        {
-                                            case "eq":
-                                                if (sVal != jRes.ToString())
-                                                {
-                                                    bWhere = true;
-                                                    continue;
-                                                }
-                                                break;
-                                            case "ne":
-                                                if (sVal == jRes.ToString())
-                                                {
-                                                    bWhere = true;
-                                                    continue;
-                                                }
-                                                break;
-                                            default:
-                                                bWhere = true;
-                                                continue;
-                                        }
-                                    }
-                                }
-                                catch { }
-                            }
-
-                            if (bWhere)
-                            {
-                                continue;
-                            }
-                        }
-
-                        JObject oRes = new JObject();
-
-                        foreach (string sAttrib in select.Split(';'))
-                        {
-                            try
-                            {
-                                //var jVal = jObj[sAttrib];
-                                var jVal = jObj.SelectToken(sAttrib);
-
-                                if (jVal != null)
-                                {
-                                    oRes.Add(sAttrib.Trim(), jVal);
-                                }
-                            }
-                            catch { }
-                        }
-
-                        if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
-                        {
-                            //Generate list of excluded paths
-                            List<string> sExclPath = new List<string>();
-                            foreach (string sExclude in lExclude)
-                            {
-                                foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
-                                {
-                                    sExclPath.Add(oRem.Path);
-                                }
-                            }
-
-                            foreach (string path in paths.Split(';'))
-                            {
-                                try
-                                {
-                                    var oToks = jObj.SelectTokens(path.Trim(), false);
-
-                                    if (oToks.Count() == 0)
-                                    {
-                                        if (!foundData)
-                                        {
-                                            oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
-                                            break;
-                                        }
-                                    }
-
-                                    foreach (JToken oTok in oToks)
-                                    {
-                                        try
-                                        {
-                                            if (oTok.Type == JTokenType.Object)
-                                            {
-                                                oRes.Merge(oTok);
-                                                //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
-                                                continue;
-                                            }
-                                            if (oTok.Type == JTokenType.Array)
-                                            {
-                                                oRes.Add(new JProperty(path, oTok));
-                                            }
-                                            if (oTok.Type == JTokenType.Property)
-                                                oRes.Add(oTok.Parent);
-
-                                            if (oTok.Type == JTokenType.String ||
-                                                oTok.Type == JTokenType.Integer ||
-                                                oTok.Type == JTokenType.Date ||
-                                                oTok.Type == JTokenType.Boolean ||
-                                                oTok.Type == JTokenType.Float ||
-                                                oTok.Type == JTokenType.Guid ||
-                                                oTok.Type == JTokenType.TimeSpan)
-                                            {
-                                                //check if path is excluded
-                                                if (!sExclPath.Contains(oTok.Path))
-                                                    oRes.Add(oTok.Path, oTok);
-                                            }
-
-                                            if (oTok.Type == JTokenType.Date)
-                                                oRes.Add(oTok.Parent);
-
-                                            foundData = true;
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Debug.WriteLine("Error QueryAll_1: " + ex.Message.ToString());
-                                        }
-
-                                    }
-
-                                    /*if (oToks.Count() == 0)
-                                        oRes = new JObject(); */
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
-                                }
-                            }
-                        }
-
-                        if (oRes.HasValues)
-                        {
-                            string sHa = CalculateHash(oRes.ToString(Formatting.None));
-                            if (!lHashes.Contains(sHa))
-                            {
-                                aRes.Add(oRes);
-                                lHashes.Add(sHa);
-                            }
-
-                            //Remove excluded Properties
-                            foreach (string sExclude in lExclude)
-                            {
-                                foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
-                                {
-                                    oRem.Parent.Remove();
-                                }
-                            }
-                        }
-                    }
-                    return aRes;
-                }
-
-                if (UseFileStore)
-                {
-                    foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_assets")).GetFiles("*.json"))
-                    {
-                        bool foundData = false;
-                        JObject jObj = GetRaw(File.ReadAllText(oFile.FullName), paths);
-
-                        if (paths.Contains("*") || paths.Contains(".."))
-                        {
-                            try
-                            {
-                                jObj = GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
-                            }
-                            catch { }
-                        }
-
-                        //Where filter..
-                        if (lWhere.Count > 0)
-                        {
-                            bool bWhere = false;
-                            foreach (string sWhere in lWhere)
-                            {
-                                try
-                                {
-                                    string sPath = sWhere;
-                                    string sVal = "";
-                                    string sOp = "";
-                                    if (sWhere.Contains("=="))
-                                    {
-                                        sVal = sWhere.Split("==")[1];
-                                        sOp = "eq";
-                                        sPath = sWhere.Split("==")[0];
-                                    }
-                                    if (sWhere.Contains("!="))
-                                    {
-                                        sVal = sWhere.Split("!=")[1];
-                                        sOp = "ne";
-                                        sPath = sWhere.Split("!=")[0];
-                                    }
-
-                                    var jRes = jObj.SelectToken(sPath);
-                                    if (jRes == null)
-                                    {
-                                        bWhere = true;
-                                        continue;
-                                    }
-                                    else
-                                    {
-                                        switch (sOp)
-                                        {
-                                            case "eq":
-                                                if (sVal != jRes.ToString())
-                                                {
-                                                    bWhere = true;
-                                                    continue;
-                                                }
-                                                break;
-                                            case "ne":
-                                                if (sVal == jRes.ToString())
-                                                {
-                                                    bWhere = true;
-                                                    continue;
-                                                }
-                                                break;
-                                            default:
-                                                bWhere = true;
-                                                continue;
-                                        }
-                                    }
-                                }
-                                catch { }
-                            }
-
-                            if (bWhere)
-                            {
-                                continue;
-                            }
-                        }
-
-                        JObject oRes = new JObject();
-
-                        foreach (string sAttrib in select.Split(';'))
-                        {
-                            try
-                            {
-                                //var jVal = jObj[sAttrib];
-                                var jVal = jObj.SelectToken(sAttrib);
-
-                                if (jVal != null)
-                                {
-                                    oRes.Add(sAttrib.Trim(), jVal);
-                                }
-                            }
-                            catch { }
-                        }
-
-                        if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
-                        {
-                            //Generate list of excluded paths
-                            List<string> sExclPath = new List<string>();
-                            foreach (string sExclude in lExclude)
-                            {
-                                foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
-                                {
-                                    sExclPath.Add(oRem.Path);
-                                }
-                            }
-
-                            foreach (string path in paths.Split(';'))
-                            {
-                                try
-                                {
-                                    var oToks = jObj.SelectTokens(path.Trim(), false);
-
-                                    if (oToks.Count() == 0)
-                                    {
-                                        if (!foundData)
-                                        {
-                                            oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
-                                            continue;
-                                        }
-                                    }
-
-                                    foreach (JToken oTok in oToks)
-                                    {
-                                        try
-                                        {
-                                            if (oTok.Type == JTokenType.Object)
-                                            {
-                                                oRes.Merge(oTok);
-                                                //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
-                                                continue;
-                                            }
-                                            if (oTok.Type == JTokenType.Array)
-                                            {
-                                                oRes.Add(new JProperty(path, oTok));
-                                            }
-                                            if (oTok.Type == JTokenType.Property)
-                                                oRes.Add(oTok.Parent);
-
-                                            if (oTok.Type == JTokenType.String)
-                                            {
-                                                //check if path is excluded
-                                                if (!sExclPath.Contains(oTok.Path))
-                                                    oRes.Add(oTok.Path, oTok.ToString());
-                                            }
-
-                                            if (oTok.Type == JTokenType.Date)
-                                                oRes.Add(oTok.Parent);
-
-                                            foundData = true;
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
-                                        }
-
-                                    }
-
-                                    /*if (oToks.Count() == 0)
-                                        oRes = new JObject(); */
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
-                                }
-                            }
-                        }
-
-                        if (oRes.HasValues)
-                        {
-                            string sHa = CalculateHash(oRes.ToString(Formatting.None));
-                            if (!lHashes.Contains(sHa))
-                            {
-                                aRes.Add(oRes);
-                                lHashes.Add(sHa);
-                            }
-
-                            //Remove excluded Properties
-                            foreach (string sExclude in lExclude)
-                            {
-                                foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
-                                {
-                                    oRem.Parent.Remove();
-                                    //oRes.Remove(oRem.Path);
-                                }
-                            }
-                        }
-                    }
-                    return aRes;
-                }
-
-                if (UseCosmosDB)
-                {
-                    var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "assets"), "SELECT * FROM c");
-                    foreach (var oAsset in oAssets)
-                    {
-                        bool foundData = false;
-                        JObject jObj = oAsset;
-                        //Where filter..
-                        if (lWhere.Count > 0)
-                        {
-                            bool bWhere = false;
-                            foreach (string sWhere in lWhere)
-                            {
-                                try
-                                {
-                                    string sPath = sWhere;
-                                    string sVal = "";
-                                    string sOp = "";
-                                    if (sWhere.Contains("=="))
-                                    {
-                                        sVal = sWhere.Split("==")[1];
-                                        sOp = "eq";
-                                        sPath = sWhere.Split("==")[0];
-                                    }
-                                    if (sWhere.Contains("!="))
-                                    {
-                                        sVal = sWhere.Split("!=")[1];
-                                        sOp = "ne";
-                                        sPath = sWhere.Split("!=")[0];
-                                    }
-
-                                    var jRes = jObj.SelectToken(sPath);
-                                    if (jRes == null)
-                                    {
-                                        bWhere = true;
-                                        continue;
-                                    }
-                                    else
-                                    {
-                                        switch (sOp)
-                                        {
-                                            case "eq":
-                                                if (sVal != jRes.ToString())
-                                                {
-                                                    bWhere = true;
-                                                    continue;
-                                                }
-                                                break;
-                                            case "ne":
-                                                if (sVal == jRes.ToString())
-                                                {
-                                                    bWhere = true;
-                                                    continue;
-                                                }
-                                                break;
-                                            default:
-                                                bWhere = true;
-                                                continue;
-                                        }
-                                    }
-                                }
-                                catch { }
-                            }
-
-                            if (bWhere)
-                            {
-                                continue;
-                            }
-                        }
-
-                        JObject oRes = new JObject();
-
-                        foreach (string sAttrib in select.Split(';'))
-                        {
-                            try
-                            {
-                                //var jVal = jObj[sAttrib];
-                                var jVal = jObj.SelectToken(sAttrib);
-
-                                if (jVal != null)
-                                {
-                                    oRes.Add(sAttrib.Trim(), jVal);
-                                }
-                            }
-                            catch { }
-                        }
-
-                        if (!string.IsNullOrEmpty(paths)) //only return defined objects, if empty all object will return
-                        {
-                            //Generate list of excluded paths
-                            List<string> sExclPath = new List<string>();
-                            foreach (string sExclude in lExclude)
-                            {
-                                foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
-                                {
-                                    sExclPath.Add(oRem.Path);
-                                }
-                            }
-
-                            foreach (string path in paths.Split(';'))
-                            {
-                                try
-                                {
-                                    var oToks = jObj.SelectTokens(path.Trim(), false);
-
-                                    if (oToks.Count() == 0)
-                                    {
-                                        if (!foundData)
-                                        {
-                                            oRes = new JObject(); //remove selected attributes as we do not have any vresults from jsonpath
-                                            continue;
-                                        }
-                                    }
-
-                                    foreach (JToken oTok in oToks)
-                                    {
-                                        try
-                                        {
-                                            if (oTok.Type == JTokenType.Object)
-                                            {
-                                                oRes.Merge(oTok);
-                                                //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
-                                                continue;
-                                            }
-                                            if (oTok.Type == JTokenType.Array)
-                                            {
-                                                oRes.Add(new JProperty(path, oTok));
-                                            }
-                                            if (oTok.Type == JTokenType.Property)
-                                                oRes.Add(oTok.Parent);
-
-                                            if (oTok.Type == JTokenType.String)
-                                            {
-                                                //check if path is excluded
-                                                if (!sExclPath.Contains(oTok.Path))
-                                                    oRes.Add(oTok.Path, oTok.ToString());
-                                            }
-
-                                            if (oTok.Type == JTokenType.Date)
-                                                oRes.Add(oTok.Parent);
-
-                                            foundData = true;
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
-                                        }
-
-                                    }
-
-                                    /*if (oToks.Count() == 0)
-                                        oRes = new JObject(); */
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
-                                }
-                            }
-                        }
-
-                        if (oRes.HasValues)
-                        {
-                            string sHa = CalculateHash(oRes.ToString(Formatting.None));
-                            if (!lHashes.Contains(sHa))
-                            {
-                                aRes.Add(oRes);
-                                lHashes.Add(sHa);
-                            }
-
-                            //Remove excluded Properties
-                            foreach (string sExclude in lExclude)
-                            {
-                                foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
-                                {
-                                    oRem.Parent.Remove();
-                                    //oRes.Remove(oRem.Path);
-                                }
-                            }
-                        }
-                    }
-                    return aRes;
-                }
             }
             catch { }
 
@@ -2740,49 +1664,27 @@ namespace jaindb
             return await Task.Run(() =>
             {
                 List<string> lResult = new List<string>();
+
+                foreach (var item in _Plugins.OrderBy(t => t.Key))
+                {
+                    try
+                    {
+                        lResult = item.Value.GetAllIDs();
+
+                        if (lResult.Count() > 0)
+                        {
+                            return lResult;
+                        }
+                    }
+                    catch { }
+                }
+                return lResult;
                 try
                 {
-                    if (UseRedis)
-                    {
-                        foreach (var oObj in srv.Keys(3, "*"))
-                        {
-                            lResult.Add(oObj.ToString());
-                        }
-
-                        return lResult;
-                    }
-
                     if (UseRethinkDB)
                     {
                         var oRes = R.Table("_chain").GetField("#id").RunCursor<string>(conn).BufferedItems;
                         lResult.AddRange(oRes);
-                    }
-
-                    if (UseCosmosDB)
-                    {
-                        if (database == null)
-                        {
-                            database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
-                            if (database == null)
-                                database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
-                        }
-
-                        var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, "chain");
-
-                        var docquery = CosmosDB.CreateDocumentQuery<Document>(cUri).Select(t => t.Id);
-                        foreach (var oDoc in docquery.AsEnumerable())
-                        {
-                            lResult.Add(oDoc);
-                        }
-                    }
-
-                    if (UseFileStore)
-                    {
-                        foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
-                        {
-                            lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
-                        }
-                        return lResult;
                     }
                 }
                 catch { }
@@ -2801,53 +1703,53 @@ namespace jaindb
             return await Task.Run(() =>
             {
                 List<string> lResult = new List<string>();
-                try
-                {
-                    var cache5 = RedisConnectorHelper.Connection.GetDatabase(5);
-                    string sBlocks = cache5.StringGet("latestBlocks");
+                //try
+                //{
+                //    var cache5 = RedisConnectorHelper.Connection.GetDatabase(5);
+                //    string sBlocks = cache5.StringGet("latestBlocks");
 
-                    if (string.IsNullOrEmpty(sBlocks))
-                    {
-                        try
-                        {
-                            if (UseRedis)
-                            {
-                                //var cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
+                //    if (string.IsNullOrEmpty(sBlocks))
+                //    {
+                //        try
+                //        {
+                //            if (UseRedis)
+                //            {
+                //                //var cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
 
-                                foreach (var sID in GetAllChainsAsync().Result)
-                                {
-                                    try
-                                    {
-                                        var jObj = JObject.Parse(cache3.StringGet(sID));
-                                        lResult.Add(jObj["Chain"].Last["data"].ToString());
-                                    }
-                                    catch { }
-                                }
-                            }
+                //                foreach (var sID in GetAllChainsAsync().Result)
+                //                {
+                //                    try
+                //                    {
+                //                        var jObj = JObject.Parse(cache3.StringGet(sID));
+                //                        lResult.Add(jObj["Chain"].Last["data"].ToString());
+                //                    }
+                //                    catch { }
+                //                }
+                //            }
 
-                            if (UseRethinkDB)
-                            {
-                                foreach (var sID in GetAllChainsAsync().Result)
-                                {
-                                    try
-                                    {
-                                        var oRes = R.Table("_chain").Get(sID).GetField("Chain").Nth(-1).GetField("data").RunCursor<string>(conn).BufferedItems;
-                                        lResult.AddRange(oRes);
-                                    }
-                                    catch { }
-                                }
+                //            if (UseRethinkDB)
+                //            {
+                //                foreach (var sID in GetAllChainsAsync().Result)
+                //                {
+                //                    try
+                //                    {
+                //                        var oRes = R.Table("_chain").Get(sID).GetField("Chain").Nth(-1).GetField("data").RunCursor<string>(conn).BufferedItems;
+                //                        lResult.AddRange(oRes);
+                //                    }
+                //                    catch { }
+                //                }
 
-                            }
-                        }
-                        catch { }
+                //            }
+                //        }
+                //        catch { }
 
-                        cache5.StringSet("latestBlocks", String.Join(";", lResult), new TimeSpan(0, 5, 0)); // Store for 5min
-                    }
-                    else
-                        return sBlocks.Split(';').ToList();
+                //        cache5.StringSet("latestBlocks", String.Join(";", lResult), new TimeSpan(0, 5, 0)); // Store for 5min
+                //    }
+                //    else
+                //        return sBlocks.Split(';').ToList();
 
-                }
-                catch { }
+                //}
+                //catch { }
                 return lResult;
             });
         }
@@ -2859,17 +1761,17 @@ namespace jaindb
                 List<string> lResult = new List<string>();
                 try
                 {
-                    if (UseRedis)
-                    {
-                        foreach (var oObj in srv.Keys(2, "*"))
-                        {
-                            string sVal = cache2.StringGet(oObj);
-                            if (sVal.Contains(searchstring))
-                            {
-                                lResult.Add(oObj);
-                            }
-                        }
-                    }
+                    //if (UseRedis)
+                    //{
+                    //    foreach (var oObj in srv.Keys(2, "*"))
+                    //    {
+                    //        string sVal = cache2.StringGet(oObj);
+                    //        if (sVal.Contains(searchstring))
+                    //        {
+                    //            lResult.Add(oObj);
+                    //        }
+                    //    }
+                    //}
                 }
                 catch { }
 
@@ -2885,19 +1787,19 @@ namespace jaindb
                 List<string> latestBlocks = GetLatestBlocksAsync().Result;
                 if (UseRedis)
                 {
-                    foreach (string sRawID in latestBlocks)
-                    {
-                        try
-                        {
-                            var sRaw = cache4.StringGet(sRawID).ToString();
-                            foreach (string Hash in HashList)
-                            {
-                                if (sRaw.Contains(Hash))
-                                    lResult.Add(JObject.Parse(sRaw)[KeyID].ToString());
-                            }
-                        }
-                        catch { }
-                    }
+                    //foreach (string sRawID in latestBlocks)
+                    //{
+                    //    try
+                    //    {
+                    //        var sRaw = cache4.StringGet(sRawID).ToString();
+                    //        foreach (string Hash in HashList)
+                    //        {
+                    //            if (sRaw.Contains(Hash))
+                    //                lResult.Add(JObject.Parse(sRaw)[KeyID].ToString());
+                    //        }
+                    //    }
+                    //    catch { }
+                    //}
                 }
             }
             catch { }
@@ -3218,46 +2120,13 @@ namespace jaindb
                         //Write Hash to the first Plugin if the current plugin is not the first one
                         if (item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
                         {
-                            _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash("", iCount.ToString() , "totaldevicecount");
+                            _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash("", iCount.ToString(), "totaldevicecount");
                         }
                         return iCount;
                     }
                 }
                 catch { }
             }
-
-
-                    try
-            {
-                //Check in MemoryCache
-                if (_cache.TryGetValue("totalDeviceCount", out iCount))
-                {
-                    return iCount;
-                }
-
-                if (UseFileStore)
-                {
-                    if (string.IsNullOrEmpty(sPath))
-                        sPath = Path.Combine(FilePath, "_chain");
-
-                    if (Directory.Exists(sPath))
-                        iCount = Directory.GetFiles(sPath).Count(); //count Blockchain Files
-
-                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 60s
-                    _cache.Set("totalDeviceCount", iCount, cacheEntryOptions);
-                }
-
-                if (UseCosmosDB)
-                {
-                    //var oAssets = CosmosDB.CreateDocumentQuery(UriFactory. (databaseId, "assets"), "SELECT VALUE COUNT(c.id) FROM c");
-                    var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "chain"), "SELECT c.id FROM c");
-                    Console.WriteLine("RU charge:" + oAssets.AsDocumentQuery().ExecuteNextAsync().Result.ResponseHeaders["x-ms-request-charge"]);
-                    iCount = oAssets.ToList().Count();
-                    var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(60)); //cache ID for 60s
-                    _cache.Set("totalDeviceCount", iCount, cacheEntryOptions);
-                }
-            }
-            catch { }
 
             return iCount;
         }
@@ -3270,7 +2139,7 @@ namespace jaindb
 
                 if (Directory.Exists(path))
                 {
-                    dllFileNames = Directory.GetFiles(path, "*.dll");
+                    dllFileNames = Directory.GetFiles(path, "plugin*.dll");
 
                     ICollection<Assembly> assemblies = new List<Assembly>(dllFileNames.Length);
                     foreach (string dllFile in dllFileNames)

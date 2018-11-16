@@ -16,6 +16,7 @@ namespace Plugin_FileStore
         private bool bReadOnly = false;
         private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
+        private bool CacheKeys = true;
 
         private string FilePath = "";
         private JObject JConfig = new JObject();
@@ -26,7 +27,7 @@ namespace Plugin_FileStore
         {
             get
             {
-                return "100_FileStore";
+                return "500_FileStore";
             }
         }
 
@@ -38,12 +39,18 @@ namespace Plugin_FileStore
             FilePath = Settings["FilePath"] ?? "";
             try
             {
+                if (!File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
+                {
+                    File.WriteAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json"), Properties.Resources.Plugin_FileStore);
+                }
+
                 if (File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
                 {
                     JConfig = JObject.Parse(File.ReadAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")));
                     bReadOnly = JConfig["ReadOnly"].Value<bool>();
                     ContinueAfterWrite = JConfig["ContinueAfterWrite"].Value<bool>();
                     CacheFull = JConfig["CacheFull"].Value<bool>();
+                    CacheKeys = JConfig["CacheKeys"].Value<bool>();
                 }
                 else
                 {
@@ -100,7 +107,8 @@ namespace Plugin_FileStore
                                     {
                                         if (oSubSub.ToString() != sID)
                                         {
-                                            string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
+                                            WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                            /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
 
                                             //Remove invalid Characters in Path
                                             foreach (var sChar in Path.GetInvalidPathChars())
@@ -112,6 +120,7 @@ namespace Plugin_FileStore
                                                 Directory.CreateDirectory(sDir);
 
                                             File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
+                                            */
                                         }
                                     }
                                     catch { }
@@ -126,7 +135,8 @@ namespace Plugin_FileStore
                                     {
                                         try
                                         {
-                                            string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
+                                            WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                            /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
 
                                             //Remove invalid Characters in Path
                                             foreach (var sChar in Path.GetInvalidPathChars())
@@ -138,6 +148,7 @@ namespace Plugin_FileStore
                                                 Directory.CreateDirectory(sDir);
 
                                             File.WriteAllText(Path.Combine(sDir, (string)oSub.Value + ".json"), sID);
+                                            */
                                         }
                                         catch { }
                                     }
@@ -253,6 +264,58 @@ namespace Plugin_FileStore
                 }
                 yield return jObj;
             }
+        }
+
+        public string LookupID(string name, string value)
+        {
+            string sResult = "";
+            try
+            {
+                sResult = File.ReadAllText(Path.Combine(FilePath, "_key", name.TrimStart('#', '@'), value + ".json"));
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public bool WriteLookupID(string name, string value, string id)
+        {
+            try
+            {
+                string sDir = Path.Combine(FilePath, "_key", name.ToLower().TrimStart('#'));
+
+                //Remove invalid Characters in Path
+                foreach (var sChar in Path.GetInvalidPathChars())
+                {
+                    sDir = sDir.Replace(sChar.ToString(), "");
+                }
+
+                if (!Directory.Exists(sDir))
+                    Directory.CreateDirectory(sDir);
+
+                File.WriteAllText(Path.Combine(sDir, value + ".json"), id);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public List<string> GetAllIDs()
+        {
+            List<string> lResult = new List<string>();
+
+            try
+            {
+                foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
+                {
+                    lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
+                }
+            }
+            catch { }
+
+            return lResult;
         }
     }
 

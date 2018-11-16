@@ -20,6 +20,13 @@ namespace JainDBProvider
 
         IEnumerable<JObject> GetRawAssets(string paths);
 
+        string LookupID(string name, string value);
+
+        bool WriteLookupID(string name, string value, string id);
+
+        List<string> GetAllIDs();
+
+
     }
 
 
