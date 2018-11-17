@@ -34,7 +34,7 @@ namespace Plugin_Redis
         {
             get
             {
-                return "100_RedisCache";
+                return Assembly.GetExecutingAssembly().ManifestModule.Name;
             }
         }
 

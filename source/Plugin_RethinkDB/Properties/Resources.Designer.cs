@@ -67,7 +67,9 @@ namespace Plugin_RethinkDB.Properties {
         ///  &quot;ContinueAfterWrite&quot;: true,
         ///  &quot;CacheFull&quot;: true,
         ///  &quot;CacheKeys&quot;: true,
-        ///  &quot;RedisConnectionString&quot;:  &quot;localhost:6379&quot;
+        ///  &quot;RethinkDBServer&quot;: &quot;localhost&quot;,
+        ///  &quot;Port&quot;: 28015,
+        ///  &quot;Database&quot;:  &quot;jaindb&quot;
         ///}.
         /// </summary>
         internal static string Plugin_RethinkDB {

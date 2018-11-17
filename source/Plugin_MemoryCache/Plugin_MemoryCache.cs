@@ -26,7 +26,7 @@ namespace Plugin_MemoryCache
         {
             get
             {
-                return "010_MemoryCache";
+                return Assembly.GetExecutingAssembly().ManifestModule.Name;
             }
         }
 

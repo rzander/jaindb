@@ -7,19 +7,15 @@
     <Copyright>(c) 2018 by Roger Zander</Copyright>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
-    <Description>jaindb base library</Description>
+    <Description>jaindb base library to generate blockchain. Additional Storage-Providers are required</Description>
     <PackageTags>blockchain json database warehouse store</PackageTags>
-    <PackageIconUrl>"D:\GitHub\jaindb\source\jaindb\JainDB_Logo.ico"</PackageIconUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/rzander/jaindb/master/source/jaindb/JainDB_Logo.ico</PackageIconUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="JsonDiffPatch.Net" Version="2.1.0" />
-    <PackageReference Include="Microsoft.Azure.DocumentDB.Core" Version="2.1.3" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.1.2" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
-    <PackageReference Include="RethinkDb.Driver" Version="2.3.23" />
-    <PackageReference Include="StackExchange.Redis" Version="2.0.513" />
   </ItemGroup>
 
   <ItemGroup>

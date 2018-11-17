@@ -9,7 +9,6 @@ using System.Reflection;
 using System.IO;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Azure.Documents;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
@@ -399,6 +398,32 @@ namespace jaindb.Controllers
                     jDB.Export(sTarget, sRemove ?? "");
                 else
                     jDB.Export("http://localhost:5000", sRemove ?? "");
+            }
+            catch { }
+
+            return null;
+        }
+
+        /// <summary>
+        /// reload all chains and assetsto cache or migrate to another storage provider
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        [Authorize]
+        [Route("reload")]
+        public JObject reload()
+        {
+            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
+            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            try
+            {
+                var query = QueryHelpers.ParseQuery(sQuery);
+                string sDedub = query.FirstOrDefault(t => t.Key.ToLower() == "dedup").Value;
+
+                if (!string.IsNullOrEmpty(sDedub))
+                    jDB.FullReload(true);
+                else
+                    jDB.FullReload();
             }
             catch { }
 

@@ -1,8 +1,9 @@
 ﻿{
   "ReadOnly": false,
-  "SlidingExpiration": 0,
   "ContinueAfterWrite": true,
   "CacheFull": true,
   "CacheKeys": true,
-  "RedisConnectionString":  "localhost:6379"
+  "RethinkDBServer": "localhost",
+  "Port": 28015,
+  "Database":  "jaindb"
 }

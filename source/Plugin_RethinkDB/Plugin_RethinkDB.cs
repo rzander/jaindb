@@ -1,8 +1,8 @@
 ﻿using JainDBProvider;
 using Newtonsoft.Json.Linq;
-using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -12,21 +12,19 @@ namespace Plugin_RethinkDB
     public class Plugin_RethinkDB : IStore
     {
         private bool bReadOnly = false;
-        private int SlidingExpiration = -1;
         private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
         private bool CacheKeys = true;
-        private bool RedisEnabled = false;
-        private string RedisConnectionString = "localhost:6379";
-
-        private IDatabase cache0;
-        private IDatabase cache1;
-        private IDatabase cache2;
-        private IDatabase cache3;
-        private IDatabase cache4;
-        private IServer srv;
 
         private JObject JConfig = new JObject();
+
+        private static readonly object locker = new object();
+        public static RethinkDb.Driver.RethinkDB R = RethinkDb.Driver.RethinkDB.R;
+        public static RethinkDb.Driver.Net.Connection conn;
+        public static List<string> RethinkTables = new List<string>();
+        private string RethinkDBServer = "localhost";
+        private int Port = 28015;
+        private string Database = "jaindb";
 
         public Dictionary<string, string> Settings { get; set; }
 
@@ -34,7 +32,7 @@ namespace Plugin_RethinkDB
         {
             get
             {
-                return "400_RethinkDBCache";
+                return Assembly.GetExecutingAssembly().ManifestModule.Name;
             }
         }
 
@@ -54,40 +52,39 @@ namespace Plugin_RethinkDB
                 {
                     JConfig = JObject.Parse(File.ReadAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")));
                     bReadOnly = JConfig["ReadOnly"].Value<bool>();
-                    SlidingExpiration = JConfig["SlidingExpiration"].Value<int>();
                     ContinueAfterWrite = JConfig["ContinueAfterWrite"].Value<bool>();
                     CacheFull = JConfig["CacheFull"].Value<bool>();
                     CacheKeys = JConfig["CacheKeys"].Value<bool>();
-                    RedisConnectionString = JConfig["RedisConnectionString"].Value<string>();
+                    RethinkDBServer = JConfig["RethinkDBServer"].Value<string>();
+                    Port = JConfig["Port"].Value<int>();
+                    Database = JConfig["Database"].Value<string>();
                 }
                 else
                 {
                     JConfig = new JObject();
                 }
-
                 try
                 {
-                    RedisConnectorHelper.ConnectionString = RedisConnectionString;
+                    conn = R.Connection()
+                        .Hostname(RethinkDBServer)
+                        .Port(Port)
+                        .Timeout(60)
+                        .Db(Database)
+                        .Connect();
 
-                    if (cache0 == null)
+                    //Create DB if missing
+                    if (!((string[])R.DbList().Run<string[]>(conn)).Contains(Database))
                     {
-                        cache0 = RedisConnectorHelper.Connection.GetDatabase(0);
-                        cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
-                        cache2 = RedisConnectorHelper.Connection.GetDatabase(2);
-                        cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
-                        cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
+                        R.DbCreate(Database).Run(conn);
                     }
 
-                    if (srv == null)
-                        srv = RedisConnectorHelper.Connection.GetServer(RedisConnectorHelper.Connection.GetEndPoints(true)[0]);
+                    //Get Tables
+                    RethinkTables = ((string[])R.TableList().Run<string[]>(conn)).ToList();
 
-                    RedisEnabled = true;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("ERROR: " + ex.Message);
-                    Console.WriteLine("Redis = disabled !!!");
-                    RedisEnabled = false;
+                    Debug.WriteLine(ex.Message);
                 }
             }
             catch { }
@@ -95,9 +92,6 @@ namespace Plugin_RethinkDB
 
         public bool WriteHash(string Hash, string Data, string Collection)
         {
-            if (!RedisEnabled)
-                return false;
-
             if (bReadOnly)
                 return false;
 
@@ -111,90 +105,159 @@ namespace Plugin_RethinkDB
 
             Collection = Collection.ToLower();
 
+            try
+            {
+                if (!RethinkTables.Contains(Collection))
+                {
+                    try
+                    {
+                        lock (locker) //only one write operation
+                        {
+                            R.TableCreate(Collection).OptArg("primary_key", "#id").Run(conn);
+                            RethinkTables.Add(Collection);
+                        }
+                    }
+                    catch { }
+                }
+                JObject jObj = JObject.Parse(Data);
 
-            if (ContinueAfterWrite)
+                if (jObj["#id"] == null)
+                    jObj.Add("#id", Hash);
+
+                switch (Collection)
+                {
+                    case "_chain":
+                        var iR = R.Table(Collection).Insert(jObj).RunAtom<JObject>(conn); // Update
+                        break;
+                    case "_full":
+                        if (CacheFull)
+                        {
+                            R.Table(Collection).Insert(jObj).RunAtomAsync<JObject>(conn); // Update
+                        }
+                        string sID = jObj["#id"].ToString();
+
+                        if (CacheKeys)
+                        {
+                            //Store KeyNames
+                            foreach (JProperty oSub in jObj.Properties())
+                            {
+                                if (oSub.Name.StartsWith("#"))
+                                {
+                                    if (oSub.Value.Type == JTokenType.Array)
+                                    {
+                                        foreach (var oSubSub in oSub.Values())
+                                        {
+                                            try
+                                            {
+                                                if (oSubSub.ToString() != sID)
+                                                {
+                                                    WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                                    /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
+
+                                                    //Remove invalid Characters in Path
+                                                    foreach (var sChar in Path.GetInvalidPathChars())
+                                                    {
+                                                        sDir = sDir.Replace(sChar.ToString(), "");
+                                                    }
+
+                                                    if (!Directory.Exists(sDir))
+                                                        Directory.CreateDirectory(sDir);
+
+                                                    File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
+                                                    */
+                                                }
+                                            }
+                                            catch { }
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        if (!string.IsNullOrEmpty((string)oSub.Value))
+                                        {
+                                            if (oSub.Value.ToString() != sID)
+                                            {
+                                                try
+                                                {
+                                                    WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                                }
+                                                catch { }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        break;
+                    case "_assets":
+                        R.Table(Collection).Insert(jObj).RunAtomAsync<JObject>(conn); // Update
+                        break;
+                    default:
+                        R.Table(Collection).Insert(jObj).RunAsync<JObject>(conn); // Insert Async
+                        break;
+
+                }
+
+                if (ContinueAfterWrite)
+                    return false;
+                else
+                    return true;
+            }
+            catch (Exception ex)
+            {
                 return false;
-            else
-                return true;
+            }
         }
 
         public string ReadHash(string Hash, string Collection)
         {
-            if (!RedisEnabled)
-                return "";
-
             string sResult = "";
+
+            Collection = Collection.ToLower();
 
             try
             {
-                Collection = Collection.ToLower();
+                JObject oRes = R.Table(Collection).Get(Hash).Run<JObject>(conn);
+                if (oRes != null)
+                    sResult = oRes.ToString();
 
-                switch (Collection)
-                {
-                    case "_full":
-                        return cache0.StringGet(Hash);
-
-                    case "_chain":
-                        return cache3.StringGet(Hash);
-
-                    case "_assets":
-                        return cache4.StringGet(Hash);
-
-                    default:
-                        sResult = cache2.StringGet(Hash);
-                        return sResult;
-                }
+                return sResult;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
 
             return sResult;
         }
 
         public int totalDeviceCount(string sPath = "")
         {
-            if (!RedisEnabled)
-                return -1;
-
-            try
-            {
-                return srv.Keys(3, "*").Count();
-            }
-            catch { }
-
             return -1;
         }
 
         public IEnumerable<JObject> GetRawAssets(string paths)
         {
-            if (RedisEnabled)
+            foreach (var oAsset in R.Table("_assets").GetAll().Run<JObject>(conn))
             {
+                JObject jObj = oAsset;
 
-                foreach (var oObj in srv.Keys(4, "*"))
+                if (paths.Contains("*") || paths.Contains(".."))
                 {
-                    JObject jObj = jaindb.jDB.GetRaw(ReadHash(oObj, "_assets"), paths);
-
-                    if (paths.Contains("*") || paths.Contains(".."))
-                    {
-                        try
-                        {
-                            jObj = jaindb.jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
-                        }
-                        catch { }
-                    }
-                    yield return jObj;
+                    jObj = jaindb.jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
                 }
+                yield return jObj;
             }
         }
 
         public string LookupID(string name, string value)
         {
-            if (!RedisEnabled)
-                return "";
-
             string sResult = null;
             try
             {
-                sResult = cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
+                JObject jRes = R.Table("_key").Get(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower()).Run<JObject>(conn);
+                sResult = jRes["value"].Value<string>();
             }
             catch { }
 
@@ -203,27 +266,34 @@ namespace Plugin_RethinkDB
 
         public bool WriteLookupID(string name, string value, string id)
         {
-            if (!RedisEnabled)
-                return false;
+            if (!RethinkTables.Contains("_key"))
+            {
+                try
+                {
+                    lock (locker) //only one write operation
+                    {
+                        R.TableCreate("_key").OptArg("primary_key", "name").Run(conn);
+                        RethinkTables.Add("_key");
+                    }
+                }
+                catch { }
+            }
 
-            if (SlidingExpiration <= 0)
-                cache1.StringSetAsync(name.ToLower().TrimStart('#') + "/" + value.ToLower(), id);
-            else
-                cache1.StringSetAsync(name.ToLower().TrimStart('#') + "/" + value.ToLower(), id, new TimeSpan(0, 0, 0, SlidingExpiration));
+            JObject jObj = new JObject();
+            jObj.Add("value", id);
+            jObj.Add("name", name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
+            R.Table("_key").Insert(jObj).RunAtomAsync<JObject>(conn);
 
             return false;
         }
 
         public List<string> GetAllIDs()
         {
-            if (!RedisEnabled)
-                return new List<string>();
-
             List<string> lResult = new List<string>();
 
             try
             {
-                foreach (var oObj in srv.Keys(3, "*"))
+                foreach (var oObj in R.Table("_chain").GetAll().Run<JObject>(conn))
                 {
                     lResult.Add(oObj.ToString());
                 }
@@ -231,29 +301,6 @@ namespace Plugin_RethinkDB
             catch { }
 
             return lResult;
-        }
-
-        public class RedisConnectorHelper
-        {
-            //public static string RedisServer = "localhost";
-            //public static int RedisPort = 6379;
-            public static string ConnectionString = "";
-
-            static RedisConnectorHelper()
-            {
-                RedisConnectorHelper.lazyConnection = new Lazy<ConnectionMultiplexer>(() =>
-                {
-                    //ConfigurationOptions oOpt = new ConfigurationOptions();
-                    //oOpt.EndPoints.Add(RedisServer + ":" + RedisPort.ToString());
-                    //oOpt.AbortOnConnectFail = true;
-
-                    return ConnectionMultiplexer.Connect(ConnectionString);
-                });
-            }
-
-            private static Lazy<ConnectionMultiplexer> lazyConnection;
-
-            public static ConnectionMultiplexer Connection => lazyConnection.Value;
         }
     }
 

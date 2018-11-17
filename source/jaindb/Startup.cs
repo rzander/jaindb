@@ -11,7 +11,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using System.IO;
 using System.Diagnostics;
-using Microsoft.Azure.Documents.Client;
 using System.Net.Sockets;
 using System.Linq;
 using System.Net.NetworkInformation;
@@ -183,37 +182,7 @@ namespace jaindb
                     break;
             }
 
-            if ((int.Parse(Configuration.GetSection("UseRethinkDB").Value ?? Configuration.GetSection("jaindb:UseRethinkDB").Value) == 1) || (Environment.GetEnvironmentVariable("UseRethinkDB") == "1"))
-            {
-                try
-                {
-                    jDB.conn = jDB.R.Connection()
-                        .Hostname(Configuration.GetSection("rethinkdb:server").Value)
-                        .Port(int.Parse(Configuration.GetSection("rethinkdb:port").Value))
-                        .Timeout(60)
-                        .Db(Configuration.GetSection("rethinkdb:database").Value)
-                        .Connect();
-
-                    //Create DB if missing
-                    if (!((string[])jDB.R.DbList().Run<string[]>(jDB.conn)).Contains(Configuration.GetSection("rethinkdb:database").Value))
-                    {
-                        jDB.R.DbCreate(Configuration.GetSection("rethinkdb:database").Value).Run(jDB.conn);
-                    }
-
-                    //Get Tables
-                    jDB.RethinkTables = ((string[])jDB.R.TableList().Run<string[]>(jDB.conn)).ToList();
-
-                    jDB.UseRethinkDB = true;
-                }
-                catch(Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    jDB.UseRethinkDB = false;
-                    jDB.UseFileStore = true;
-                }
-            }
-
-                if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
+            if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
             {
                 jDB.UseFileStore = true;
             }
@@ -248,7 +217,9 @@ namespace jaindb
 
             jDB.FilePath = Path.Combine(Env.WebRootPath, "jaindb");
             jDB.wwwPath = Env.WebRootPath;
+            Console.WriteLine("loading Storage-Providers:");
             jDB.loadPlugins(Path.Combine(Env.WebRootPath, "plugins"));
+            Console.WriteLine("");
         }
 
 

@@ -124,7 +124,9 @@
   "ContinueAfterWrite": true,
   "CacheFull": true,
   "CacheKeys": true,
-  "RedisConnectionString":  "localhost:6379"
+  "RethinkDBServer": "localhost",
+  "Port": 28015,
+  "Database":  "jaindb"
 }</value>
   </data>
 </root>

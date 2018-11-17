@@ -3,7 +3,6 @@ using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
 using Newtonsoft.Json.Linq;
-using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -36,7 +35,7 @@ namespace Plugin_CosmosDB
         {
             get
             {
-                return "300_CosmosDB";
+                return Assembly.GetExecutingAssembly().ManifestModule.Name;
             }
         }
 
@@ -216,6 +215,8 @@ namespace Plugin_CosmosDB
                     case "_chain":
                         sColl = "chain";
                         break;
+                    default:
+                        return "";
                 }
 
                 var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;

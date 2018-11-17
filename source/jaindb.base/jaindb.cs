@@ -3,9 +3,6 @@
 // ************************************************************************************
 
 using JainDBProvider;
-using Microsoft.Azure.Documents;
-using Microsoft.Azure.Documents.Client;
-using Microsoft.Azure.Documents.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -41,10 +38,9 @@ namespace jaindb
         public static int PoWComplexitity = 0; //Proof of Work complexity; 0 = no PoW; 8 = 8 trailing bits of the block hash must be '0'
         public static bool ReadOnly = false;
 
-        public static RethinkDb.Driver.RethinkDB R = RethinkDb.Driver.RethinkDB.R;
-        public static RethinkDb.Driver.Net.Connection conn;
 
-        public static List<string> RethinkTables = new List<string>();
+
+
 
 
         internal static Dictionary<string, IStore> _Plugins = new Dictionary<string, IStore>();
@@ -192,55 +188,6 @@ namespace jaindb
                 }
 
                 return true;
-                if (UseRethinkDB)
-                {
-                    try
-                    {
-                        if (!RethinkTables.Contains(Collection))
-                        {
-                            try
-                            {
-                                lock (locker) //only one write operation
-                                {
-                                    R.TableCreate(Collection).OptArg("primary_key", "#id").Run(conn);
-                                    RethinkTables.Add(Collection);
-                                }
-                            }
-                            catch { }
-                        }
-                        JObject jObj = JObject.Parse(Data);
-
-                        if (jObj["#id"] == null)
-                            jObj.Add("#id", Hash);
-
-
-                        switch(Collection)
-                        {
-                            case "_chain":
-                                var iR = R.Table(Collection).Insert(jObj).RunAtom<JObject>(conn); // Update
-                                break;
-                            case "_full":
-                                R.Table(Collection).Insert(jObj).RunAtomAsync<JObject>(conn); // Update
-                                break;
-                            case "_assets":
-                                R.Table(Collection).Insert(jObj).RunAtomAsync<JObject>(conn); // Update
-                                break;
-                            default:
-                                R.Table(Collection).Insert(jObj).RunAsync<JObject>(conn); // Insert Async
-                                break;
-
-                        }
-
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        ex.Message.ToString();
-                    }
-                }
-
-                if (UseCosmosDB || UseRedis)
-                    return true;
             }
             catch (Exception ex)
             {
@@ -258,8 +205,6 @@ namespace jaindb
 
                 return true;
             }
-
-            return false;
         }
 
         public static async Task<bool> WriteHashAsync(string Hash, string Data, string Collection)
@@ -302,31 +247,6 @@ namespace jaindb
                 }
 
                 return sResult;
-
-                if (UseRethinkDB)
-                {
-                    try
-                    {
-                        JObject oRes = R.Table(Collection).Get(Hash).Run<JObject>(conn);
-                        if (oRes != null)
-                            sResult = oRes.ToString();
-
-
-                        if (Collection != "_chain")
-                        {
-                            //Cache result in Memory
-                        }
-
-                        return sResult;
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine(ex.Message);
-                    }
-
-                    return "";
-                }
-
             }
             catch (Exception ex)
             {
@@ -357,6 +277,90 @@ namespace jaindb
             }
 
             return oChain;
+        }
+
+        public static JObject Deduplicate(JObject FullObject)
+        {
+            JObject oObj = FullObject;
+            JObject oStatic = oObj.ToObject<JObject>();
+
+            //Loop through all ChildObjects
+            foreach (var oChild in oObj.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
+            {
+                try
+                {
+                    JToken tRef = oObj.SelectToken(oChild.Path, false);
+
+                    //check if tRfe is valid..
+                    if (tRef == null)
+                        continue;
+
+
+                    string sName = "misc";
+                    if (oChild.Parent.Type == JTokenType.Property)
+                        sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent).Name;
+                    else
+                        sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent.Parent).Name; //it's an array
+
+                    if (sName.StartsWith('@'))
+                        continue;
+
+                    foreach (JProperty jProp in oStatic.SelectToken(oChild.Path).Children().Where(t => t.Type == JTokenType.Property).ToList())
+                    {
+                        try
+                        {
+                            if (!jProp.Name.StartsWith('#'))
+                            {
+                                if (jProp.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("#")).Count() == 0)
+                                {
+                                    jProp.Remove();
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine("Error UploadFull_2: " + ex.Message.ToString());
+                        }
+                    }
+
+
+                    //remove all # and @ attributes
+                    foreach (var oKey in tRef.Parent.Descendants().Where(t => t.Type == JTokenType.Property && (((JProperty)t).Name.StartsWith("#") || ((JProperty)t).Name.StartsWith("@"))).ToList())
+                    {
+                        try
+                        {
+                            oKey.Remove();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine("Error UploadFull_3: " + ex.Message.ToString());
+                        }
+                    }
+
+                    WriteHash(ref tRef, ref oStatic, sName);
+                    oObj.SelectToken(oChild.Path).Replace(tRef);
+
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("Error UploadFull_4: " + ex.Message.ToString());
+                }
+            }
+
+            //remove all # and @ objects
+            foreach (var oKey in oStatic.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
+            {
+                try
+                {
+                    oKey.Remove();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("Error UploadFull_5: " + ex.Message.ToString());
+                }
+            }
+
+            return oStatic;
         }
 
         public static string UploadFull(string JSON, string DeviceID, string blockType = "")
@@ -416,96 +420,97 @@ namespace jaindb
 
                 JSort(oObj, true); //Enforce full sort
 
-                JObject oStatic = oObj.ToObject<JObject>();
+                //JObject oStatic = oObj.ToObject<JObject>();
                 JObject jTemp = oObj.ToObject<JObject>();
 
                 //Load BlockChain
                 Blockchain oChain = GetChain(DeviceID);
 
                 JSort(oObj);
-                JSort(oStatic);
+                //JSort(oStatic);
 
                 var jObj = oObj;
 
-                if (!UseCosmosDB)
-                {
-                    //Loop through all ChildObjects
-                    foreach (var oChild in jObj.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
-                    {
-                        try
-                        {
-                            JToken tRef = oObj.SelectToken(oChild.Path, false);
+                //if (!UseCosmosDB)
+                //{
+                //    //Loop through all ChildObjects
+                //    foreach (var oChild in jObj.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
+                //    {
+                //        try
+                //        {
+                //            JToken tRef = oObj.SelectToken(oChild.Path, false);
 
-                            //check if tRfe is valid..
-                            if (tRef == null)
-                                continue;
-
-
-                            string sName = "misc";
-                            if (oChild.Parent.Type == JTokenType.Property)
-                                sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent).Name;
-                            else
-                                sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent.Parent).Name; //it's an array
-
-                            if (sName.StartsWith('@'))
-                                continue;
-
-                            foreach (JProperty jProp in oStatic.SelectToken(oChild.Path).Children().Where(t => t.Type == JTokenType.Property).ToList())
-                            {
-                                try
-                                {
-                                    if (!jProp.Name.StartsWith('#'))
-                                    {
-                                        if (jProp.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("#")).Count() == 0)
-                                        {
-                                            jProp.Remove();
-                                        }
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine("Error UploadFull_2: " + ex.Message.ToString());
-                                }
-                            }
+                //            //check if tRfe is valid..
+                //            if (tRef == null)
+                //                continue;
 
 
-                            //remove all # and @ attributes
-                            foreach (var oKey in tRef.Parent.Descendants().Where(t => t.Type == JTokenType.Property && (((JProperty)t).Name.StartsWith("#") || ((JProperty)t).Name.StartsWith("@"))).ToList())
-                            {
-                                try
-                                {
-                                    oKey.Remove();
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine("Error UploadFull_3: " + ex.Message.ToString());
-                                }
-                            }
+                //            string sName = "misc";
+                //            if (oChild.Parent.Type == JTokenType.Property)
+                //                sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent).Name;
+                //            else
+                //                sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent.Parent).Name; //it's an array
 
-                            WriteHash(ref tRef, ref oStatic, sName);
-                            oObj.SelectToken(oChild.Path).Replace(tRef);
+                //            if (sName.StartsWith('@'))
+                //                continue;
 
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine("Error UploadFull_4: " + ex.Message.ToString());
-                        }
-                    }
+                //            foreach (JProperty jProp in oStatic.SelectToken(oChild.Path).Children().Where(t => t.Type == JTokenType.Property).ToList())
+                //            {
+                //                try
+                //                {
+                //                    if (!jProp.Name.StartsWith('#'))
+                //                    {
+                //                        if (jProp.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("#")).Count() == 0)
+                //                        {
+                //                            jProp.Remove();
+                //                        }
+                //                    }
+                //                }
+                //                catch (Exception ex)
+                //                {
+                //                    Debug.WriteLine("Error UploadFull_2: " + ex.Message.ToString());
+                //                }
+                //            }
 
-                    //remove all # and @ objects
-                    foreach (var oKey in oStatic.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
-                    {
-                        try
-                        {
-                            oKey.Remove();
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine("Error UploadFull_5: " + ex.Message.ToString());
-                        }
-                    }
-                }
 
+                //            //remove all # and @ attributes
+                //            foreach (var oKey in tRef.Parent.Descendants().Where(t => t.Type == JTokenType.Property && (((JProperty)t).Name.StartsWith("#") || ((JProperty)t).Name.StartsWith("@"))).ToList())
+                //            {
+                //                try
+                //                {
+                //                    oKey.Remove();
+                //                }
+                //                catch (Exception ex)
+                //                {
+                //                    Debug.WriteLine("Error UploadFull_3: " + ex.Message.ToString());
+                //                }
+                //            }
+
+                //            WriteHash(ref tRef, ref oStatic, sName);
+                //            oObj.SelectToken(oChild.Path).Replace(tRef);
+
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            Debug.WriteLine("Error UploadFull_4: " + ex.Message.ToString());
+                //        }
+                //    }
+
+                //    //remove all # and @ objects
+                //    foreach (var oKey in oStatic.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
+                //    {
+                //        try
+                //        {
+                //            oKey.Remove();
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            Debug.WriteLine("Error UploadFull_5: " + ex.Message.ToString());
+                //        }
+                //    }
+                //}
+
+                JObject oStatic = Deduplicate(oObj);
                 JSort(oStatic);
                 //JSort(oStatic, true);
 
@@ -1679,17 +1684,6 @@ namespace jaindb
                     catch { }
                 }
                 return lResult;
-                try
-                {
-                    if (UseRethinkDB)
-                    {
-                        var oRes = R.Table("_chain").GetField("#id").RunCursor<string>(conn).BufferedItems;
-                        lResult.AddRange(oRes);
-                    }
-                }
-                catch { }
-
-                return lResult;
             });
 
         }
@@ -2045,6 +2039,57 @@ namespace jaindb
             return bResult;
         }
 
+        public static void FullReload(bool dedup = false)
+        {
+            try
+            {
+                foreach (var item in _Plugins.OrderBy(t => t.Key))
+                {
+                    try
+                    {
+                        foreach (string sID in item.Value.GetAllIDs())
+                        {
+                            string sJain = item.Value.ReadHash(sID, "_chain");
+
+                            if (!string.IsNullOrEmpty(sJain))
+                            {
+                                //Write Hash to the first Plugin if the current plugin is not the first one
+                                if (item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
+                                {
+                                    _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(sID, sJain, "_chain");
+                                }
+                            }
+                        }
+
+                        foreach (JObject jObj in item.Value.GetRawAssets("*"))
+                        {
+                            if (jObj.HasValues)
+                            {
+                                //Write Hash to the first Plugin if the current plugin is not the first one
+                                if (item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
+                                {
+                                    _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jObj.ToString(), "_full");
+                                    if(dedup)
+                                    {
+                                        var jTest = Deduplicate(jObj);
+                                        _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jTest.ToString(Newtonsoft.Json.Formatting.None), "_assets");
+                                    }
+                                    else
+                                    {
+                                        _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jObj.ToString(), "_assets");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+
+            Console.WriteLine("Done... All chains and assets re-loaded");
+        }
+
         public static string UploadToREST(string URL, string content)
         {
             try
@@ -2133,15 +2178,19 @@ namespace jaindb
 
         public static class GenericPluginLoader<T>
         {
+            public static string PluginDirectory;
+
             public static ICollection<T> LoadPlugins(string path)
             {
                 string[] dllFileNames = null;
+                PluginDirectory = path;
 
                 if (Directory.Exists(path))
                 {
-                    dllFileNames = Directory.GetFiles(path, "plugin*.dll");
+                    dllFileNames = Directory.GetFiles(path, "plugin*.dll").OrderBy(t=>t).ToArray();
 
                     ICollection<Assembly> assemblies = new List<Assembly>(dllFileNames.Length);
+                    AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
                     foreach (string dllFile in dllFileNames)
                     {
                         AssemblyName an = AssemblyName.GetAssemblyName(dllFile);
@@ -2186,6 +2235,19 @@ namespace jaindb
                 }
 
                 return null;
+            }
+
+            private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+            {
+                var allDlls = new DirectoryInfo(PluginDirectory).GetFiles("*.dll");
+
+                var dll = allDlls.FirstOrDefault(fi => fi.Name == args.Name.Split(',')[0] + ".dll");
+                if (dll == null)
+                {
+                    return null;
+                }
+
+                return Assembly.LoadFrom(dll.FullName);
             }
         }
     }

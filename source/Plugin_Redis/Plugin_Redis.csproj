@@ -7,20 +7,30 @@
     <ApplicationIcon />
     <OutputType>Library</OutputType>
     <StartupObject />
-    <AssemblyOriginatorKeyFile>test.snk</AssemblyOriginatorKeyFile>
+    <AssemblyName>Plugin_100_Redis</AssemblyName>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Plugin_Redis.json" />
+    <None Remove="Plugin_100_Redis.json" />
+    <None Remove="StackExchange.Redis.dll" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Plugin_Redis.json">
+    <Content Include="Plugin_100_Redis.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="StackExchange.Redis.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Costura.Fody" Version="3.1.6" />
+    <PackageReference Include="Fody" Version="3.2.17">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
     <PackageReference Include="StackExchange.Redis" Version="2.0.513" />
   </ItemGroup>

@@ -65,7 +65,8 @@ namespace Plugin_FileStore.Properties {
         ///  &quot;ReadOnly&quot;: false,
         ///  &quot;ContinueAfterWrite&quot;: true,
         ///  &quot;CacheFull&quot;: true,
-        ///  &quot;CacheKeys&quot;: true
+        ///  &quot;CacheKeys&quot;: true,
+        ///  &quot;foldername&quot;:  &quot;jaindb&quot;
         ///}.
         /// </summary>
         internal static string Plugin_FileStore {

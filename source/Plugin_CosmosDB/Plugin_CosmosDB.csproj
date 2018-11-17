@@ -7,20 +7,26 @@
     <ApplicationIcon />
     <OutputType>Library</OutputType>
     <StartupObject />
-    <AssemblyOriginatorKeyFile>test.snk</AssemblyOriginatorKeyFile>
+    <AssemblyName>Plugin_300_CosmosDB</AssemblyName>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Plugin_CosmosDB.json" />
+    <None Remove="Plugin_300_CosmosDB.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Plugin_CosmosDB.json">
+    <Content Include="Plugin_300_CosmosDB.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Costura.Fody" Version="3.1.6" />
+    <PackageReference Include="Fody" Version="3.2.17">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Azure.DocumentDB.Core" Version="2.1.3" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
   </ItemGroup>

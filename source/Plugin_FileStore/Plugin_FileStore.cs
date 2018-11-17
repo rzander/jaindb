@@ -17,6 +17,7 @@ namespace Plugin_FileStore
         private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
         private bool CacheKeys = true;
+        private string foldername = "jaindb";
 
         private string FilePath = "";
         private JObject JConfig = new JObject();
@@ -27,7 +28,7 @@ namespace Plugin_FileStore
         {
             get
             {
-                return "500_FileStore";
+                return Assembly.GetExecutingAssembly().ManifestModule.Name;
             }
         }
 
@@ -36,7 +37,7 @@ namespace Plugin_FileStore
             if (Settings == null)
                 Settings = new Dictionary<string, string>();
 
-            FilePath = Settings["FilePath"] ?? "";
+
             try
             {
                 if (!File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
@@ -51,6 +52,7 @@ namespace Plugin_FileStore
                     ContinueAfterWrite = JConfig["ContinueAfterWrite"].Value<bool>();
                     CacheFull = JConfig["CacheFull"].Value<bool>();
                     CacheKeys = JConfig["CacheKeys"].Value<bool>();
+                    foldername = JConfig["foldername"].Value<string>();
                 }
                 else
                 {
@@ -58,6 +60,10 @@ namespace Plugin_FileStore
                 }
             }
             catch { }
+
+            FilePath = Path.Combine(Settings["wwwPath"] ?? "", foldername);
+            if (!Directory.Exists(FilePath))
+                Directory.CreateDirectory(FilePath);
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
