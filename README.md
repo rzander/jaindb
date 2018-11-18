@@ -11,6 +11,8 @@ It's using blockchain technology, but data is **not** distributed and **no** CPU
 
 **Interrested ? Check the [Quick-Start](https://github.com/rzander/jaindb/wiki/Quick-start) Guide in the [Wiki](https://github.com/rzander/jaindb/wiki) Section...**
 
+Are you a Developper ? -> [.NET-Core-Examples](https://github.com/rzander/jaindb/wiki/.NET-Core-Examples)
+
 ## Data Store
 Jaindb can store data fragments on:
 - File System (slow but simple)
