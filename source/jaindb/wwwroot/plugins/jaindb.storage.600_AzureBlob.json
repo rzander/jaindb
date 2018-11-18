@@ -1,0 +1,9 @@
+{
+  "ReadOnly": false,
+  "SlidingExpiration": 300,
+  "ContinueAfterWrite": true,
+  "CacheFull": true,
+  "CacheKeys": true,
+  "StorageAccount": "rzander",
+  "AccessKey": "ZvNheVgafxIHUmk5SEGPQG4ZPWdIcpWXpJe4uyYHLa/0BWIOVTPJby/rdaY37vluiCbIg7n6tKwhnXqqBY5Epg=="
+}

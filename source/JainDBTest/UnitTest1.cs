@@ -1,5 +1,4 @@
 using jaindb;
-using Microsoft.Azure.Documents.Client;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json.Linq;
 using System;
@@ -21,9 +20,10 @@ namespace JainDBTest
             if (System.IO.Directory.Exists("wwwroot"))
                 System.IO.Directory.Delete("wwwroot", true); //cleanup existing data
 
+            jaindb.jDB.loadPlugins();
+
             Console.WriteLine("Upload Test Object...");
             string sTST = System.IO.File.ReadAllText("./test.json");
-            jaindb.jDB.UseFileStore = true;
             string sHash = jaindb.jDB.UploadFull(sTST, "test1");
             Thread.Sleep(3000); //wait 3s to store all files..
             Console.WriteLine("... received Hash:" + sHash);
@@ -41,7 +41,7 @@ namespace JainDBTest
         public void Test_CompareFullvsChain()
         {
             Console.WriteLine("Compare cached vs blockchain data...");
-            jDB.UseFileStore = true;
+
             var oFull = jDB.GetFull("test1", -1); //get data from cache
             var oChain = jDB.GetFull("test1", 1); //get data from blockchain id=1
 
@@ -71,7 +71,7 @@ namespace JainDBTest
         public void Test_Query()
         {
             Console.WriteLine("Query data...");
-            jDB.UseFileStore = true;
+
             int i = jDB.QueryAsync("obj1", "", "", "").Result.Count();
             Assert.IsTrue(i > 0);
         }
@@ -81,7 +81,7 @@ namespace JainDBTest
         public void Test_QueryAll()
         {
             Console.WriteLine("QueryAll data...");
-            jDB.UseFileStore = true;
+
             int i = jDB.QueryAll("obj1", "", "", "").Count();
             Assert.IsTrue(i > 0);
         }
@@ -90,7 +90,7 @@ namespace JainDBTest
         public void Test_Changes()
         {
             Console.WriteLine("get changes...");
-            jDB.UseFileStore = true;
+
             int i = jDB.GetChanges(new TimeSpan(1,0,0)).Count();
             Assert.IsTrue(i > 0);
         }
@@ -105,14 +105,7 @@ namespace JainDBTest
 
             Console.WriteLine("Upload Test Object...");
             string sTST = System.IO.File.ReadAllText("./test.json");
-            jDB.UseFileStore = false;
-            jDB.databaseId = "assets";
-            jDB.endpointUrl = "https://localhost:8081";
-            jDB.authorizationKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
-            jDB.CosmosDB = new DocumentClient(new Uri(jDB.endpointUrl), jDB.authorizationKey);
 
-            jDB.CosmosDB.OpenAsync();
-            jDB.UseCosmosDB = true;
 
             var oDATA = JObject.Parse(sTST);
             oDATA.Add("TSTKey", 0);

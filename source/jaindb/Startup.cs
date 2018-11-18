@@ -138,11 +138,6 @@ namespace jaindb
                     {
                         sIP = f.GetIPProperties().UnicastAddresses.Where(t => t.Address.AddressFamily == AddressFamily.InterNetwork).First().Address.ToString();
                     }
-
-                /*IPAddress ip = Dns.GetHostAddresses(Dns.GetHostName()).Where(address =>
-                address.AddressFamily == AddressFamily.InterNetwork).First();*/
-
-                //sIP = ip.ToString();
             }
             catch { }
 
@@ -182,11 +177,6 @@ namespace jaindb
                     break;
             }
 
-            if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
-            {
-                jDB.UseFileStore = true;
-            }
-
             int iComplexity = 0;
             if (!int.TryParse(Environment.GetEnvironmentVariable("PoWComplexitity"), out iComplexity))
             {
@@ -216,6 +206,10 @@ namespace jaindb
 
 
             jDB.FilePath = Path.Combine(Env.WebRootPath, "jaindb");
+            if (!Directory.Exists(jDB.FilePath))
+                Directory.CreateDirectory(jDB.FilePath);
+            if (!Directory.Exists(Path.Combine(Env.WebRootPath, "plugins")))
+                Directory.CreateDirectory(Path.Combine(Env.WebRootPath, "plugins"));
             jDB.wwwPath = Env.WebRootPath;
             Console.WriteLine("loading Storage-Providers:");
             jDB.loadPlugins(Path.Combine(Env.WebRootPath, "plugins"));

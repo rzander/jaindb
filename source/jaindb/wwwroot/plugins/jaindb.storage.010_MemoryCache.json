@@ -1,4 +1,4 @@
-﻿{
+{
   "ReadOnly": false,
   "SlidingExpiration": 300,
   "ContinueAfterWrite": true,

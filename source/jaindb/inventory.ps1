@@ -196,8 +196,10 @@ getinv -Name "CDROM" -WMIClass "Win32_CDROMDrive" -Properties @("Capabilities", 
 
 #getinv -Name "Driver" -WMIClass "Win32_PnPSignedDriver" -Properties @("DeviceID","DeviceName", "DriverDate", "DriverProviderName", "DriverVersion", "FriendlyName", "HardWareID", "InfName" ) -AppendObject ([ref]$object)
 getinv -Name "Printer" -WMIClass "Win32_Printer" -Properties @("DeviceID","CapabilityDescriptions","DriverName", "Local" , "Network", "PrinterPaperNames") -AppendObject ([ref]$object)
-getinv -Name "OptionalFeature" -WMIClass "Win32_OptionalFeature" -Properties @("Caption", "Name", "InstallState" ) -AppendObject ([ref]$object)
 
+#getinv -Name "OptionalFeature" -WMIClass "Win32_OptionalFeature" -Properties @("Caption", "Name", "InstallState" ) -AppendObject ([ref]$object)
+$feature = Get-WindowsOptionalFeature -Online | Select-Object @{N = 'Name'; E = {$_.FeatureName}} , @{N = 'InstallState'; E = {$_.State.tostring()}} 
+$object | Add-Member -MemberType NoteProperty -Name "OptionalFeature" -Value ($feature)
 
 $user = Get-LocalUser | Select-Object Description, Enabled, UserMayChangePassword, PasswordRequired, Name, @{N = '@PasswordLastSet'; E = {[System.DateTime](($_.PasswordLastSet).ToUniversalTime())}}, @{N = 'id'; E = {$_.SID}} | Sort-Object -Property Name
 $object | Add-Member -MemberType NoteProperty -Name "LocalUsers" -Value ($user)
@@ -269,8 +271,8 @@ Write-Host "Hash:" (Invoke-RestMethod -Uri "%LocalURL%:%WebPort%/upload/$($id)" 
 # SIG # Begin signature block
 # MIIOEgYJKoZIhvcNAQcCoIIOAzCCDf8CAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU76/F3OnFFGf9Ns0ItkrZYst8
-# x22gggtIMIIFYDCCBEigAwIBAgIRANsn6eS1hYK93tsNS/iNfzcwDQYJKoZIhvcN
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU+Pf7uxpISwQI0SkqX5hZAW28
+# XhygggtIMIIFYDCCBEigAwIBAgIRANsn6eS1hYK93tsNS/iNfzcwDQYJKoZIhvcN
 # AQELBQAwfTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3Rl
 # cjEQMA4GA1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQx
 # IzAhBgNVBAMTGkNPTU9ETyBSU0EgQ29kZSBTaWduaW5nIENBMB4XDTE4MDUyMjAw
@@ -335,12 +337,12 @@ Write-Host "Hash:" (Invoke-RestMethod -Uri "%LocalURL%:%WebPort%/upload/$($id)" 
 # VQQKExFDT01PRE8gQ0EgTGltaXRlZDEjMCEGA1UEAxMaQ09NT0RPIFJTQSBDb2Rl
 # IFNpZ25pbmcgQ0ECEQDbJ+nktYWCvd7bDUv4jX83MAkGBSsOAwIaBQCgeDAYBgor
 # BgEEAYI3AgEMMQowCKACgAChAoAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEE
-# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMCMGCSqGSIb3DQEJBDEWBBTR
-# Vx/WqhLI2jzq3Ck4R/ytXGERQDANBgkqhkiG9w0BAQEFAASCAQBAm2lArl/aLC7q
-# rwZnxdeK7j1qESIVCYLkAI2YgvjWnepx1OKcKao5Q8Qs4ElpXWyCRVhZFNvmNfAd
-# G3vKPtyqU8CvFVbCSfQ97RzOoOALBZx4mWAaRYfm19C6ijF824prFK0lcWU07XQK
-# W2rtTH8aikAgWGG63SR93cvU2w9FLMupP3ftf976ubRWRAhj3e2upF1+iWC97Ygu
-# 6qJuuw+M+df3y95NQbn22MHE0lU+5OzdJHWYpa/ELuK57DkiboN/hSVMQ6FE39Kn
-# C5y2w5S0UJCncrcDUqpq49iqAsoPJNfeyGZSfQXJbS4uubJlpnzGT2x53b7kbfqt
-# LDLPZbFl
+# MBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMCMGCSqGSIb3DQEJBDEWBBQx
+# ZRZKZjGRgdLbPl/+VsLYiS7XjDANBgkqhkiG9w0BAQEFAASCAQCuQMJdmGAAbkm9
+# 9cA7hL0Zn3PBw94guZ17aLJUCA0nnecqJwIqQQ6XC6OpTEqaIWvxATq2Aq8oO8wP
+# NfLEUia7UcwOvcNS0XEmybfD1vVePx/oIW+/OksfEcJpsE9MIUo1Nbhxrph4cyHC
+# 5SvXInK5mRgkPuNcyKFeOtz1tPZtzoz2e4DG4DqJnQiQ9iL00qrukwEHDPW0QFRI
+# nR2iv0KZe22FrtwUN0AcKn9NQqmNv+8+1wgv13Q7aZKiAFFslO5K4VQmD0/FnbAO
+# swQr57f/IFHYzTPirYK9Yjg8vr48wI2JtqHgM7y6lEIJk+Ga/LlLQKzCUV2id9NH
+# 0eJaE7wv
 # SIG # End signature block

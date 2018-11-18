@@ -100,63 +100,66 @@ namespace Plugin_FileStore
                     if (!Directory.Exists(Path.Combine(FilePath, "_key")))
                         Directory.CreateDirectory(Path.Combine(FilePath, "_key"));
 
-                    //Store KeyNames
-                    foreach (JProperty oSub in jObj.Properties())
+                    if (CacheKeys)
                     {
-                        if (oSub.Name.StartsWith("#"))
+                        //Store KeyNames
+                        foreach (JProperty oSub in jObj.Properties())
                         {
-                            if (oSub.Value.Type == JTokenType.Array)
+                            if (oSub.Name.StartsWith("#"))
                             {
-                                foreach (var oSubSub in oSub.Values())
+                                if (oSub.Value.Type == JTokenType.Array)
                                 {
-                                    try
-                                    {
-                                        if (oSubSub.ToString() != sID)
-                                        {
-                                            WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
-                                            /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
-
-                                            //Remove invalid Characters in Path
-                                            foreach (var sChar in Path.GetInvalidPathChars())
-                                            {
-                                                sDir = sDir.Replace(sChar.ToString(), "");
-                                            }
-
-                                            if (!Directory.Exists(sDir))
-                                                Directory.CreateDirectory(sDir);
-
-                                            File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
-                                            */
-                                        }
-                                    }
-                                    catch { }
-                                }
-
-                            }
-                            else
-                            {
-                                if (!string.IsNullOrEmpty((string)oSub.Value))
-                                {
-                                    if (oSub.Value.ToString() != sID)
+                                    foreach (var oSubSub in oSub.Values())
                                     {
                                         try
                                         {
-                                            WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
-                                            /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
-
-                                            //Remove invalid Characters in Path
-                                            foreach (var sChar in Path.GetInvalidPathChars())
+                                            if (oSubSub.ToString() != sID)
                                             {
-                                                sDir = sDir.Replace(sChar.ToString(), "");
+                                                WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                                /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
+
+                                                //Remove invalid Characters in Path
+                                                foreach (var sChar in Path.GetInvalidPathChars())
+                                                {
+                                                    sDir = sDir.Replace(sChar.ToString(), "");
+                                                }
+
+                                                if (!Directory.Exists(sDir))
+                                                    Directory.CreateDirectory(sDir);
+
+                                                File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
+                                                */
                                             }
-
-                                            if (!Directory.Exists(sDir))
-                                                Directory.CreateDirectory(sDir);
-
-                                            File.WriteAllText(Path.Combine(sDir, (string)oSub.Value + ".json"), sID);
-                                            */
                                         }
                                         catch { }
+                                    }
+
+                                }
+                                else
+                                {
+                                    if (!string.IsNullOrEmpty((string)oSub.Value))
+                                    {
+                                        if (oSub.Value.ToString() != sID)
+                                        {
+                                            try
+                                            {
+                                                WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                                /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
+
+                                                //Remove invalid Characters in Path
+                                                foreach (var sChar in Path.GetInvalidPathChars())
+                                                {
+                                                    sDir = sDir.Replace(sChar.ToString(), "");
+                                                }
+
+                                                if (!Directory.Exists(sDir))
+                                                    Directory.CreateDirectory(sDir);
+
+                                                File.WriteAllText(Path.Combine(sDir, (string)oSub.Value + ".json"), sID);
+                                                */
+                                            }
+                                            catch { }
+                                        }
                                     }
                                 }
                             }

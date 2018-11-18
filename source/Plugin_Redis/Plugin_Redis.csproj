@@ -7,27 +7,27 @@
     <ApplicationIcon />
     <OutputType>Library</OutputType>
     <StartupObject />
-    <AssemblyName>Plugin_100_Redis</AssemblyName>
+    <AssemblyName>jaindb.storage.100_Redis</AssemblyName>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Authors>Roger Zander</Authors>
+    <Company>Zander Tools</Company>
+    <PackageId>jaindb.storage.Redis</PackageId>
+    <Copyright>(c) 2018 by Roger Zander</Copyright>
+    <PackageLicenseUrl>https://github.com/rzander/jaindb/blob/master/LICENSE.MD</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/rzander/jaindb/master/source/jaindb/JainDB_Logo.ico</PackageIconUrl>
+    <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
+    <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>StorageProvider to store Data on a REDIS Server.</Description>
+    <Product>jaindb.storage.Redis</Product>
+    <Title>JainDB Redis Storage Provider</Title>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Plugin_100_Redis.json" />
-    <None Remove="StackExchange.Redis.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Plugin_100_Redis.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="StackExchange.Redis.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="3.1.6" />
-    <PackageReference Include="Fody" Version="3.2.17">
+    <PackageReference Include="Fody" Version="3.3.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
@@ -37,7 +37,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\jaindb.base\jaindb.base.csproj" />
-    <ProjectReference Include="..\StorageProvider\StorageProvider.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,8 +54,17 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Plugin_100_Redis.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <None Update="StackExchange.Redis.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA;" />
+    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;" />
   </Target>
 
 </Project>

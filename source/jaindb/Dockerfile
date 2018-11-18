@@ -36,10 +36,6 @@ RUN rm -f -r /app/wwwroot/bin
 
 #ENV localURL "http://localhost"
 ENV WebPort 5000
-ENV UseRedis 1
-ENV UseRethinkDB 0
-ENV UseCosmosDB 0
-ENV UseFileSystem 0
 ENV StartDelay 3000
 ENV ReportUser "DEMO"
 ENV ReportPW "password"

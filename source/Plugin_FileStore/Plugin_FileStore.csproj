@@ -7,23 +7,27 @@
     <ApplicationIcon />
     <OutputType>Library</OutputType>
     <StartupObject />
-    <AssemblyName>Plugin_500_FileStore</AssemblyName>
+    <AssemblyName>jaindb.storage.500_FileStore</AssemblyName>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Roger Zander</Authors>
+    <Company>Zander Tools</Company>
+    <PackageId>jaindb.storage.FileStore</PackageId>
+    <Product>jaindb.storage.FileStore</Product>
+    <Description>StorageProvider to use FileSystem as Data-Store.</Description>
+    <Copyright>(c) 2018 by Roger Zander</Copyright>
+    <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/rzander/jaindb/master/source/jaindb/JainDB_Logo.ico</PackageIconUrl>
+    <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
+    <PackageTags>blockchain json database warehouse store</PackageTags>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <Title>JainDB File-System Storage Provider</Title>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Plugin_500_FileStore.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Plugin_500_FileStore.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="3.1.6" />
-    <PackageReference Include="Fody" Version="3.2.17">
+    <PackageReference Include="Fody" Version="3.3.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
@@ -32,7 +36,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\jaindb.base\jaindb.base.csproj" />
-    <ProjectReference Include="..\StorageProvider\StorageProvider.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -50,8 +53,14 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Plugin_500_FileStore.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA;" />
+    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;" />
   </Target>
 
 </Project>

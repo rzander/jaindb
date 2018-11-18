@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
@@ -12,12 +12,13 @@
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json</PackageTags>
-    <Version>1.0.2</Version>
-    <AssemblyVersion>1.0.1.83</AssemblyVersion>
-    <FileVersion>1.0.1.83</FileVersion>
+    <Version>1.4.99</Version>
+    <AssemblyVersion>1.4.99.0</AssemblyVersion>
+    <FileVersion>1.0.99.0</FileVersion>
     <StartupObject></StartupObject>
     <UserSecretsId>fcfd6c0a-e53c-46cb-8a9d-b786c0579861</UserSecretsId>
     <ApplicationIcon>JainDB_Logo.ico</ApplicationIcon>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -49,6 +50,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="jaindb.base" Version="1.0.1" />
+    <PackageReference Include="jaindb.storage.AzureBlob" Version="1.0.1" />
+    <PackageReference Include="jaindb.storage.FileStore" Version="1.0.1" />
+    <PackageReference Include="jaindb.storage.Memory" Version="1.0.1" />
     <PackageReference Include="JsonDiffPatch.Net" Version="2.1.0" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.5.1" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.1.6" />
@@ -57,6 +62,7 @@
     <PackageReference Include="Microsoft.AspNetCore.ResponseCompression" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Server.HttpSys" Version="2.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.1.2" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="2.1.1" />
     <PackageReference Include="Microsoft.OData.Core" Version="7.5.1" />
     <PackageReference Include="Microsoft.VisualStudio.Web.BrowserLink" Version="2.1.1" />
@@ -139,10 +145,6 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\jaindb\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\jaindb.base\jaindb.base.csproj" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

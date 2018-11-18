@@ -37,13 +37,6 @@ namespace jaindb.Controllers
             //jDB._cache = memoryCache;
         }
 
-        //[HttpGet]
-        //public ActionResult get()
-        //{
-        //    string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-        //    return Content("JainDB (c) 2018 by Roger Zander; Version: " + sVersion);
-        //}
-
         [HttpPost]
         [Route("upload/{Id}")]
         public string Upload(string JSON, string Id, string blockType = "INV")
@@ -269,22 +262,6 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
-        [Authorize]
-        [Route("search")]
-        public JsonResult Search()
-        {
-            this.Url.ToString();
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
-            if (sPath != "/favicon.ico")
-            {
-                var query = QueryHelpers.ParseQuery(sQuery);
-                return Json(jDB.Search(query.FirstOrDefault(t => string.IsNullOrEmpty(t.Value)).Key, query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value));
-            }
-            return null;
-        }
-
-        [HttpGet]
         [Authorize(Roles = "All")]
         [Route("query")]
         public JArray Query()
@@ -378,30 +355,6 @@ namespace jaindb.Controllers
                 int.TryParse(sType, out iType);
 
             return jDB.GetChanges(tAge, iType);
-        }
-
-        [HttpGet]
-        [Authorize]
-        [Route("export")]
-        public JObject Export()
-        {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
-            try
-            {
-                var query = QueryHelpers.ParseQuery(sQuery);
-                string sTarget = query.FirstOrDefault(t => t.Key.ToLower() == "url").Value;
-
-                string sRemove = query.FirstOrDefault(t => t.Key.ToLower() == "remove").Value;
-
-                if (!string.IsNullOrEmpty(sTarget))
-                    jDB.Export(sTarget, sRemove ?? "");
-                else
-                    jDB.Export("http://localhost:5000", sRemove ?? "");
-            }
-            catch { }
-
-            return null;
         }
 
         /// <summary>
