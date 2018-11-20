@@ -16,6 +16,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static jaindb.BlockChain;
+using System.Linq;
 
 namespace jaindb
 {
@@ -203,7 +204,10 @@ namespace jaindb
                             //Write Hash to the first Plugin if the current plugin is not the first one
                             if(item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
                             {
-                                _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(Hash, sResult, Collection);
+                                ThreadPool.QueueUserWorkItem(delegate
+                                {
+                                    _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(Hash, sResult, Collection);
+                                });
                             }
                             return sResult;
                         }
@@ -763,7 +767,6 @@ namespace jaindb
                 {
                     oChain = GetChain(DeviceID);
                     lBlock = oChain.GetLastBlock(blockType);
-
                 }
                 else
                 {
@@ -1325,7 +1328,8 @@ namespace jaindb
                     try
                     {
                         bool bHasValues = false;
-                        foreach (var jObj in item.Value.GetRawAssets(""))
+                        //foreach (var jObj in item.Value.GetRawAssets(paths))
+                        foreach (JObject jObj in item.Value.GetRawAssets(paths))
                         {
                             bHasValues = true;
                             bool foundData = false;
@@ -1508,7 +1512,6 @@ namespace jaindb
                     }
                     catch { }
                 }
-
                 return aRes;
             }
             catch { }
@@ -1760,15 +1763,26 @@ namespace jaindb
 
             private static Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
             {
-                var allDlls = new DirectoryInfo(PluginDirectory).GetFiles("*.dll");
-
-                var dll = allDlls.FirstOrDefault(fi => fi.Name == args.Name.Split(',')[0] + ".dll");
-                if (dll == null)
+                try
                 {
-                    return null;
+
+                    var allDlls = new DirectoryInfo(PluginDirectory).GetFiles("*.dll");
+
+                    var dll = allDlls.FirstOrDefault(fi => fi.Name == args.Name.Split(',')[0] + ".dll");
+                    if (dll == null)
+                    {
+                        return null;
+                    }
+
+                    //return Assembly.LoadFrom(dll.FullName);
+                    return Assembly.LoadFile(dll.FullName);
+                }
+                catch(Exception ex)
+                {
+                    ex.Message.ToString();
                 }
 
-                return Assembly.LoadFrom(dll.FullName);
+                return null;
             }
         }
     }
