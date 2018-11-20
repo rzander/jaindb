@@ -21,9 +21,19 @@
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json database warehouse store</PackageTags>
     <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <Title>JainDB File-System Storage Provider</Title>
+    <Title>JainDB SQLCache Storage Provider</Title>
     <Version>1.0.1</Version>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="System.Data.SqlClient.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="System.Data.SqlClient.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="3.1.6" />
@@ -32,9 +42,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="jaindb.base" Version="1.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="2.2.0-preview3-35497" />
+    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="2.1.2">
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.6.0-preview3-27014-02" />
   </ItemGroup>
 
   <ItemGroup>

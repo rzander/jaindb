@@ -81,23 +81,30 @@ namespace Plugin_SQLCache
                 }
                 catch
                 {
-                    using (SqlConnection connection = new SqlConnection(SQLConnectionString))
+                    try
                     {
-                        SqlCommand command = new SqlCommand(Properties.Resources.CreateTable, connection);
-                        command.Connection.Open();
-                        command.ExecuteNonQuery();
+                        using (SqlConnection connection = new SqlConnection(SQLConnectionString))
+                        {
+                            SqlCommand command = new SqlCommand(Properties.Resources.CreateTable, connection);
+                            command.Connection.Open();
+                            command.ExecuteNonQuery();
+                        }
+
+                        SqlServerCacheOptions oOption = new SqlServerCacheOptions()
+                        {
+                            ConnectionString = SQLConnectionString,
+                            SchemaName = "dbo",
+                            TableName = "JCache",
+                            DefaultSlidingExpiration = new TimeSpan(0, 0, 0, SlidingExpiration)
+                        };
+
+                        oSrv = new SqlServerCache(oOption);
+                        Console.WriteLine("SQL Table 'JCache' created...");
                     }
-
-                    SqlServerCacheOptions oOption = new SqlServerCacheOptions()
+                    catch(Exception ex)
                     {
-                        ConnectionString = SQLConnectionString,
-                        SchemaName = "dbo",
-                        TableName = "JCache",
-                        DefaultSlidingExpiration = new TimeSpan(0, 0, 0, SlidingExpiration)
-                    };
-
-                    oSrv = new SqlServerCache(oOption);
-                    Console.WriteLine("SQL Table 'JCache' created...");
+                        Console.WriteLine("Error: " + ex.Message);
+                    }
                 }
 
                 oSrv.SetString("key1", "value1", new DistributedCacheEntryOptions() { SlidingExpiration = new TimeSpan(1000) });
@@ -237,35 +244,12 @@ namespace Plugin_SQLCache
         public int totalDeviceCount(string sPath = "")
         {
             int iCount = -1;
-            try
-            {
-                if (string.IsNullOrEmpty(sPath))
-                    sPath = Path.Combine(FilePath, "_chain");
-
-                if (Directory.Exists(sPath))
-                    iCount = Directory.GetFiles(sPath).Count(); //count Blockchain Files
-            }
-            catch { }
-
             return iCount;
         }
 
         public IEnumerable<JObject> GetRawAssets(string paths)
         {
-            foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_assets")).GetFiles("*.json"))
-            {
-                JObject jObj = jaindb.jDB.GetRaw(File.ReadAllText(oFile.FullName), paths);
-
-                if (paths.Contains("*") || paths.Contains(".."))
-                {
-                    try
-                    {
-                        jObj = jaindb.jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
-                    }
-                    catch { }
-                }
-                yield return jObj;
-            }
+            return null; //We cannot list objects
         }
 
         public string LookupID(string name, string value)
@@ -273,7 +257,7 @@ namespace Plugin_SQLCache
             string sResult = "";
             try
             {
-                sResult = File.ReadAllText(Path.Combine(FilePath, "_key", name.TrimStart('#', '@'), value + ".json"));
+                sResult = oSrv.GetString("_key\\" + name.ToLower() + "\\" + value.ToLower());
             }
             catch { }
 
@@ -284,18 +268,8 @@ namespace Plugin_SQLCache
         {
             try
             {
-                string sDir = Path.Combine(FilePath, "_key", name.ToLower().TrimStart('#'));
+                oSrv.SetString("_key\\" + name.ToLower() + "\\" + value.ToLower(), id, new DistributedCacheEntryOptions() { SlidingExpiration = new TimeSpan(0, 0, SlidingExpiration) });
 
-                //Remove invalid Characters in Path
-                foreach (var sChar in Path.GetInvalidPathChars())
-                {
-                    sDir = sDir.Replace(sChar.ToString(), "");
-                }
-
-                if (!Directory.Exists(sDir))
-                    Directory.CreateDirectory(sDir);
-
-                File.WriteAllText(Path.Combine(sDir, value + ".json"), id);
                 return true;
             }
             catch
@@ -307,15 +281,6 @@ namespace Plugin_SQLCache
         public List<string> GetAllIDs()
         {
             List<string> lResult = new List<string>();
-
-            try
-            {
-                foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
-                {
-                    lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
-                }
-            }
-            catch { }
 
             return lResult;
         }
