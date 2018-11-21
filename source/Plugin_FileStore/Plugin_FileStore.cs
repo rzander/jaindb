@@ -69,6 +69,13 @@ namespace Plugin_FileStore
         public bool WriteHash(string Hash, string Data, string Collection)
         {
             Collection = Collection.ToLower();
+
+            if (bReadOnly)
+                if (ContinueAfterWrite)
+                    return false;
+                else
+                    return true;
+
             //Remove invalid Characters in Path and Hash
             foreach (var sChar in Path.GetInvalidPathChars())
             {
