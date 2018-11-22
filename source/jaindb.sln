@@ -27,6 +27,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Plugin_AzureBlob", "Plugin_
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Plugin_SQLCache", "Plugin_SQLCache\Plugin_SQLCache.csproj", "{7199B8A5-2039-497E-BE89-3229EE57C40E}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Plugin_Forwarder", "Plugin_Forwarder\Plugin_Forwarder.csproj", "{640B86B3-52B4-4FE1-B0DF-14D28B31EBA6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -77,6 +79,10 @@ Global
 		{7199B8A5-2039-497E-BE89-3229EE57C40E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7199B8A5-2039-497E-BE89-3229EE57C40E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7199B8A5-2039-497E-BE89-3229EE57C40E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{640B86B3-52B4-4FE1-B0DF-14D28B31EBA6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{640B86B3-52B4-4FE1-B0DF-14D28B31EBA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{640B86B3-52B4-4FE1-B0DF-14D28B31EBA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{640B86B3-52B4-4FE1-B0DF-14D28B31EBA6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -89,6 +95,7 @@ Global
 		{53ABFBBF-63EA-4BFC-8A87-BAB30DC044FD} = {4792DDA8-A016-4EEE-8F13-B1A656463B06}
 		{490FE521-22B4-4AD6-96AB-021F39BC61EB} = {4792DDA8-A016-4EEE-8F13-B1A656463B06}
 		{7199B8A5-2039-497E-BE89-3229EE57C40E} = {4792DDA8-A016-4EEE-8F13-B1A656463B06}
+		{640B86B3-52B4-4FE1-B0DF-14D28B31EBA6} = {4792DDA8-A016-4EEE-8F13-B1A656463B06}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BC8F7053-6B8A-4549-94C2-A4F519C1DE2E}

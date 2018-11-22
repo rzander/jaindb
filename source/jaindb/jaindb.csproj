@@ -51,9 +51,6 @@
 
   <ItemGroup>
     <PackageReference Include="jaindb.base" Version="1.0.1" />
-    <PackageReference Include="jaindb.storage.AzureBlob" Version="1.0.1" />
-    <PackageReference Include="jaindb.storage.FileStore" Version="1.0.1" />
-    <PackageReference Include="jaindb.storage.Memory" Version="1.0.1" />
     <PackageReference Include="JsonDiffPatch.Net" Version="2.1.0" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.5.1" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.1.6" />
@@ -145,6 +142,10 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\jaindb\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\jaindb.base\jaindb.base.csproj" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

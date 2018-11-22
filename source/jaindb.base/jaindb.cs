@@ -137,6 +137,17 @@ namespace jaindb
                             oRoot = oClass;
                         }
                     }
+                    if (oClass.Type == JTokenType.Array)
+                    {
+                        JObject jNew = new JObject();
+                        jNew.Add("##hash", sHash);
+                        WriteHash(sHash, oRoot.ToString(Formatting.None), Collection); //not async, it's faster
+                        var oPar = oClass.Parent.Parent;
+                        oClass.Parent.Remove(); //remove parent Property as we hvae to change thy type from array to object
+                        JProperty jProp = new JProperty(Collection, jNew);
+                        oPar.Add(jProp);
+                        oRoot = jNew;
+                    }
                 }
 
             }
@@ -251,6 +262,49 @@ namespace jaindb
             JObject oObj = FullObject;
             JObject oStatic = oObj.ToObject<JObject>();
 
+            //Dedublicate arrays
+            foreach (var oChild in oObj.Descendants().Where(t => t.Type == JTokenType.Array).Reverse())
+            {
+                bool bHasObjects = false;
+
+                if (oChild.ToString(Formatting.None).Length > 96) //only dedup Array items larger than 96 characters
+                {
+                    //Loop through all Child Objects
+                    foreach (var oChildObj in oChild.Parent.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
+                    {
+                        //Array has child Objects -> ignore array as we use the objects
+                        bHasObjects = true;
+                        break;
+                    }
+                }
+                else
+                {
+                    continue; //array is too small for dedup
+                }
+
+                if (bHasObjects)
+                    continue;
+
+                JToken tRef = oObj.SelectToken(oChild.Path, false);
+
+                //check if tRfe is valid..
+                if (tRef == null)
+                    continue;
+
+
+                string sName = "misc";
+                if (oChild.Parent.Type == JTokenType.Property)
+                    sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent).Name;
+                else
+                    sName = ((Newtonsoft.Json.Linq.JProperty)oChild.Parent.Parent).Name; //it's an array
+
+                if (sName.StartsWith('@'))
+                    continue;
+
+                WriteHash(ref tRef, ref oStatic, sName);
+                oChild.ToString();
+                oObj.SelectToken(oChild.Path).Replace(tRef);
+            }
             //Loop through all ChildObjects
             foreach (var oChild in oObj.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
             {
@@ -292,7 +346,7 @@ namespace jaindb
 
 
                     //remove all # and @ attributes
-                    foreach (var oKey in tRef.Parent.Descendants().Where(t => t.Type == JTokenType.Property && (((JProperty)t).Name.StartsWith("#") || ((JProperty)t).Name.StartsWith("@"))).ToList())
+                    foreach (var oKey in tRef.Parent.Descendants().Where(t => t.Type == JTokenType.Property && (((JProperty)t).Name.StartsWith("#") || ((JProperty)t).Name.StartsWith("@")) && !((JProperty)t).Name.StartsWith("##")).ToList())
                     {
                         try
                         {
@@ -650,8 +704,20 @@ namespace jaindb
                             string sObj = ReadHash(sH, sRoot);
                             if (!string.IsNullOrEmpty(sObj))
                             {
-                                var jStatic = JObject.Parse(sObj);
-                                oTok.Parent.Merge(jStatic);
+                                if (sObj.StartsWith('[')) //Check if value is an Array
+                                {
+                                    var jStatic = JArray.Parse(sObj); //get Array Object
+
+                                    var oPar = oTok.Parent.Parent.Parent;
+                                    oTok.Parent.Parent.Remove(); //Remove the Object with the ##hash
+                                    oPar.Add(new JProperty(sRoot, jStatic)); //add Array Object
+
+                                }
+                                else
+                                {
+                                    var jStatic = JObject.Parse(sObj);
+                                    oTok.Parent.Merge(jStatic);
+                                }
                                 bool bLoop = true;
                                 int i = 0;
                                 //Remove NULL values as a result from merge
@@ -1329,6 +1395,7 @@ namespace jaindb
                     {
                         bool bHasValues = false;
                         //foreach (var jObj in item.Value.GetRawAssets(paths))
+
                         foreach (JObject jObj in item.Value.GetRawAssets(paths))
                         {
                             bHasValues = true;
