@@ -266,6 +266,9 @@ namespace Plugin_RethinkDB
 
         public bool WriteLookupID(string name, string value, string id)
         {
+            if (bReadOnly)
+                return false;
+
             if (!RethinkTables.Contains("_key"))
             {
                 try
