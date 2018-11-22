@@ -25,12 +25,19 @@ namespace JainDBTest
             Console.WriteLine("Upload Test Object...");
             string sTST = System.IO.File.ReadAllText("./test.json");
             string sHash = jaindb.jDB.UploadFull(sTST, "test1");
-            Thread.Sleep(3000); //wait 3s to store all files..
+
+            //var jRes = jDB.GetFull("test1", 1);
+            //jDB.JSort(jRes);
+            //string s1 = jRes.ToString(Newtonsoft.Json.Formatting.Indented);
+            //s1.ToString();
+
             Console.WriteLine("... received Hash:" + sHash);
-            bool bHash = (sHash == "9qZUmPQTbQgZFdRvD9KHLiAJo");
+            bool bHash = (sHash == "9qZLSzgry3DXTCoFLk4nQRzBf");
             Assert.IsTrue(bHash);
             if (bHash)
                 Console.WriteLine("Hash is valid.");
+
+
         }
 
         /// <summary>
@@ -95,13 +102,15 @@ namespace JainDBTest
             Assert.IsTrue(i > 0);
         }
 
-        [Ignore]
+        //[Ignore]
         [TestMethod]
         [Priority(99)]
         public void Bulk_Upload()
         {
             if (System.IO.Directory.Exists("wwwroot"))
                 System.IO.Directory.Delete("wwwroot", true); //cleanup existing data
+
+            jaindb.jDB.loadPlugins();
 
             Console.WriteLine("Upload Test Object...");
             string sTST = System.IO.File.ReadAllText("./test.json");

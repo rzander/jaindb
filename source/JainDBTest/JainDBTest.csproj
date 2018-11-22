@@ -8,6 +8,7 @@
     <Authors>Roger Zander</Authors>
 
     <Copyright>Copyright (c) 2018 by Roger Zander</Copyright>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
