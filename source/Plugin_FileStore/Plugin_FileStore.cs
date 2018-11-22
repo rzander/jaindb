@@ -296,6 +296,9 @@ namespace Plugin_FileStore
 
         public bool WriteLookupID(string name, string value, string id)
         {
+            if (bReadOnly)
+                return false;
+
             try
             {
                 string sDir = Path.Combine(FilePath, "_key", name.ToLower().TrimStart('#'));

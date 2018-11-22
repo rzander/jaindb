@@ -252,7 +252,6 @@ namespace Plugin_Redis
         {
             if (RedisEnabled)
             {
-
                 foreach (var oObj in srv.Keys(4, "*"))
                 {
                     JObject jObj = jaindb.jDB.GetRaw(ReadHash(oObj, "_assets"), paths);
@@ -287,6 +286,9 @@ namespace Plugin_Redis
 
         public bool WriteLookupID(string name, string value, string id)
         {
+            if (bReadOnly)
+                return false;
+
             if (!RedisEnabled)
                 return false;
 

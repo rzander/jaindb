@@ -189,6 +189,7 @@ namespace Plugin_MemoryCache
         public int totalDeviceCount(string sPath = "")
         {
             string sCount = "";
+
             //Check in MemoryCache
             if (_cache.TryGetValue("RH-totaldevicecount-", out sCount))
             {
@@ -219,6 +220,9 @@ namespace Plugin_MemoryCache
 
         public bool WriteLookupID(string name, string value, string id)
         {
+            if (bReadOnly)
+                return false;
+
             try
             {
                 var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds

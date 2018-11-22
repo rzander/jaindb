@@ -10,7 +10,6 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System.Threading.Tasks;
 
-
 namespace Plugin_AzureBlob
 {
     public class Plugin_AzureBlob : IStore
@@ -193,6 +192,9 @@ namespace Plugin_AzureBlob
 
         public bool WriteLookupID(string name, string value, string id)
         {
+            if (bReadOnly)
+                return false;
+
             try
             {
                 return false;
