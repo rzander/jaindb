@@ -63,10 +63,7 @@ namespace Plugin_AzureBlob.Properties {
         /// <summary>
         ///   Looks up a localized string similar to {
         ///  &quot;ReadOnly&quot;: false,
-        ///  &quot;SlidingExpiration&quot;: 300,
         ///  &quot;ContinueAfterWrite&quot;: true,
-        ///  &quot;CacheFull&quot;: true,
-        ///  &quot;CacheKeys&quot;: true,
         ///  &quot;StorageAccount&quot;: &quot;yyy&quot;,
         ///  &quot;AccessKey&quot;: &quot;xxx&quot;
         ///}.

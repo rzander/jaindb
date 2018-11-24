@@ -259,6 +259,7 @@ namespace Plugin_CosmosDB
             foreach (var oAsset in oAssets)
             {
                 JObject jObj = oAsset;
+
                 yield return jObj;
             }
         }

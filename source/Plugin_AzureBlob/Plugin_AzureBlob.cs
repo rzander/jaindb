@@ -9,6 +9,7 @@ using System.Reflection;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System.Threading.Tasks;
+using jaindb;
 
 namespace Plugin_AzureBlob
 {
@@ -62,7 +63,10 @@ namespace Plugin_AzureBlob
                 storageAccount = new CloudStorageAccount(new Microsoft.WindowsAzure.Storage.Auth.StorageCredentials(StorageAccount, AccessKey), true);
                 blobClient = storageAccount.CreateCloudBlobClient();
             }
-            catch { }
+            catch(Exception ex)
+            {
+                Console.WriteLine("AzureBlob Error: " + ex.Message);
+            }
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
@@ -167,14 +171,21 @@ namespace Plugin_AzureBlob
 
         public IEnumerable<JObject> GetRawAssets(string paths)
         {
+            //paths = "*"; //Azure Blob store full assets only
             CloudBlobContainer container = blobClient.GetContainerReference("assets");
 
-            foreach (var oAsset in container.ListBlobs())
+            foreach (var bAsset in container.ListBlobs())
             {
-                if (oAsset.GetType() == typeof(CloudBlockBlob))
+                if (bAsset.GetType() == typeof(CloudBlockBlob))
                 {
-                    CloudBlockBlob blob = (CloudBlockBlob)oAsset;
-                    JObject jObj = JObject.Parse(blob.DownloadText());
+                    CloudBlockBlob blob = (CloudBlockBlob)bAsset;
+
+                    JObject jObj = new JObject();
+                    jObj = JObject.Parse(blob.DownloadText());
+
+                    if (jObj["_hash"] == null)
+                        jObj.Add(new JProperty("_hash", blob.Name));
+
                     yield return jObj;
                 }
                 else

@@ -1,4 +1,4 @@
-﻿cd "%~dp0"
+﻿pushd "%~dp0"
 set WebPort=5000
 ::set localURL=http://172.23.68.245
 set ReportUser=demo

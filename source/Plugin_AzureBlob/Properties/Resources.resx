@@ -120,10 +120,7 @@
   <data name="Plugin_AzureBlob" xml:space="preserve">
     <value>{
   "ReadOnly": false,
-  "SlidingExpiration": 300,
   "ContinueAfterWrite": true,
-  "CacheFull": true,
-  "CacheKeys": true,
   "StorageAccount": "yyy",
   "AccessKey": "xxx"
 }</value>

@@ -1,4 +1,5 @@
-﻿using JainDBProvider;
+﻿using jaindb;
+using JainDBProvider;
 using Newtonsoft.Json.Linq;
 using StackExchange.Redis;
 using System;
@@ -254,16 +255,30 @@ namespace Plugin_Redis
             {
                 foreach (var oObj in srv.Keys(4, "*"))
                 {
-                    JObject jObj = jaindb.jDB.GetRaw(ReadHash(oObj, "_assets"), paths);
+                    var oAsset = jDB.ReadHash(oObj, "_assets"); //get raw asset
+
+                    JObject jObj = new JObject();
+
 
                     if (paths.Contains("*") || paths.Contains(".."))
                     {
                         try
                         {
-                            jObj = jaindb.jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                            jObj = jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
                         }
                         catch { }
                     }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(paths))
+                            jObj = jDB.GetRaw(oAsset, paths); //load only the path
+                        else
+                            jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
+                    }
+
+                    if (jObj["_hash"] == null)
+                        jObj.Add(new JProperty("_hash", oObj.ToString()));
+
                     yield return jObj;
                 }
             }

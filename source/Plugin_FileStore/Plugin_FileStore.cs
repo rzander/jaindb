@@ -1,4 +1,5 @@
-﻿using JainDBProvider;
+﻿using jaindb;
+using JainDBProvider;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,7 @@ namespace Plugin_FileStore
     {
         private static readonly object locker = new object();
         private bool bReadOnly = false;
+        private bool bWriteOnly = false;
         private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
         private bool CacheKeys = true;
@@ -36,7 +38,6 @@ namespace Plugin_FileStore
         {
             if (Settings == null)
                 Settings = new Dictionary<string, string>();
-
 
             try
             {
@@ -207,6 +208,9 @@ namespace Plugin_FileStore
         public string ReadHash(string Hash, string Collection)
         {
             string sResult = "";
+            if (bWriteOnly)
+                return sResult;
+
             try
             {
                 string Coll2 = Collection;
@@ -217,27 +221,30 @@ namespace Plugin_FileStore
                     Hash = Hash.Replace(sChar.ToString(), "");
                 }
 
+                if (!File.Exists(Path.Combine(FilePath, Coll2, Hash + ".json")))
+                    return "";
+
                 sResult = File.ReadAllText(Path.Combine(FilePath, Coll2, Hash + ".json"));
 
 #if DEBUG
                 //Check if hashes are valid...
-                if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
-                {
-                    var jData = JObject.Parse(sResult);
-                    /*if (jData["#id"] != null)
-                        jData.Remove("#id");*/
-                    if (jData["_date"] != null)
-                        jData.Remove("_date");
-                    if (jData["_index"] != null)
-                        jData.Remove("_index");
+                //if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
+                //{
+                //    var jData = JObject.Parse(sResult);
+                //    /*if (jData["#id"] != null)
+                //        jData.Remove("#id");*/
+                //    if (jData["_date"] != null)
+                //        jData.Remove("_date");
+                //    if (jData["_index"] != null)
+                //        jData.Remove("_index");
 
-                    string s1 = jaindb.jDB.CalculateHash(jData.ToString(Newtonsoft.Json.Formatting.None));
-                    if (Hash != s1)
-                    {
-                        s1.ToString();
-                        return "";
-                    }
-                }
+                //    string s1 = jaindb.jDB.CalculateHash(jData.ToString(Newtonsoft.Json.Formatting.None));
+                //    if (Hash != s1)
+                //    {
+                //        s1.ToString();
+                //        return "";
+                //    }
+                //}
 #endif
 
             }
@@ -268,16 +275,28 @@ namespace Plugin_FileStore
         {
             foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_assets")).GetFiles("*.json"))
             {
-                JObject jObj = jaindb.jDB.GetRaw(File.ReadAllText(oFile.FullName), paths);
+                var oAsset = jDB.ReadHash(oFile.FullName.Replace(oFile.Extension, ""), "_assets");
+                JObject jObj = new JObject();
 
                 if (paths.Contains("*") || paths.Contains(".."))
                 {
                     try
                     {
-                        jObj = jaindb.jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                        jObj = jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
                     }
                     catch { }
                 }
+                else
+                {
+                    if (!string.IsNullOrEmpty(paths)) 
+                        jObj = jDB.GetRaw(oAsset, paths); //load only the path
+                    else
+                        jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
+                }
+
+                if (jObj["_hash"] == null)
+                    jObj.Add(new JProperty("_hash", oFile.FullName));
+
                 yield return jObj;
             }
         }

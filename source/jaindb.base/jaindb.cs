@@ -11,12 +11,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static jaindb.BlockChain;
-using System.Linq;
 
 namespace jaindb
 {
@@ -178,7 +176,7 @@ namespace jaindb
 
                 return true;
             }
-            catch (Exception ex)
+            catch
             {
                 return false;
             }
@@ -1678,22 +1676,43 @@ namespace jaindb
                             }
                         }
 
-                        foreach (JObject jObj in item.Value.GetRawAssets("*"))
+                        string sFilter = ""; //only return raw data
+                        if (dedup)
+                            sFilter = ""; //return full object
+
+                        if (!dedup)
                         {
-                            if (jObj.HasValues)
+                            foreach (JObject jObj in item.Value.GetRawAssets(""))
                             {
-                                //Write Hash to the first Plugin if the current plugin is not the first one
-                                if (item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
+                                //if (jObj.HasValues)
+                                //{
+                                //    //Write Hash to the first Plugin if the current plugin is not the first one
+                                //    if (item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
+                                //    {
+                                //        //_Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jObj.ToString(), "_assets");
+                                //    }
+                                //}
+                            }
+                        }
+                        else
+                        {
+                            foreach (JObject jObj in item.Value.GetRawAssets(""))
+                            {
+                                if (jObj.HasValues)
                                 {
-                                    _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jObj.ToString(), "_full");
-                                    if(dedup)
+                                    //Write Hash to the first Plugin if the current plugin is not the first one
+                                    if (item.Key != _Plugins.OrderBy(t => t.Key).FirstOrDefault().Key)
                                     {
-                                        var jTest = Deduplicate(jObj);
-                                        _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jTest.ToString(Newtonsoft.Json.Formatting.None), "_assets");
-                                    }
-                                    else
-                                    {
-                                        _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jObj.ToString(), "_assets");
+                                        _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jObj.ToString(), "_full");
+                                        if (dedup)
+                                        {
+                                            var jTest = Deduplicate(jObj);
+                                            _Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jTest.ToString(Newtonsoft.Json.Formatting.None), "_assets");
+                                        }
+                                        else
+                                        {
+                                            //_Plugins.OrderBy(t => t.Key).FirstOrDefault().Value.WriteHash(jObj["_hash"].Value<string>(), jObj.ToString(), "_assets");
+                                        }
                                     }
                                 }
                             }

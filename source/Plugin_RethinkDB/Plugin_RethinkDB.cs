@@ -204,7 +204,7 @@ namespace Plugin_RethinkDB
                 else
                     return true;
             }
-            catch (Exception ex)
+            catch
             {
                 return false;
             }
