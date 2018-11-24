@@ -108,7 +108,7 @@ namespace jaindb
 
         public static void WriteHash(ref JToken oRoot, ref JObject oStatic, string Collection)
         {
-            Collection = Collection.ToLower(); //all lowercase
+            //Collection = Collection.ToLower(); do NOT change to lowercase to prevent duplicate JSON entries
 
             if (ReadOnly)
                 return;
@@ -303,6 +303,7 @@ namespace jaindb
                 oChild.ToString();
                 oObj.SelectToken(oChild.Path).Replace(tRef);
             }
+            
             //Loop through all ChildObjects
             foreach (var oChild in oObj.Descendants().Where(t => t.Type == JTokenType.Object).Reverse())
             {
