@@ -22,21 +22,18 @@
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Title>JainDB RethinkDB Storage Provider</Title>
-    <Version>1.0.1</Version>
+    <Version>1.0.3</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="3.1.6" />
-    <PackageReference Include="Fody" Version="3.3.0">
+    <PackageReference Include="Fody" Version="3.3.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="jaindb.base" Version="1.0.3" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
     <PackageReference Include="RethinkDb.Driver" Version="2.3.23" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\jaindb.base\jaindb.base.csproj" />
   </ItemGroup>
 
   <ItemGroup>

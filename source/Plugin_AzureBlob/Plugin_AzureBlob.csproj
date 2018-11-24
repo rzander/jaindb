@@ -13,7 +13,7 @@
     <Company>Zander Tools</Company>
     <Product>jaindb.storage.AzureBlob</Product>
     <PackageId>jaindb.storage.AzureBlob</PackageId>
-    <Description>StorageProvider to store Data on a Azure Blob</Description>
+    <Description>StorageProvider to store Data on Azure Blob</Description>
     <Copyright>(c) 2018 by Roger Zander</Copyright>
     <PackageLicenseUrl>https://github.com/rzander/jaindb/blob/master/LICENSE.MD</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
@@ -22,21 +22,18 @@
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Title>JainDB Azure Blob Storage Provider</Title>
-    <Version>1.0.1</Version>
+    <Version>1.0.3</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="3.1.6" />
-    <PackageReference Include="Fody" Version="3.3.0">
+    <PackageReference Include="Fody" Version="3.3.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="jaindb.base" Version="1.0.3" />
     <PackageReference Include="Microsoft.Azure.Storage.Blob" Version="9.4.0" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\jaindb.base\jaindb.base.csproj" />
   </ItemGroup>
 
   <ItemGroup>
