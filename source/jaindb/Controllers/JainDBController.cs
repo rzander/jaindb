@@ -9,7 +9,6 @@ using System.Reflection;
 using System.IO;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Azure.Documents;
 using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
@@ -35,15 +34,8 @@ namespace jaindb.Controllers
             _logger = logger;
             _cache = memoryCache;
             _env = env;
-            jDB._cache = memoryCache;
+            //jDB._cache = memoryCache;
         }
-
-        //[HttpGet]
-        //public ActionResult get()
-        //{
-        //    string sVersion = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-        //    return Content("JainDB (c) 2018 by Roger Zander; Version: " + sVersion);
-        //}
 
         [HttpPost]
         [Route("upload/{Id}")]
@@ -270,22 +262,6 @@ namespace jaindb.Controllers
         }
 
         [HttpGet]
-        [Authorize]
-        [Route("search")]
-        public JsonResult Search()
-        {
-            this.Url.ToString();
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
-            if (sPath != "/favicon.ico")
-            {
-                var query = QueryHelpers.ParseQuery(sQuery);
-                return Json(jDB.Search(query.FirstOrDefault(t => string.IsNullOrEmpty(t.Value)).Key, query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value));
-            }
-            return null;
-        }
-
-        [HttpGet]
         [Authorize(Roles = "All")]
         [Route("query")]
         public JArray Query()
@@ -307,9 +283,6 @@ namespace jaindb.Controllers
         [Route("queryAll")]
         public JArray QueryAll()
         {
-            string sPath = _env.WebRootPath;
-            jDB.FilePath = sPath;
-
             string sQuery = this.Request.QueryString.ToString();
 
             var query = System.Web.HttpUtility.ParseQueryString(sQuery);
@@ -384,24 +357,26 @@ namespace jaindb.Controllers
             return jDB.GetChanges(tAge, iType);
         }
 
+        /// <summary>
+        /// reload all chains and assetsto cache or migrate to another storage provider
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         [Authorize]
-        [Route("export")]
-        public JObject Export()
+        [Route("reload")]
+        public JObject reload()
         {
             string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
             string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
             try
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
-                string sTarget = query.FirstOrDefault(t => t.Key.ToLower() == "url").Value;
+                string sDedub = query.FirstOrDefault(t => t.Key.ToLower() == "dedup").Value;
 
-                string sRemove = query.FirstOrDefault(t => t.Key.ToLower() == "remove").Value;
-
-                if (!string.IsNullOrEmpty(sTarget))
-                    jDB.Export(sTarget, sRemove ?? "");
+                if (!string.IsNullOrEmpty(sDedub))
+                    jDB.FullReload(true);
                 else
-                    jDB.Export("http://localhost:5000", sRemove ?? "");
+                    jDB.FullReload();
             }
             catch { }
 

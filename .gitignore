@@ -323,3 +323,4 @@ ASALocalRun/
 
 wwwroot/bin/
 source/jaindb/wwwroot/bin/
+source/Plugin_AzureBlob/Plugin_600_AzureBlob.json

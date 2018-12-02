@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA;" />
+  </Target>
+
+</Project>

@@ -1,0 +1,80 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <SignAssembly>false</SignAssembly>
+    <UseNETCoreGenerator>true</UseNETCoreGenerator>
+    <ApplicationIcon />
+    <OutputType>Library</OutputType>
+    <StartupObject />
+    <AssemblyName>jaindb.storage.110_SQLCache</AssemblyName>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Roger Zander</Authors>
+    <Company>Zander Tools</Company>
+    <PackageId>jaindb.storage.SQLCache</PackageId>
+    <Product>jaindb.storage.SQLCache</Product>
+    <Description>StorageProvider to use SQLCache as Data-Store. Note: SQLCache is not a long term storage as the items will expire after 30days (default value)</Description>
+    <Copyright>(c) 2018 by Roger Zander</Copyright>
+    <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/rzander/jaindb/master/source/jaindb/JainDB_Logo.ico</PackageIconUrl>
+    <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
+    <PackageTags>blockchain json database warehouse store</PackageTags>
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
+    <Title>JainDB SQLCache Storage Provider</Title>
+    <Version>1.0.3</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="System.Data.SqlClient.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="System.Data.SqlClient.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Costura.Fody" Version="3.1.6" />
+    <PackageReference Include="Fody" Version="3.3.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="jaindb.base" Version="1.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="2.1.2">
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="jaindb.storage.110_SQLCache.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="1.0.0" />
+    <DotNetCliToolReference Include="Microsoft.Extensions.Caching.SqlConfig.Tools" Version="1.0.0-msbuild3-final" />
+  </ItemGroup>
+  
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;" />
+  </Target>
+
+</Project>

@@ -12,7 +12,10 @@
       "commandName": "IISExpress",
       "launchBrowser": true,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ReportPW": "password",
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DisableAuth": "1",
+        "ReportUser": "DEMO"
       }
     },
     "jaindb": {

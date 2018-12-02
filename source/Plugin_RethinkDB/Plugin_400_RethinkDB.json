@@ -1,0 +1,9 @@
+﻿{
+  "ReadOnly": false,
+  "ContinueAfterWrite": true,
+  "CacheFull": true,
+  "CacheKeys": true,
+  "RethinkDBServer": "localhost",
+  "Port": 28015,
+  "Database":  "jaindb"
+}

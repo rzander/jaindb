@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <Authors>Roger Zander</Authors>
+    <Company>Zander Tools</Company>
+    <Copyright>(c) 2018 by Roger Zander</Copyright>
+    <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
+    <Description>jaindb base library to generate blockchain. Additional Storage-Providers are required</Description>
+    <PackageTags>blockchain json database warehouse store</PackageTags>
+    <PackageIconUrl>https://raw.githubusercontent.com/rzander/jaindb/master/source/jaindb/JainDB_Logo.ico</PackageIconUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageLicenseUrl>https://github.com/rzander/jaindb/blob/master/LICENSE.MD</PackageLicenseUrl>
+    <Version>1.0.3</Version>
+    <FileVersion>1.0.3.0</FileVersion>
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
+    <Title>JainDB base library</Title>
+    <PackageReleaseNotes />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JsonDiffPatch.Net" Version="2.1.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;" />
+  </Target>
+
+</Project>

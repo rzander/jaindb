@@ -11,7 +11,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using System.IO;
 using System.Diagnostics;
-using Microsoft.Azure.Documents.Client;
 using System.Net.Sockets;
 using System.Linq;
 using System.Net.NetworkInformation;
@@ -139,11 +138,6 @@ namespace jaindb
                     {
                         sIP = f.GetIPProperties().UnicastAddresses.Where(t => t.Address.AddressFamily == AddressFamily.InterNetwork).First().Address.ToString();
                     }
-
-                /*IPAddress ip = Dns.GetHostAddresses(Dns.GetHostName()).Where(address =>
-                address.AddressFamily == AddressFamily.InterNetwork).First();*/
-
-                //sIP = ip.ToString();
             }
             catch { }
 
@@ -183,102 +177,6 @@ namespace jaindb
                     break;
             }
 
-            if ((int.Parse(Configuration.GetSection("UseRedis").Value ?? Configuration.GetSection("jaindb:UseRedis").Value) == 1) || (Environment.GetEnvironmentVariable("UseRedis") ?? "0") == "1")
-            {
-                try
-                {
-                    if (jDB.cache0 == null)
-                    {
-                        jDB.cache0 = RedisConnectorHelper.Connection.GetDatabase(0);
-                        jDB.cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
-                        jDB.cache2 = RedisConnectorHelper.Connection.GetDatabase(2);
-                        jDB.cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
-                        jDB.cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
-                    }
-
-                    //Get RedisServer from EnvironmentVariable
-                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RedisServer")))
-                        Environment.SetEnvironmentVariable("RedisServer", "localhost");
-                    string sRedisServer = Environment.GetEnvironmentVariable("RedisServer") ?? "localhost";
-                    RedisConnectorHelper.RedisServer = sRedisServer;
-
-                    //Get RedisPort from EnvironmentVariable
-                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RedisPort")))
-                        Environment.SetEnvironmentVariable("RedisPort", "6379");
-                    int iRedisPort = int.Parse(Environment.GetEnvironmentVariable("RedisPort") ?? "6379");
-                    RedisConnectorHelper.RedisPort = iRedisPort;
-
-                    Console.WriteLine("RedisServer: " + sRedisServer + " on Port: " + iRedisPort.ToString());
-                    if (jDB.srv == null)
-                        jDB.srv = RedisConnectorHelper.Connection.GetServer(sRedisServer, iRedisPort);
-
-                    jDB.UseRedis = true;
-
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("RedisServer: " + RedisConnectorHelper.RedisServer + " on Port: " + RedisConnectorHelper.RedisPort.ToString());
-                    Console.WriteLine("ERROR: " + ex.Message);
-                    Console.WriteLine("Redis = disabled, FileStore = enabled !!!");
-                    jDB.UseRedis = false;
-                    jDB.UseFileStore = true;
-                }
-            }
-
-            if ((int.Parse(Configuration.GetSection("UseCosmosDB").Value ?? Configuration.GetSection("jaindb:UseCosmosDB").Value) == 1) || (Environment.GetEnvironmentVariable("UseCosmosDB") == "1"))
-            {
-                try
-                {
-                    jDB.databaseId = Configuration.GetSection("cosmosdb:databaseId").Value;
-                    jDB.endpointUrl = Configuration.GetSection("cosmosdb:endpointUrl").Value;
-                    jDB.authorizationKey = Configuration.GetSection("cosmosdb:authorizationKey").Value;
-                    jDB.CosmosDB = new DocumentClient(new Uri(jDB.endpointUrl), jDB.authorizationKey);
-
-                    jDB.CosmosDB.OpenAsync();
-                    jDB.UseCosmosDB = true;
-                }
-                catch
-                {
-                    jDB.UseCosmosDB = false;
-                    jDB.UseFileStore = true;
-                }
-            }
-
-            if ((int.Parse(Configuration.GetSection("UseRethinkDB").Value ?? Configuration.GetSection("jaindb:UseRethinkDB").Value) == 1) || (Environment.GetEnvironmentVariable("UseRethinkDB") == "1"))
-            {
-                try
-                {
-                    jDB.conn = jDB.R.Connection()
-                        .Hostname(Configuration.GetSection("rethinkdb:server").Value)
-                        .Port(int.Parse(Configuration.GetSection("rethinkdb:port").Value))
-                        .Timeout(60)
-                        .Db(Configuration.GetSection("rethinkdb:database").Value)
-                        .Connect();
-
-                    //Create DB if missing
-                    if (!((string[])jDB.R.DbList().Run<string[]>(jDB.conn)).Contains(Configuration.GetSection("rethinkdb:database").Value))
-                    {
-                        jDB.R.DbCreate(Configuration.GetSection("rethinkdb:database").Value).Run(jDB.conn);
-                    }
-
-                    //Get Tables
-                    jDB.RethinkTables = ((string[])jDB.R.TableList().Run<string[]>(jDB.conn)).ToList();
-
-                    jDB.UseRethinkDB = true;
-                }
-                catch(Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    jDB.UseRethinkDB = false;
-                    jDB.UseFileStore = true;
-                }
-            }
-
-                if ((int.Parse(Configuration.GetSection("UseFileSystem").Value ?? Configuration.GetSection("jaindb:UseFileSystem").Value) == 1) || (Environment.GetEnvironmentVariable("UseFileSystem") == "1"))
-            {
-                jDB.UseFileStore = true;
-            }
-
             int iComplexity = 0;
             if (!int.TryParse(Environment.GetEnvironmentVariable("PoWComplexitity"), out iComplexity))
             {
@@ -305,6 +203,17 @@ namespace jaindb
                 Console.ResetColor();
                 Console.WriteLine();
             }
+
+
+            jDB.FilePath = Path.Combine(Env.WebRootPath, "jaindb");
+            if (!Directory.Exists(jDB.FilePath))
+                Directory.CreateDirectory(jDB.FilePath);
+            if (!Directory.Exists(Path.Combine(Env.WebRootPath, "plugins")))
+                Directory.CreateDirectory(Path.Combine(Env.WebRootPath, "plugins"));
+            jDB.wwwPath = Env.WebRootPath;
+            Console.WriteLine("loading Storage-Providers:");
+            jDB.loadPlugins(Path.Combine(Env.WebRootPath, "plugins"));
+            Console.WriteLine("");
         }
 
 

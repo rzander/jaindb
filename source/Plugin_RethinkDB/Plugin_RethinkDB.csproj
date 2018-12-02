@@ -1,0 +1,64 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <SignAssembly>false</SignAssembly>
+    <UseNETCoreGenerator>true</UseNETCoreGenerator>
+    <ApplicationIcon />
+    <OutputType>Library</OutputType>
+    <StartupObject />
+    <AssemblyName>jaindb.storage.400_RethinkDB</AssemblyName>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Authors>Roger Zander</Authors>
+    <Company>Zander Tools</Company>
+    <Product>jaindb.storage.RethinkDB</Product>
+    <PackageId>jaindb.storage.RethinkDB</PackageId>
+    <Description>StorageProvider to store Data on RethinkDB.</Description>
+    <Copyright>(c) 2018 by Roger Zander</Copyright>
+    <PackageLicenseUrl>https://github.com/rzander/jaindb/blob/master/LICENSE.MD</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/rzander/jaindb/master/source/jaindb/JainDB_Logo.ico</PackageIconUrl>
+    <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
+    <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Title>JainDB RethinkDB Storage Provider</Title>
+    <Version>1.0.3</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Costura.Fody" Version="3.1.6" />
+    <PackageReference Include="Fody" Version="3.3.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="jaindb.base" Version="1.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="RethinkDb.Driver" Version="2.3.23" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Plugin_400_RethinkDB.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;" />
+  </Target>
+
+</Project>

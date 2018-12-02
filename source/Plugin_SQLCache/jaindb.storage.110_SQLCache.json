@@ -1,0 +1,9 @@
+﻿{
+  "ReadOnly": false,
+  "ContinueAfterWrite": true,
+  "CacheFull": true,
+  "CacheKeys": true,
+  "SQLConnectionString": "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=JCache;Integrated Security=true",
+  "SQLTable": "JCache",
+  "SlidingExpiration": 2678400
+}

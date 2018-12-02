@@ -8,6 +8,7 @@
     <Authors>Roger Zander</Authors>
 
     <Copyright>Copyright (c) 2018 by Roger Zander</Copyright>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\jaindb\jaindb.csproj" />
+    <ProjectReference Include="..\jaindb.base\jaindb.base.csproj" />
+    <ProjectReference Include="..\Plugin_FileStore\Plugin_FileStore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
