@@ -1309,7 +1309,7 @@ namespace jaindb
                                         }
                                         if (oTok.Type == JTokenType.Array)
                                         {
-                                            oRes.Add(new JProperty(path, oTok));
+                                            oRes.Add(new JProperty(sPath, oTok));
                                         }
                                         if (oTok.Type == JTokenType.Property)
                                             oRes.Add(oTok.Parent);
