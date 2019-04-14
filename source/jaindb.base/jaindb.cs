@@ -1269,7 +1269,15 @@ namespace jaindb
                         {
                             try
                             {
-                                var oToks = jObj.SelectTokens(path.Trim(), false);
+                                bool bArray = false;
+                                string sPath = path.Trim();
+                                if (path.EndsWith("[]"))  //if path ends with [] is a marker to convert the resut into an array
+                                {
+                                    bArray = true;
+                                    sPath = path.TrimEnd(']').TrimEnd('[');
+                                }
+
+                                var oToks = jObj.SelectTokens(sPath, false);
 
                                 if (oToks.Count() == 0)
                                 {
@@ -1286,7 +1294,16 @@ namespace jaindb
                                     {
                                         if (oTok.Type == JTokenType.Object)
                                         {
-                                            oRes.Merge(oTok);
+                                            if (bArray) //Convert result to array
+                                            {
+                                                JArray jNew = new JArray();
+                                                jNew.Add(oTok);
+                                                oRes.Add(new JProperty(sPath, jNew));
+                                            }
+                                            else
+                                            {
+                                                oRes.Merge(oTok);
+                                            }
                                             //oRes.Add(jObj[select.Split(',')[0]].ToString(), oTok);
                                             continue;
                                         }
@@ -1677,9 +1694,9 @@ namespace jaindb
                             }
                         }
 
-                        string sFilter = ""; //only return raw data
-                        if (dedup)
-                            sFilter = ""; //return full object
+                        //string sFilter = ""; //only return raw data
+                        //if (dedup)
+                        //    sFilter = ""; //return full object
 
                         if (!dedup)
                         {
