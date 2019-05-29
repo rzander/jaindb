@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
     <Authors>Roger Zander</Authors>
     <Company>Zander Tools</Company>
     <Copyright>(c) 2019 by Roger Zander</Copyright>
@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <PackageReference Include="JsonDiffPatch.Net" Version="2.1.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
