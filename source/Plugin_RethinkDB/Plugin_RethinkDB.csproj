@@ -14,7 +14,7 @@
     <Product>jaindb.storage.RethinkDB</Product>
     <PackageId>jaindb.storage.RethinkDB</PackageId>
     <Description>StorageProvider to store Data on RethinkDB.</Description>
-    <Copyright>(c) 2018 by Roger Zander</Copyright>
+    <Copyright>(c) 2019 by Roger Zander</Copyright>
     <PackageLicenseUrl>https://github.com/rzander/jaindb/blob/master/LICENSE.MD</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <PackageIconUrl>https://raw.githubusercontent.com/rzander/jaindb/master/source/jaindb/JainDB_Logo.ico</PackageIconUrl>
@@ -22,16 +22,16 @@
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Title>JainDB RethinkDB Storage Provider</Title>
-    <Version>1.0.3</Version>
+    <Version>1.0.6</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="4.0.0" />
-    <PackageReference Include="Fody" Version="5.0.6">
+    <PackageReference Include="Fody" Version="4.2.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="1.0.5" />
+    <PackageReference Include="jaindb.base" Version="1.0.6" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
     <PackageReference Include="RethinkDb.Driver" Version="2.3.100" />
   </ItemGroup>

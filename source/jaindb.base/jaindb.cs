@@ -543,7 +543,7 @@ namespace jaindb
                     var oNew = oChain.MineNewBlock(oBlock, BlockType);
                     oChain.UseBlock(sResult, oNew);
 
-                    if (oChain.ValidateChain())
+                    if (oChain.ValidateChain(false))
                     {
                         //Console.WriteLine(JsonConvert.SerializeObject(tChain));
                         if (oNew.index == 1)

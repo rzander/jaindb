@@ -49,7 +49,7 @@ namespace jaindb
             /// Check all hashes from bottom to top
             /// </summary>
             /// <returns>true = all fine; false = something is wrong</returns>
-            public bool ValidateChain()
+            public bool ValidateChain(bool DeepCheck = false)
             {
                 foreach (block bCheck in Chain.OrderByDescending(t => t.timestamp))
                 {
@@ -58,13 +58,17 @@ namespace jaindb
 
                     long Previous_nonce = 0;
 
-                    var oParent = Chain.FirstOrDefault(t => t.hash == bCheck.previous_hash);
+                    var oParent = Chain.FirstOrDefault(t => Convert.ToBase64String(t.hash) == Convert.ToBase64String(bCheck.previous_hash));
                     if (oParent != null)
                         Previous_nonce = oParent.nonce;
 
 
-                    if (!bCheck.validate(Previous_nonce))
-                        return false;
+                    if (DeepCheck) //DeepCheck will validate every block in the chain
+                    {
+                        if (!bCheck.validate(Previous_nonce))
+                            return false;
+                    }
+
                 }
                 return true;
             }

@@ -6,10 +6,10 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
 using System.Threading.Tasks;
 using jaindb;
+using Microsoft.Azure.Storage;
+using Microsoft.Azure.Storage.Blob;
 
 namespace Plugin_AzureBlob
 {
@@ -60,7 +60,7 @@ namespace Plugin_AzureBlob
                     JConfig = new JObject();
                 }
 
-                storageAccount = new CloudStorageAccount(new Microsoft.WindowsAzure.Storage.Auth.StorageCredentials(StorageAccount, AccessKey), true);
+                storageAccount = new CloudStorageAccount(new Microsoft.Azure.Storage.Auth.StorageCredentials(StorageAccount, AccessKey), true);
                 blobClient = storageAccount.CreateCloudBlobClient();
             }
             catch(Exception ex)
