@@ -33,7 +33,7 @@
     </PackageReference>
     <PackageReference Include="jaindb.base" Version="1.0.6" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-    <PackageReference Include="RethinkDb.Driver" Version="2.3.100" />
+    <PackageReference Include="RethinkDb.Driver" Version="2.3.101" />
   </ItemGroup>
 
   <ItemGroup>
