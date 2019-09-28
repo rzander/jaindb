@@ -22,17 +22,19 @@
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Title>JainDB Azure Blob Storage Provider</Title>
-    <Version>1.0.6</Version>
+    <Version>1.0.7</Version>
+    <AssemblyVersion>1.0.7.0</AssemblyVersion>
+    <FileVersion>1.0.7.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Costura.Fody" Version="4.0.0" />
-    <PackageReference Include="Fody" Version="4.2.1">
+    <PackageReference Include="Costura.Fody" Version="4.1.0" />
+    <PackageReference Include="Fody" Version="6.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="jaindb.base" Version="1.0.6" />
-    <PackageReference Include="Microsoft.Azure.Storage.Blob" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Azure.Storage.Blob" Version="11.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
   </ItemGroup>
 

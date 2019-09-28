@@ -22,12 +22,13 @@
     <Description>StorageProvider to store Data on a REDIS Server.</Description>
     <Product>jaindb.storage.Redis</Product>
     <Title>JainDB Redis Storage Provider</Title>
-    <Version>1.0.6</Version>
+    <Version>1.0.7</Version>
+    <AssemblyVersion>1.0.7.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Costura.Fody" Version="4.0.0" />
-    <PackageReference Include="Fody" Version="4.2.1">
+    <PackageReference Include="Costura.Fody" Version="4.1.0" />
+    <PackageReference Include="Fody" Version="6.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
