@@ -43,12 +43,19 @@ namespace jaindb
             ICollection<IStore> plugins = GenericPluginLoader<IStore>.LoadPlugins(PluginPath);
             foreach (var item in plugins)
             {
-                _Plugins.Add(item.Name, item);
-                Console.WriteLine(item.Name);
-                item.Settings = new Dictionary<string, string>();
-                item.Settings.Add("FilePath", FilePath);
-                item.Settings.Add("wwwPath", wwwPath);
-                item.Init();
+                try
+                {
+                    _Plugins.Add(item.Name, item);
+                    Console.WriteLine(item.Name);
+                    item.Settings = new Dictionary<string, string>();
+                    item.Settings.Add("FilePath", FilePath);
+                    item.Settings.Add("wwwPath", wwwPath);
+                    item.Init();
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine("Plugin Error: " + ex.Message);
+                }
             }
         }
 

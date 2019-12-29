@@ -26,9 +26,9 @@ namespace jaindb.Controllers
         private readonly IConfiguration _config;
         private readonly ILogger _logger;
         private IMemoryCache _cache;
-        private readonly IHostingEnvironment _env;
+        private readonly IWebHostEnvironment _env;
 
-        public JainDBController(IConfiguration config, ILogger<JainDBController> logger, IMemoryCache memoryCache, IHostingEnvironment env)
+        public JainDBController(IConfiguration config, ILogger<JainDBController> logger, IMemoryCache memoryCache, IWebHostEnvironment env)
         {
             _config = config;
             _logger = logger;
@@ -158,8 +158,8 @@ namespace jaindb.Controllers
         [Route("full")]
         public JObject Full(string blockType = "INV")
         {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
 
             var query = QueryHelpers.ParseQuery(sQuery);
             string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
@@ -179,8 +179,8 @@ namespace jaindb.Controllers
         public JObject Diff(string blockType = "INV")
         {
             this.Url.ToString();
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
@@ -215,8 +215,8 @@ namespace jaindb.Controllers
         [Route("diffvis")]
         public ActionResult DiffVis()
         {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
 
             var query = QueryHelpers.ParseQuery(sQuery);
             string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
@@ -266,8 +266,8 @@ namespace jaindb.Controllers
         [Route("query")]
         public JArray Query()
         {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
             if (sPath != "/favicon.ico")
             {
                 //string sUri = Microsoft.AspNetCore.Http.Extensions.UriHelper.GetDisplayUrl(Request);
@@ -299,8 +299,8 @@ namespace jaindb.Controllers
         [Route("history")]
         public JObject History()
         {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
@@ -319,8 +319,8 @@ namespace jaindb.Controllers
         [Route("GetHistory")]
         public JArray GetHistory()
         {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
             if (sPath != "/favicon.ico")
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
@@ -339,8 +339,8 @@ namespace jaindb.Controllers
         [Route("changes")]
         public JArray Changes()
         {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
 
             var query = QueryHelpers.ParseQuery(sQuery);
             string sAge = query.FirstOrDefault(t => t.Key.ToLower() == "age").Value;
@@ -366,8 +366,8 @@ namespace jaindb.Controllers
         [Route("reload")]
         public JObject reload()
         {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
             try
             {
                 var query = QueryHelpers.ParseQuery(sQuery);
@@ -390,8 +390,8 @@ namespace jaindb.Controllers
         {
             try
             {
-                string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-                string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+                string sPath = (this.Request).Path;
+                string sQuery = (this.Request).QueryString.ToString();
 
                 var query = QueryHelpers.ParseQuery(sQuery);
                 string sKey = query.FirstOrDefault(t => t.Key.ToLower() == "id").Value;
@@ -460,8 +460,8 @@ namespace jaindb.Controllers
         [Route("html/{*.}")]
         public ActionResult Html()
         {
-            string sPath = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).Path;
-            string sQuery = ((Microsoft.AspNetCore.Http.Internal.DefaultHttpRequest)this.Request).QueryString.ToString();
+            string sPath = (this.Request).Path;
+            string sQuery = (this.Request).QueryString.ToString();
 
             JToken jData = new JObject();
 

@@ -77,6 +77,7 @@ namespace JainDBTest
         [Priority(2)]
         public void Test_Query()
         {
+            jaindb.jDB.loadPlugins();
             Console.WriteLine("Query data...");
 
             int i = jDB.QueryAsync("obj1", "", "", "").Result.Count();
@@ -87,6 +88,7 @@ namespace JainDBTest
         [Priority(3)]
         public void Test_QueryAll()
         {
+            jaindb.jDB.loadPlugins();
             Console.WriteLine("QueryAll data...");
 
             int i = jDB.QueryAll("obj1", "", "", "").Count();
@@ -96,6 +98,7 @@ namespace JainDBTest
         [Priority(3)]
         public void Test_Changes()
         {
+            jaindb.jDB.loadPlugins();
             Console.WriteLine("get changes...");
 
             int i = jDB.GetChanges(new TimeSpan(1,0,0)).Count();

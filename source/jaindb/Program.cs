@@ -53,11 +53,10 @@ namespace jaindb
             catch { }
 
             var host = new WebHostBuilder()
-                .UseKestrel()
+                .UseKestrel(c => c.AddServerHeader = false)
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .UseIISIntegration()
                 .UseStartup<Startup>()
-                .UseApplicationInsights()
                 .UseUrls("http://*:" + (Environment.GetEnvironmentVariable("WebPort") ?? "5000"))
                 .Build();
 
