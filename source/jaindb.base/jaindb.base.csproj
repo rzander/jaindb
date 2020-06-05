@@ -17,7 +17,8 @@
     <AssemblyVersion>1.2.0.0</AssemblyVersion>
     <Title>JainDB base library</Title>
     <PackageReleaseNotes />
-    <PackageIcon>JainDB_Logo.ico</PackageIcon>
+    <PackageIcon>jaindb_128.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\jaindb\JainDB_Logo.ico">
+    <None Include="..\jaindb\jaindb_128.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
