@@ -18,21 +18,29 @@ namespace Plugin_Forwarder
         private static readonly object locker = new object();
         private bool bReadOnly = false;
         private bool ContinueAfterWrite = true;
-        private string jaindburl = "";
-        private string reportuser = "";
-        private string reportpassword = "";
-
         private string FilePath = "";
+        private string jaindburl = "";
         private JObject JConfig = new JObject();
-
-        public Dictionary<string, string> Settings { get; set; }
-
+        private string reportpassword = "";
+        private string reportuser = "";
         public string Name
         {
             get
             {
                 return Assembly.GetExecutingAssembly().ManifestModule.Name;
             }
+        }
+
+        public Dictionary<string, string> Settings { get; set; }
+        public List<string> GetAllIDs()
+        {
+            List<string> lResult = new List<string>();
+            return lResult;
+        }
+
+        public IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        {
+            return null;
         }
 
         public void Init()
@@ -66,6 +74,54 @@ namespace Plugin_Forwarder
 
             if (string.IsNullOrEmpty(jaindburl))
                 bReadOnly = true;
+        }
+
+        public string LookupID(string name, string value)
+        {
+            string sResult = "";
+            return sResult;
+        }
+
+        public string ReadHash(string Hash, string Collection)
+        {
+            string sResult = "";
+            try
+            {
+                Collection = Collection.ToLower();
+                switch (Collection)
+                {
+                    case "_full":
+                        using (HttpClient oClient = new HttpClient())
+                        {
+                            oClient.DefaultRequestHeaders.Clear();
+                            if (!string.IsNullOrEmpty(reportuser))
+                            {
+                                var byteArray = Encoding.ASCII.GetBytes(reportuser + ":" + reportpassword);
+                                oClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+                            }
+                            oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                            var response = oClient.GetStringAsync(jaindburl + "/full?id=" + Hash);
+                            response.Wait(180000);
+                            if (response.IsCompleted)
+                            {
+                                return response.Result;
+                            }
+                        }
+                        break;
+                    default:
+                        return "";
+                }
+
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public int totalDeviceCount(string sPath = "")
+        {
+            int iCount = -1;
+            return iCount;
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
@@ -107,69 +163,9 @@ namespace Plugin_Forwarder
                     return false;
             }
         }
-
-        public string ReadHash(string Hash, string Collection)
-        {
-            string sResult = "";
-            try
-            {
-                Collection = Collection.ToLower();
-                switch (Collection)
-                {
-                    case "_full":
-                        using (HttpClient oClient = new HttpClient())
-                        {
-                            oClient.DefaultRequestHeaders.Clear();
-                            if(!string.IsNullOrEmpty(reportuser))
-                            {
-                                var byteArray = Encoding.ASCII.GetBytes(reportuser + ":" + reportpassword);
-                                oClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-                            }
-                            oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                            var response = oClient.GetStringAsync(jaindburl + "/full?id=" + Hash);
-                            response.Wait(180000);
-                            if (response.IsCompleted)
-                            {
-                                return response.Result;
-                            }
-                        }
-                        break;
-                    default:
-                        return "";
-                }
-
-            }
-            catch{}
-
-            return sResult;
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            int iCount = -1;
-            return iCount;
-        }
-
-        public IEnumerable<JObject> GetRawAssets(string paths)
-        {
-            return null;
-        }
-
-        public string LookupID(string name, string value)
-        {
-            string sResult = "";
-            return sResult;
-        }
-
         public bool WriteLookupID(string name, string value, string id)
         {
             return false;
-        }
-
-        public List<string> GetAllIDs()
-        {
-            List<string> lResult = new List<string>();
-            return lResult;
         }
     }
 

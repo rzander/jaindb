@@ -199,7 +199,7 @@ namespace Plugin_MemoryCache
             return -1;
         }
 
-        public IEnumerable<JObject> GetRawAssets(string paths)
+        public IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
         {
             return null; //We cannot list objects
         }

@@ -47,8 +47,8 @@ namespace JainDBTest
         [Priority(1)]
         public void Test_CompareFullvsChain()
         {
-            Console.WriteLine("Compare cached vs blockchain data...");
             jaindb.jDB.loadPlugins();
+            Console.WriteLine("Compare cached vs blockchain data...");
 
             var oFull = jDB.GetFullAsync("test1", -1).Result; //get data from cache
             var oChain = jDB.GetFullAsync("test1", 1).Result; //get data from blockchain id=1

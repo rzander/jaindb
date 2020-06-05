@@ -13,29 +13,58 @@ namespace Plugin_CosmosDB
 {
     public class Plugin_CosmosDB : IStore
     {
-        private bool bReadOnly = false;
-        private int SlidingExpiration = -1;
-        private bool ContinueAfterWrite = true;
-        private bool CacheFull = true;
-        private bool CacheKeys = true;
-
+        public static DocumentClient CosmosDB;
+        public static List<string> CosmosTables = new List<string>();
+        public static Database database;
+        public string authorizationKey;
         public string databaseId;
         public string endpointUrl;
-        public string authorizationKey;
-        public static DocumentClient CosmosDB;
-        public static Database database;
-        public static List<string> CosmosTables = new List<string>();
         private static readonly object locker = new object();
-
+        private bool bReadOnly = false;
+        private bool CacheFull = true;
+        private bool CacheKeys = true;
+        private bool ContinueAfterWrite = true;
         private JObject JConfig = new JObject();
-
-        public Dictionary<string, string> Settings { get; set; }
-
+        private int SlidingExpiration = -1;
         public string Name
         {
             get
             {
                 return Assembly.GetExecutingAssembly().ManifestModule.Name;
+            }
+        }
+
+        public Dictionary<string, string> Settings { get; set; }
+        public List<string> GetAllIDs()
+        {
+            List<string> lResult = new List<string>();
+
+            if (database == null)
+            {
+                database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
+                if (database == null)
+                    database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
+            }
+
+            var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, "chain");
+
+            var docquery = CosmosDB.CreateDocumentQuery<Document>(cUri).Select(t => t.Id);
+            foreach (var oDoc in docquery.AsEnumerable())
+            {
+                lResult.Add(oDoc);
+            }
+
+            return lResult;
+        }
+
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        {
+            var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "assets"), "SELECT * FROM c");
+            foreach (var oAsset in oAssets)
+            {
+                JObject jObj = oAsset;
+
+                yield return jObj;
             }
         }
 
@@ -73,6 +102,72 @@ namespace Plugin_CosmosDB
 
             }
             catch { }
+        }
+
+        public string LookupID(string name, string value)
+        {
+            return "";
+        }
+
+        public string ReadHash(string Hash, string Collection)
+        {
+            string sResult = "";
+
+            try
+            {
+                Collection = Collection.ToLower();
+                if (database == null)
+                {
+                    database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
+                    if (database == null)
+                        database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
+                }
+
+                string sColl = Collection;
+                switch (Collection)
+                {
+                    case "_assets":
+                        sColl = "assets";
+                        break;
+                    case "_chain":
+                        sColl = "chain";
+                        break;
+                    default:
+                        return "";
+                }
+
+                var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;
+                JObject jRes = JObject.Parse(sRes.ToString());
+                string sID = jRes["id"].Value<string>();
+
+                jRes.Remove("id");
+                jRes.Remove("_rid");
+                jRes.Remove("_ts");
+                jRes.Remove("_etag");
+                jRes.Remove("_self");
+                jRes.Remove("_attachments");
+                jRes.Add("#id", sID);
+                sResult = jRes.ToString(Newtonsoft.Json.Formatting.None);
+
+                return sResult;
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public int totalDeviceCount(string sPath = "")
+        {
+            int iCount = -1;
+            try
+            {
+                var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "chain"), "SELECT c.id FROM c");
+                Console.WriteLine("RU charge:" + oAssets.AsDocumentQuery().ExecuteNextAsync().Result.ResponseHeaders["x-ms-request-charge"]);
+                iCount = oAssets.ToList().Count();
+            }
+            catch { }
+
+            return iCount;
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
@@ -192,110 +287,10 @@ namespace Plugin_CosmosDB
                 return true;
         }
 
-        public string ReadHash(string Hash, string Collection)
-        {
-            string sResult = "";
-
-            try
-            {
-                Collection = Collection.ToLower();
-                if (database == null)
-                {
-                    database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
-                    if (database == null)
-                        database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
-                }
-
-                string sColl = Collection;
-                switch (Collection)
-                {
-                    case "_assets":
-                        sColl = "assets";
-                        break;
-                    case "_chain":
-                        sColl = "chain";
-                        break;
-                    default:
-                        return "";
-                }
-
-                var sRes = CosmosDB.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseId, sColl, Hash)).Result.Resource;
-                JObject jRes = JObject.Parse(sRes.ToString());
-                string sID = jRes["id"].Value<string>();
-
-                jRes.Remove("id");
-                jRes.Remove("_rid");
-                jRes.Remove("_ts");
-                jRes.Remove("_etag");
-                jRes.Remove("_self");
-                jRes.Remove("_attachments");
-                jRes.Add("#id", sID);
-                sResult = jRes.ToString(Newtonsoft.Json.Formatting.None);
-
-                return sResult;
-            }
-            catch { }
-
-            return sResult;
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            int iCount = -1;
-            try
-            {
-                var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "chain"), "SELECT c.id FROM c");
-                Console.WriteLine("RU charge:" + oAssets.AsDocumentQuery().ExecuteNextAsync().Result.ResponseHeaders["x-ms-request-charge"]);
-                iCount = oAssets.ToList().Count();
-            }
-            catch { }
-
-            return iCount;
-        }
-
-        public IEnumerable<JObject> GetRawAssets(string paths)
-        {
-            var oAssets = CosmosDB.CreateDocumentQuery(UriFactory.CreateDocumentCollectionUri(databaseId, "assets"), "SELECT * FROM c");
-            foreach (var oAsset in oAssets)
-            {
-                JObject jObj = oAsset;
-
-                yield return jObj;
-            }
-        }
-
-        public string LookupID(string name, string value)
-        {
-            return "";
-        }
-
         public bool WriteLookupID(string name, string value, string id)
         {
             return false;
         }
-
-        public List<string> GetAllIDs()
-        {
-            List<string> lResult = new List<string>();
-
-            if (database == null)
-            {
-                database = CosmosDB.CreateDatabaseQuery().Where(db => db.Id == databaseId).AsEnumerable().FirstOrDefault();
-                if (database == null)
-                    database = CosmosDB.CreateDatabaseAsync(new Database { Id = databaseId }).Result;
-            }
-
-            var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, "chain");
-
-            var docquery = CosmosDB.CreateDocumentQuery<Document>(cUri).Select(t => t.Id);
-            foreach (var oDoc in docquery.AsEnumerable())
-            {
-                lResult.Add(oDoc);
-            }
-
-            return lResult;
-        }
-
     }
 
 

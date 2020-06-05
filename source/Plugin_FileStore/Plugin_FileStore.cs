@@ -16,21 +16,65 @@ namespace Plugin_FileStore
         private static readonly object locker = new object();
         private bool bReadOnly = false;
         private bool bWriteOnly = false;
-        private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
         private bool CacheKeys = true;
-        private string foldername = "jaindb";
-
+        private bool ContinueAfterWrite = true;
         private string FilePath = "";
+        private string foldername = "jaindb";
         private JObject JConfig = new JObject();
-
-        public Dictionary<string, string> Settings { get; set; }
 
         public string Name
         {
             get
             {
                 return Assembly.GetExecutingAssembly().ManifestModule.Name;
+            }
+        }
+
+        public Dictionary<string, string> Settings { get; set; }
+        public List<string> GetAllIDs()
+        {
+            List<string> lResult = new List<string>();
+
+            try
+            {
+                foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
+                {
+                    lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
+                }
+            }
+            catch { }
+
+            return lResult;
+        }
+
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        {
+            foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_assets")).GetFiles("*.json"))
+            {
+                var oAsset = await jDB.ReadHashAsync(oFile.FullName.Replace(oFile.Extension, ""), "_assets");
+                JObject jObj = new JObject();
+
+                if (paths.Contains("*") || paths.Contains(".."))
+                {
+                    try
+                    {
+                        jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                    }
+                    catch { }
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(paths))
+                        jObj = await jDB.GetRawAsync(oAsset, paths); //load only the path
+                    else
+                        jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
+                }
+
+                if (jObj["_hash"] == null)
+                    jObj.Add(new JProperty("_hash", oFile.FullName));
+
+                yield return jObj;
             }
         }
 
@@ -65,6 +109,83 @@ namespace Plugin_FileStore
             FilePath = Path.Combine(Settings["wwwPath"] ?? "", foldername);
             if (!Directory.Exists(FilePath))
                 Directory.CreateDirectory(FilePath);
+        }
+
+        public string LookupID(string name, string value)
+        {
+            string sResult = "";
+            try
+            {
+                sResult = File.ReadAllText(Path.Combine(FilePath, "_key", name.TrimStart('#', '@'), value + ".json"));
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public string ReadHash(string Hash, string Collection)
+        {
+            string sResult = "";
+            if (bWriteOnly)
+                return sResult;
+
+            try
+            {
+                string Coll2 = Collection;
+                //Remove invalid Characters in Path anf File
+                foreach (var sChar in Path.GetInvalidPathChars())
+                {
+                    Coll2 = Coll2.Replace(sChar.ToString(), "");
+                    Hash = Hash.Replace(sChar.ToString(), "");
+                }
+
+                if (!File.Exists(Path.Combine(FilePath, Coll2, Hash + ".json")))
+                    return "";
+
+                sResult = File.ReadAllText(Path.Combine(FilePath, Coll2, Hash + ".json"));
+
+
+                //Check if hashes are valid...
+                //if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
+                //{
+                //    var jData = JObject.Parse(sResult);
+                //    /*if (jData["#id"] != null)
+                //        jData.Remove("#id");*/
+                //    if (jData["_date"] != null)
+                //        jData.Remove("_date");
+                //    if (jData["_index"] != null)
+                //        jData.Remove("_index");
+
+                //    string s1 = jaindb.jDB.CalculateHash(jData.ToString(Newtonsoft.Json.Formatting.None));
+                //    if (Hash != s1)
+                //    {
+                //        s1.ToString();
+                //        return "";
+                //    }
+                //}
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error ReadHash_1: " + ex.Message.ToString());
+            }
+            return sResult;
+        }
+
+        public int totalDeviceCount(string sPath = "")
+        {
+            int iCount = -1;
+            try
+            {
+                if (string.IsNullOrEmpty(sPath))
+                    sPath = Path.Combine(FilePath, "_chain");
+
+                if (Directory.Exists(sPath))
+                    iCount = Directory.GetFiles(sPath).Count(); //count Blockchain Files
+            }
+            catch { }
+
+            return iCount;
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
@@ -204,115 +325,6 @@ namespace Plugin_FileStore
             else
                 return true;
         }
-
-        public string ReadHash(string Hash, string Collection)
-        {
-            string sResult = "";
-            if (bWriteOnly)
-                return sResult;
-
-            try
-            {
-                string Coll2 = Collection;
-                //Remove invalid Characters in Path anf File
-                foreach (var sChar in Path.GetInvalidPathChars())
-                {
-                    Coll2 = Coll2.Replace(sChar.ToString(), "");
-                    Hash = Hash.Replace(sChar.ToString(), "");
-                }
-
-                if (!File.Exists(Path.Combine(FilePath, Coll2, Hash + ".json")))
-                    return "";
-
-                sResult = File.ReadAllText(Path.Combine(FilePath, Coll2, Hash + ".json"));
-
-#if DEBUG
-                //Check if hashes are valid...
-                //if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
-                //{
-                //    var jData = JObject.Parse(sResult);
-                //    /*if (jData["#id"] != null)
-                //        jData.Remove("#id");*/
-                //    if (jData["_date"] != null)
-                //        jData.Remove("_date");
-                //    if (jData["_index"] != null)
-                //        jData.Remove("_index");
-
-                //    string s1 = jaindb.jDB.CalculateHash(jData.ToString(Newtonsoft.Json.Formatting.None));
-                //    if (Hash != s1)
-                //    {
-                //        s1.ToString();
-                //        return "";
-                //    }
-                //}
-#endif
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Error ReadHash_1: " + ex.Message.ToString());
-            }
-            return sResult;
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            int iCount = -1;
-            try
-            {
-                if (string.IsNullOrEmpty(sPath))
-                    sPath = Path.Combine(FilePath, "_chain");
-
-                if (Directory.Exists(sPath))
-                    iCount = Directory.GetFiles(sPath).Count(); //count Blockchain Files
-            }
-            catch { }
-
-            return iCount;
-        }
-
-        public IEnumerable<JObject> GetRawAssets(string paths)
-        {
-            foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_assets")).GetFiles("*.json"))
-            {
-                var oAsset = jDB.ReadHash(oFile.FullName.Replace(oFile.Extension, ""), "_assets");
-                JObject jObj = new JObject();
-
-                if (paths.Contains("*") || paths.Contains(".."))
-                {
-                    try
-                    {
-                        jObj = jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
-                    }
-                    catch { }
-                }
-                else
-                {
-                    if (!string.IsNullOrEmpty(paths)) 
-                        jObj = jDB.GetRaw(oAsset, paths); //load only the path
-                    else
-                        jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
-                }
-
-                if (jObj["_hash"] == null)
-                    jObj.Add(new JProperty("_hash", oFile.FullName));
-
-                yield return jObj;
-            }
-        }
-
-        public string LookupID(string name, string value)
-        {
-            string sResult = "";
-            try
-            {
-                sResult = File.ReadAllText(Path.Combine(FilePath, "_key", name.TrimStart('#', '@'), value + ".json"));
-            }
-            catch { }
-
-            return sResult;
-        }
-
         public bool WriteLookupID(string name, string value, string id)
         {
             if (bReadOnly)
@@ -339,24 +351,6 @@ namespace Plugin_FileStore
                 return false;
             }
         }
-
-        public List<string> GetAllIDs()
-        {
-            List<string> lResult = new List<string>();
-
-            try
-            {
-                foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
-                {
-                    lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
-                }
-            }
-            catch { }
-
-            return lResult;
-        }
     }
-
-
 }
 

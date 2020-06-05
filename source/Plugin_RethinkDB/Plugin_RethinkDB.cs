@@ -11,28 +11,54 @@ namespace Plugin_RethinkDB
 {
     public class Plugin_RethinkDB : IStore
     {
+        public static RethinkDb.Driver.Net.Connection conn;
+        public static RethinkDb.Driver.RethinkDB R = RethinkDb.Driver.RethinkDB.R;
+        public static List<string> RethinkTables = new List<string>();
+        private static readonly object locker = new object();
         private bool bReadOnly = false;
-        private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
         private bool CacheKeys = true;
-
-        private JObject JConfig = new JObject();
-
-        private static readonly object locker = new object();
-        public static RethinkDb.Driver.RethinkDB R = RethinkDb.Driver.RethinkDB.R;
-        public static RethinkDb.Driver.Net.Connection conn;
-        public static List<string> RethinkTables = new List<string>();
-        private string RethinkDBServer = "localhost";
-        private int Port = 28015;
+        private bool ContinueAfterWrite = true;
         private string Database = "jaindb";
-
-        public Dictionary<string, string> Settings { get; set; }
-
+        private JObject JConfig = new JObject();
+        private int Port = 28015;
+        private string RethinkDBServer = "localhost";
         public string Name
         {
             get
             {
                 return Assembly.GetExecutingAssembly().ManifestModule.Name;
+            }
+        }
+
+        public Dictionary<string, string> Settings { get; set; }
+        public List<string> GetAllIDs()
+        {
+            List<string> lResult = new List<string>();
+
+            try
+            {
+                foreach (var oObj in R.Table("_chain").GetAll().Run<JObject>(conn))
+                {
+                    lResult.Add(oObj.ToString());
+                }
+            }
+            catch { }
+
+            return lResult;
+        }
+
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        {
+            foreach (var oAsset in R.Table("_assets").GetAll().Run<JObject>(conn))
+            {
+                JObject jObj = oAsset;
+
+                if (paths.Contains("*") || paths.Contains(".."))
+                {
+                    jObj = await jaindb.jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                }
+                yield return jObj;
             }
         }
 
@@ -88,6 +114,46 @@ namespace Plugin_RethinkDB
                 }
             }
             catch { }
+        }
+
+        public string LookupID(string name, string value)
+        {
+            string sResult = null;
+            try
+            {
+                JObject jRes = R.Table("_key").Get(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower()).Run<JObject>(conn);
+                sResult = jRes["value"].Value<string>();
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public string ReadHash(string Hash, string Collection)
+        {
+            string sResult = "";
+
+            Collection = Collection.ToLower();
+
+            try
+            {
+                JObject oRes = R.Table(Collection).Get(Hash).Run<JObject>(conn);
+                if (oRes != null)
+                    sResult = oRes.ToString();
+
+                return sResult;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+
+            return sResult;
+        }
+
+        public int totalDeviceCount(string sPath = "")
+        {
+            return -1;
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
@@ -209,61 +275,6 @@ namespace Plugin_RethinkDB
                 return false;
             }
         }
-
-        public string ReadHash(string Hash, string Collection)
-        {
-            string sResult = "";
-
-            Collection = Collection.ToLower();
-
-            try
-            {
-                JObject oRes = R.Table(Collection).Get(Hash).Run<JObject>(conn);
-                if (oRes != null)
-                    sResult = oRes.ToString();
-
-                return sResult;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message);
-            }
-
-            return sResult;
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            return -1;
-        }
-
-        public IEnumerable<JObject> GetRawAssets(string paths)
-        {
-            foreach (var oAsset in R.Table("_assets").GetAll().Run<JObject>(conn))
-            {
-                JObject jObj = oAsset;
-
-                if (paths.Contains("*") || paths.Contains(".."))
-                {
-                    jObj = jaindb.jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
-                }
-                yield return jObj;
-            }
-        }
-
-        public string LookupID(string name, string value)
-        {
-            string sResult = null;
-            try
-            {
-                JObject jRes = R.Table("_key").Get(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower()).Run<JObject>(conn);
-                sResult = jRes["value"].Value<string>();
-            }
-            catch { }
-
-            return sResult;
-        }
-
         public bool WriteLookupID(string name, string value, string id)
         {
             if (bReadOnly)
@@ -288,22 +299,6 @@ namespace Plugin_RethinkDB
             R.Table("_key").Insert(jObj).RunAtomAsync<JObject>(conn);
 
             return false;
-        }
-
-        public List<string> GetAllIDs()
-        {
-            List<string> lResult = new List<string>();
-
-            try
-            {
-                foreach (var oObj in R.Table("_chain").GetAll().Run<JObject>(conn))
-                {
-                    lResult.Add(oObj.ToString());
-                }
-            }
-            catch { }
-
-            return lResult;
         }
     }
 

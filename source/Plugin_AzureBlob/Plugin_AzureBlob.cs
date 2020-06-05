@@ -169,7 +169,7 @@ namespace Plugin_AzureBlob
             return iCount;
         }
 
-        public IEnumerable<JObject> GetRawAssets(string paths)
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
         {
             //paths = "*"; //Azure Blob store full assets only
             CloudBlobContainer container = blobClient.GetContainerReference("assets");

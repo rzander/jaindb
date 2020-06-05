@@ -13,29 +13,79 @@ namespace Plugin_Redis
     public class Plugin_Redis : IStore
     {
         private bool bReadOnly = false;
-        private int SlidingExpiration = -1;
-        private bool ContinueAfterWrite = true;
-        private bool CacheFull = true;
-        private bool CacheKeys = true;
-        private bool RedisEnabled = false;
-        private string RedisConnectionString = "localhost:6379";
-
         private IDatabase cache0;
         private IDatabase cache1;
         private IDatabase cache2;
         private IDatabase cache3;
         private IDatabase cache4;
-        private IServer srv;
-
+        private bool CacheFull = true;
+        private bool CacheKeys = true;
+        private bool ContinueAfterWrite = true;
         private JObject JConfig = new JObject();
-
-        public Dictionary<string, string> Settings { get; set; }
-
+        private string RedisConnectionString = "localhost:6379";
+        private bool RedisEnabled = false;
+        private int SlidingExpiration = -1;
+        private IServer srv;
         public string Name
         {
             get
             {
                 return Assembly.GetExecutingAssembly().ManifestModule.Name;
+            }
+        }
+
+        public Dictionary<string, string> Settings { get; set; }
+        public List<string> GetAllIDs()
+        {
+            if (!RedisEnabled)
+                return new List<string>();
+
+            List<string> lResult = new List<string>();
+
+            try
+            {
+                foreach (var oObj in srv.Keys(3, "*"))
+                {
+                    lResult.Add(oObj.ToString());
+                }
+            }
+            catch { }
+
+            return lResult;
+        }
+
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        {
+            if (RedisEnabled)
+            {
+                foreach (var oObj in srv.Keys(4, "*"))
+                {
+                    var oAsset = await jDB.ReadHashAsync(oObj, "_assets"); //get raw asset
+
+                    JObject jObj = new JObject();
+
+
+                    if (paths.Contains("*") || paths.Contains(".."))
+                    {
+                        try
+                        {
+                            jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                        }
+                        catch { }
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(paths))
+                            jObj = await jDB.GetRawAsync(oAsset, paths); //load only the path
+                        else
+                            jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
+                    }
+
+                    if (jObj["_hash"] == null)
+                        jObj.Add(new JProperty("_hash", oObj.ToString()));
+
+                    yield return jObj;
+                }
             }
         }
 
@@ -92,6 +142,67 @@ namespace Plugin_Redis
                 }
             }
             catch { }
+        }
+
+        public string LookupID(string name, string value)
+        {
+            if (!RedisEnabled)
+                return "";
+
+            string sResult = null;
+            try
+            {
+                sResult = cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public string ReadHash(string Hash, string Collection)
+        {
+            if (!RedisEnabled)
+                return "";
+
+            string sResult = "";
+
+            try
+            {
+                Collection = Collection.ToLower();
+
+                switch (Collection)
+                {
+                    case "_full":
+                        return cache0.StringGet(Hash);
+
+                    case "_chain":
+                        return cache3.StringGet(Hash);
+
+                    case "_assets":
+                        return cache4.StringGet(Hash);
+
+                    default:
+                        sResult = cache2.StringGet(Hash);
+                        return sResult;
+                }
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public int totalDeviceCount(string sPath = "")
+        {
+            if (!RedisEnabled)
+                return -1;
+
+            try
+            {
+                return srv.Keys(3, "*").Count();
+            }
+            catch { }
+
+            return -1;
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
@@ -202,103 +313,6 @@ namespace Plugin_Redis
             else
                 return true;
         }
-
-        public string ReadHash(string Hash, string Collection)
-        {
-            if (!RedisEnabled)
-                return "";
-
-            string sResult = "";
-
-            try
-            {
-                Collection = Collection.ToLower();
-
-                switch (Collection)
-                {
-                    case "_full":
-                        return cache0.StringGet(Hash);
-
-                    case "_chain":
-                        return cache3.StringGet(Hash);
-
-                    case "_assets":
-                        return cache4.StringGet(Hash);
-
-                    default:
-                        sResult = cache2.StringGet(Hash);
-                        return sResult;
-                }
-            }
-            catch { }
-
-            return sResult;
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            if (!RedisEnabled)
-                return -1;
-
-            try
-            {
-                return srv.Keys(3, "*").Count();
-            }
-            catch { }
-
-            return -1;
-        }
-
-        public IEnumerable<JObject> GetRawAssets(string paths)
-        {
-            if (RedisEnabled)
-            {
-                foreach (var oObj in srv.Keys(4, "*"))
-                {
-                    var oAsset = jDB.ReadHash(oObj, "_assets"); //get raw asset
-
-                    JObject jObj = new JObject();
-
-
-                    if (paths.Contains("*") || paths.Contains(".."))
-                    {
-                        try
-                        {
-                            jObj = jDB.GetFull(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
-                        }
-                        catch { }
-                    }
-                    else
-                    {
-                        if (!string.IsNullOrEmpty(paths))
-                            jObj = jDB.GetRaw(oAsset, paths); //load only the path
-                        else
-                            jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
-                    }
-
-                    if (jObj["_hash"] == null)
-                        jObj.Add(new JProperty("_hash", oObj.ToString()));
-
-                    yield return jObj;
-                }
-            }
-        }
-
-        public string LookupID(string name, string value)
-        {
-            if (!RedisEnabled)
-                return "";
-
-            string sResult = null;
-            try
-            {
-                sResult = cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
-            }
-            catch { }
-
-            return sResult;
-        }
-
         public bool WriteLookupID(string name, string value, string id)
         {
             if (bReadOnly)
@@ -314,31 +328,13 @@ namespace Plugin_Redis
 
             return false;
         }
-
-        public List<string> GetAllIDs()
-        {
-            if (!RedisEnabled)
-                return new List<string>();
-
-            List<string> lResult = new List<string>();
-
-            try
-            {
-                foreach (var oObj in srv.Keys(3, "*"))
-                {
-                    lResult.Add(oObj.ToString());
-                }
-            }
-            catch { }
-
-            return lResult;
-        }
-
         public class RedisConnectorHelper
         {
             //public static string RedisServer = "localhost";
             //public static int RedisPort = 6379;
             public static string ConnectionString = "";
+
+            private static Lazy<ConnectionMultiplexer> lazyConnection;
 
             static RedisConnectorHelper()
             {
@@ -351,9 +347,6 @@ namespace Plugin_Redis
                     return ConnectionMultiplexer.Connect(ConnectionString);
                 });
             }
-
-            private static Lazy<ConnectionMultiplexer> lazyConnection;
-
             public static ConnectionMultiplexer Connection => lazyConnection.Value;
         }
     }

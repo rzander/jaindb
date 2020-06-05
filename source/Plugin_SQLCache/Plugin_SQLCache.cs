@@ -17,25 +17,34 @@ namespace Plugin_SQLCache
     {
         private static readonly object locker = new object();
         private bool bReadOnly = false;
-        private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
         private bool CacheKeys = true;
-        private string SQLConnectionString = @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=JCache;Integrated Security=true";
-        private string SQLTable = "JCache";
-        private int SlidingExpiration = 2678400;
-
+        private bool ContinueAfterWrite = true;
         private string FilePath = "";
         private JObject JConfig = new JObject();
         private SqlServerCache oSrv;
-
-        public Dictionary<string, string> Settings { get; set; }
-
+        private int SlidingExpiration = 2678400;
+        private string SQLConnectionString = @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=JCache;Integrated Security=true";
+        private string SQLTable = "JCache";
         public string Name
         {
             get
             {
                 return Assembly.GetExecutingAssembly().ManifestModule.Name;
             }
+        }
+
+        public Dictionary<string, string> Settings { get; set; }
+        public List<string> GetAllIDs()
+        {
+            List<string> lResult = new List<string>();
+
+            return lResult;
+        }
+
+        public IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        {
+            return null; //We cannot list objects
         }
 
         public void Init()
@@ -111,6 +120,71 @@ namespace Plugin_SQLCache
                 Console.WriteLine(oSrv.GetString("key1"));
             }
             catch { }
+        }
+
+        public string LookupID(string name, string value)
+        {
+            string sResult = "";
+            try
+            {
+                sResult = oSrv.GetString("_key\\" + name.ToLower() + "\\" + value.ToLower());
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public string ReadHash(string Hash, string Collection)
+        {
+            string sResult = "";
+            try
+            {
+                string Coll2 = Collection;
+                //Remove invalid Characters in Path anf File
+                foreach (var sChar in Path.GetInvalidPathChars())
+                {
+                    Coll2 = Coll2.Replace(sChar.ToString(), "");
+                    Hash = Hash.Replace(sChar.ToString(), "");
+                }
+
+                sResult = oSrv.GetString(Collection + "\\" + Hash);
+                if (!string.IsNullOrEmpty(sResult))
+                    oSrv.RefreshAsync(Collection + "\\" + Hash);
+
+#if DEBUG
+                //Check if hashes are valid...
+                if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
+                {
+                    var jData = JObject.Parse(sResult);
+                    /*if (jData["#id"] != null)
+                        jData.Remove("#id");*/
+                    if (jData["_date"] != null)
+                        jData.Remove("_date");
+                    if (jData["_index"] != null)
+                        jData.Remove("_index");
+
+                    string s1 = jaindb.jDB.CalculateHashAsync(jData.ToString(Newtonsoft.Json.Formatting.None)).Result;
+                    if (Hash != s1)
+                    {
+                        s1.ToString();
+                        return "";
+                    }
+                }
+#endif
+
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error ReadHash_1: " + ex.Message.ToString());
+            }
+            return sResult;
+        }
+
+        public int totalDeviceCount(string sPath = "")
+        {
+            int iCount = -1;
+            return iCount;
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
@@ -195,75 +269,6 @@ namespace Plugin_SQLCache
                 return true;
         }
 
-        public string ReadHash(string Hash, string Collection)
-        {
-            string sResult = "";
-            try
-            {
-                string Coll2 = Collection;
-                //Remove invalid Characters in Path anf File
-                foreach (var sChar in Path.GetInvalidPathChars())
-                {
-                    Coll2 = Coll2.Replace(sChar.ToString(), "");
-                    Hash = Hash.Replace(sChar.ToString(), "");
-                }
-                
-                sResult = oSrv.GetString(Collection + "\\" + Hash);
-                if (!string.IsNullOrEmpty(sResult))
-                    oSrv.RefreshAsync(Collection + "\\" + Hash);
-
-#if DEBUG
-                    //Check if hashes are valid...
-                if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
-                {
-                    var jData = JObject.Parse(sResult);
-                    /*if (jData["#id"] != null)
-                        jData.Remove("#id");*/
-                    if (jData["_date"] != null)
-                        jData.Remove("_date");
-                    if (jData["_index"] != null)
-                        jData.Remove("_index");
-
-                    string s1 = jaindb.jDB.CalculateHash(jData.ToString(Newtonsoft.Json.Formatting.None));
-                    if (Hash != s1)
-                    {
-                        s1.ToString();
-                        return "";
-                    }
-                }
-#endif
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Error ReadHash_1: " + ex.Message.ToString());
-            }
-            return sResult;
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            int iCount = -1;
-            return iCount;
-        }
-
-        public IEnumerable<JObject> GetRawAssets(string paths)
-        {
-            return null; //We cannot list objects
-        }
-
-        public string LookupID(string name, string value)
-        {
-            string sResult = "";
-            try
-            {
-                sResult = oSrv.GetString("_key\\" + name.ToLower() + "\\" + value.ToLower());
-            }
-            catch { }
-
-            return sResult;
-        }
-
         public bool WriteLookupID(string name, string value, string id)
         {
             try
@@ -276,13 +281,6 @@ namespace Plugin_SQLCache
             {
                 return false;
             }
-        }
-
-        public List<string> GetAllIDs()
-        {
-            List<string> lResult = new List<string>();
-
-            return lResult;
         }
     }
 
