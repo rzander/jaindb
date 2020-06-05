@@ -6,27 +6,22 @@ namespace JainDBProvider
 {
     public interface IStore
     {
-        Dictionary<string,string> Settings { get; set; }
-
         string Name { get; }
+        Dictionary<string, string> Settings { get; set; }
+        List<string> GetAllIDs();
+
+        IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths);
 
         void Init();
 
-        bool WriteHash(string Hash, string Data, string Collection);
+        string LookupID(string name, string value);
 
         string ReadHash(string Hash, string Collection);
 
         int totalDeviceCount(string sPath = "");
 
-        IEnumerable<JObject> GetRawAssets(string paths);
-
-        string LookupID(string name, string value);
-
+        bool WriteHash(string Hash, string Data, string Collection);
         bool WriteLookupID(string name, string value, string id);
-
-        List<string> GetAllIDs();
-
-
     }
 
 

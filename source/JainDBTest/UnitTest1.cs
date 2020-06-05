@@ -24,7 +24,7 @@ namespace JainDBTest
 
             Console.WriteLine("Upload Test Object...");
             string sTST = System.IO.File.ReadAllText("./test.json");
-            string sHash = jaindb.jDB.UploadFull(sTST, "test1");
+            string sHash = jDB.UploadFullAsync(sTST, "test1").Result;
 
             //var jRes = jDB.GetFull("test1", 1);
             //jDB.JSort(jRes);
@@ -48,9 +48,10 @@ namespace JainDBTest
         public void Test_CompareFullvsChain()
         {
             Console.WriteLine("Compare cached vs blockchain data...");
+            jaindb.jDB.loadPlugins();
 
-            var oFull = jDB.GetFull("test1", -1); //get data from cache
-            var oChain = jDB.GetFull("test1", 1); //get data from blockchain id=1
+            var oFull = jDB.GetFullAsync("test1", -1).Result; //get data from cache
+            var oChain = jDB.GetFullAsync("test1", 1).Result; //get data from blockchain id=1
 
             //remove all # and @ objects from cached data
             foreach (var oKey in oFull.Descendants().Where(t => t.Type == JTokenType.Property && ((JProperty)t).Name.StartsWith("@")).ToList())
@@ -64,8 +65,8 @@ namespace JainDBTest
             jDB.JSort(oFull);
             jDB.JSort(oChain);
 
-            string sChain = jDB.CalculateHash(oChain.ToString(Newtonsoft.Json.Formatting.None));
-            string sFull = jDB.CalculateHash(oFull.ToString(Newtonsoft.Json.Formatting.None));
+            string sChain = jDB.CalculateHashAsync(oChain.ToString(Newtonsoft.Json.Formatting.None)).Result;
+            string sFull = jDB.CalculateHashAsync(oFull.ToString(Newtonsoft.Json.Formatting.None)).Result;
 
             bool bValid = (sChain == sFull);
             if (bValid)
@@ -81,6 +82,7 @@ namespace JainDBTest
             Console.WriteLine("Query data...");
 
             int i = jDB.QueryAsync("obj1", "", "", "").Result.Count();
+            //int i = jDB.QueryAsync("OS", "", "", "").Result.Count();
             Assert.IsTrue(i > 0);
         }
 
@@ -91,7 +93,7 @@ namespace JainDBTest
             jaindb.jDB.loadPlugins();
             Console.WriteLine("QueryAll data...");
 
-            int i = jDB.QueryAll("obj1", "", "", "").Count();
+            int i =  jDB.QueryAllAsync("obj1", "", "", "").Result.Count();
             Assert.IsTrue(i > 0);
         }
         [TestMethod]
@@ -101,7 +103,7 @@ namespace JainDBTest
             jaindb.jDB.loadPlugins();
             Console.WriteLine("get changes...");
 
-            int i = jDB.GetChanges(new TimeSpan(1,0,0)).Count();
+            int i = jDB.GetChangesAsync(new TimeSpan(1,0,0)).Result.Count();
             Assert.IsTrue(i > 0);
         }
 
@@ -125,7 +127,7 @@ namespace JainDBTest
             for(int i = 0; i < 100; i++ )
             {
                 oDATA["TSTKey"] = i;
-                string sHash = jaindb.jDB.UploadFull(oDATA.ToString(Newtonsoft.Json.Formatting.None), "test1");
+                string sHash = jaindb.jDB.UploadFullAsync(oDATA.ToString(Newtonsoft.Json.Formatting.None), "test1").Result;
                 Console.WriteLine("... Hash:" + sHash);
                 //Thread.Sleep(100); //wait 3s to store all files..
             }
