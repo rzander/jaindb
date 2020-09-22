@@ -299,7 +299,7 @@ namespace jaindb
                 if (string.IsNullOrEmpty(Data))
                     oGenesis.data = "";
                 oGenesis.nonce = MineAsync(0, Blocktype, new byte[0]).Result;
-                oGenesis.calc_hashAsync();
+                oGenesis.calc_hashAsync().Wait();
             }
 
             public List<Block> Chain { get; set; }

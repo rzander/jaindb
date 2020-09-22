@@ -22,21 +22,22 @@
     <Description>StorageProvider to store Data on a REDIS Server.</Description>
     <Product>jaindb.storage.Redis</Product>
     <Title>JainDB Redis Storage Provider</Title>
-    <Version>1.2.0</Version>
-    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <Version>1.2.2</Version>
+    <AssemblyVersion>1.2.2.0</AssemblyVersion>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <FileVersion>1.2.2.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="4.1.0" />
-    <PackageReference Include="Fody" Version="6.2.0">
+    <PackageReference Include="Fody" Version="6.2.6">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="jaindb.base" Version="1.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="StackExchange.Redis" Version="2.1.30" />
+    <PackageReference Include="StackExchange.Redis" Version="2.1.58" />
   </ItemGroup>
 
   <ItemGroup>

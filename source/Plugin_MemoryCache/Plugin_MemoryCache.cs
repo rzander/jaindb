@@ -83,46 +83,52 @@ namespace Plugin_MemoryCache
 
                 if (CacheKeys)
                 {
-                    var jObj = JObject.Parse(Data);
-                    jaindb.jDB.JSort(jObj);
-
-                    string sID = jObj["#id"].ToString();
-
-                    //Store KeyNames
-                    foreach (JProperty oSub in jObj.Properties())
+                    try
                     {
-                        if (oSub.Name.StartsWith("#"))
-                        {
-                            if (oSub.Value.Type == JTokenType.Array)
-                            {
-                                foreach (var oSubSub in oSub.Values())
-                                {
-                                    try
-                                    {
-                                        if (oSubSub.ToString() != sID)
-                                        {
-                                            WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
-                                        }
-                                    }
-                                    catch { }
-                                }
+                        var jObj = JObject.Parse(Data);
+                        jaindb.jDB.JSort(jObj);
 
-                            }
-                            else
+                        string sID = jObj["#id"].ToString();
+
+                        //Store KeyNames
+                        foreach (JProperty oSub in jObj.Properties())
+                        {
+                            if (oSub.Name.StartsWith("#"))
                             {
-                                if (!string.IsNullOrEmpty((string)oSub.Value))
+                                if (oSub.Value.Type == JTokenType.Array)
                                 {
-                                    if (oSub.Value.ToString() != sID)
+                                    foreach (var oSubSub in oSub.Values())
                                     {
                                         try
                                         {
-                                            WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                            if (oSubSub.ToString() != sID)
+                                            {
+                                                WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                            }
                                         }
                                         catch { }
+                                    }
+
+                                }
+                                else
+                                {
+                                    if (!string.IsNullOrEmpty((string)oSub.Value))
+                                    {
+                                        if (oSub.Value.ToString() != sID)
+                                        {
+                                            try
+                                            {
+                                                WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                            }
+                                            catch { }
+                                        }
                                     }
                                 }
                             }
                         }
+                    }catch(Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
                     }
                 }
             }

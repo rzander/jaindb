@@ -429,7 +429,14 @@ namespace jaindb
 
                     if (!string.IsNullOrEmpty(sFull))
                     {
-                        return JObject.Parse(sFull);
+                        try
+                        {
+                            return JObject.Parse(sFull);
+                        }
+                        catch(Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                        }
                     }
                 }
 
