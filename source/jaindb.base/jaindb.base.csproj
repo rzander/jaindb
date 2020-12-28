@@ -12,9 +12,9 @@
     <PackageIconUrl></PackageIconUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseUrl></PackageLicenseUrl>
-    <Version>1.2.2</Version>
-    <FileVersion>1.2.2.0</FileVersion>
-    <AssemblyVersion>1.2.2.0</AssemblyVersion>
+    <Version>1.2.3</Version>
+    <FileVersion>1.2.3.0</FileVersion>
+    <AssemblyVersion>1.2.3.0</AssemblyVersion>
     <Title>JainDB base library</Title>
     <PackageReleaseNotes />
     <PackageIcon>jaindb_128.png</PackageIcon>

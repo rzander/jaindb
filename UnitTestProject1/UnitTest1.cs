@@ -32,7 +32,7 @@ namespace JainDBTest
             //s1.ToString();
 
             Console.WriteLine("... received Hash:" + sHash);
-            bool bHash = (sHash == "9qZLSzgry3DXTCoFLk4nQRzBf");
+            bool bHash = (sHash == "9qZs2fmZHoDLQ7yikvRYT7M2k");
             Assert.IsTrue(bHash);
             if (bHash)
                 Console.WriteLine("Hash is valid.");
@@ -97,7 +97,7 @@ namespace JainDBTest
             jaindb.jDB.loadPlugins();
             Console.WriteLine("QueryAll data...");
 
-            int i = jDB.QueryAllAsync("obj1", "", "", "").Result.Count();
+            int i = jDB.QueryAllAsync("OS", "", "", "").Result.Count();
             Assert.IsTrue(i > 0);
         }
         [TestMethod]

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Plugin_MemoryCache
 {
@@ -205,9 +206,11 @@ namespace Plugin_MemoryCache
             return -1;
         }
 
-        public IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
         {
-            return null; //We cannot list objects
+            await Task.CompletedTask;
+            yield break;
+            //return null; //We cannot list objects
         }
 
         public string LookupID(string name, string value)

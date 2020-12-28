@@ -462,7 +462,8 @@ namespace jaindb
 
                         //Set index and date from blockchain as the index and hash can be from a previous block
                         oInv["_index"] = oRaw["_index"];
-                        oInv["_date"] = oRaw["_inventoryDate"];
+                        if(oInv["_date"] == null)   //why date?
+                            oInv["_date"] = oRaw["_inventoryDate"];
                     }
                     catch { }
 
@@ -474,8 +475,8 @@ namespace jaindb
                         lHashes.Add(oTok.Path);
                     }
 
-                    //Remove merge ##hash with hasehd value
-                    foreach (string sHash in lHashes)
+                    //Remove merge ##hash with hashed value
+                    foreach (string sHash in lHashes.OrderBy(t=>t))
                     {
                         try
                         {
@@ -517,8 +518,13 @@ namespace jaindb
                                         {
                                             if ((jObj.Type == JTokenType.Object || jObj.Type == JTokenType.Array) && jObj.Parent.Type == JTokenType.Property)
                                             {
-                                                jObj.Parent.Remove();
-                                                bLoop = true;
+                                                //only remove if original value does not match
+                                                if (oTok.Parent[((Newtonsoft.Json.Linq.JProperty)jObj.Parent).Name].ToString() != jObj.ToString())
+                                                {
+                                                    jObj.Parent.Remove();
+                                                    bLoop = true;
+                                                }
+                                                
                                                 continue;
                                             }
 
