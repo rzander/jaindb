@@ -4,7 +4,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <Authors>Roger Zander</Authors>
     <Company>Zander Tools</Company>
-    <Copyright>(c) 2020 by Roger Zander</Copyright>
+    <Copyright>(c) 2021 by Roger Zander</Copyright>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <Description>jaindb base library to generate blockchain. Additional Storage-Providers are required</Description>
@@ -12,9 +12,9 @@
     <PackageIconUrl></PackageIconUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseUrl></PackageLicenseUrl>
-    <Version>1.2.3</Version>
-    <FileVersion>1.2.3.0</FileVersion>
-    <AssemblyVersion>1.2.3.0</AssemblyVersion>
+    <Version>1.2.4</Version>
+    <FileVersion>1.2.4.0</FileVersion>
+    <AssemblyVersion>1.2.4.0</AssemblyVersion>
     <Title>JainDB base library</Title>
     <PackageReleaseNotes />
     <PackageIcon>jaindb_128.png</PackageIcon>
@@ -22,8 +22,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="JsonDiffPatch.Net" Version="2.2.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="JsonDiffPatch.Net" Version="2.3.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
   <ItemGroup>
