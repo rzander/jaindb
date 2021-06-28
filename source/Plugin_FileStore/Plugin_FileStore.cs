@@ -52,19 +52,21 @@ namespace Plugin_FileStore
         {
             foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_assets")).GetFiles("*.json"))
             {
-                var oAsset = await jDB.ReadHashAsync(oFile.FullName.Replace(oFile.Extension, ""), "_assets");
                 JObject jObj = new JObject();
 
                 if (paths.Contains("*") || paths.Contains(".."))
                 {
                     try
                     {
+                        //tbv
+                        jObj = new JObject(File.ReadAllText(oFile.FullName));
                         jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
                     }
                     catch { }
                 }
                 else
                 {
+                    var oAsset = await jDB.ReadHashAsync(oFile.FullName.Replace(oFile.Extension, ""), "_assets");
                     if (!string.IsNullOrEmpty(paths))
                         jObj = await jDB.GetRawAsync(oAsset, paths); //load only the path
                     else

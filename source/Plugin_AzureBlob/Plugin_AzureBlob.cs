@@ -8,8 +8,7 @@ using System.Reflection;
 
 using System.Threading.Tasks;
 using jaindb;
-using Microsoft.Azure.Storage;
-using Microsoft.Azure.Storage.Blob;
+using Azure.Storage.Blobs;
 
 namespace Plugin_AzureBlob
 {
@@ -24,8 +23,8 @@ namespace Plugin_AzureBlob
 
         public Dictionary<string, string> Settings { get; set; }
 
-        CloudStorageAccount storageAccount;
-        CloudBlobClient blobClient;
+        BlobClient blobClient;
+        BlobContainerClient container;
 
         public string Name
         {
@@ -60,8 +59,10 @@ namespace Plugin_AzureBlob
                     JConfig = new JObject();
                 }
 
-                storageAccount = new CloudStorageAccount(new Microsoft.Azure.Storage.Auth.StorageCredentials(StorageAccount, AccessKey), true);
-                blobClient = storageAccount.CreateCloudBlobClient();
+                container = new BlobContainerClient($"DefaultEndpointsProtocol=https;AccountName={ StorageAccount };AccountKey={ AccessKey };EndpointSuffix=core.windows.net", "jaindb");
+                //blobClient = container.GetBlobClient("blobName");
+                //storageAccount = new CloudStorageAccount(new Microsoft.Azure.Storage.Auth.StorageCredentials(StorageAccount, AccessKey), true);
+                //blobClient = storageAccount.CreateCloudBlobClient();
             }
             catch(Exception ex)
             {
@@ -79,48 +80,19 @@ namespace Plugin_AzureBlob
 
             Collection = Collection.ToLower();
             string sColl = Collection;
-            switch (Collection)
+
+            if (sColl.StartsWith('_'))
             {
-                case "_full":
-                    sColl = "assets";
-                    break;
-                case "_chain":
-                    sColl = "chain";
-                    break;
-                default:
-                    if (ContinueAfterWrite)
-                        return false;
-                    else
-                        return true;
-
-            }
-
-            var jObj = JObject.Parse(Data);
-
-
-            // Get a reference to a container named "my-new-container."
-            CloudBlobContainer container = blobClient.GetContainerReference(sColl);
-
-            // If "mycontainer" doesn't exist, create it.
-            container.CreateIfNotExistsAsync().Wait();
-
-            if (sColl == "assets")
-            {
-                CloudBlockBlob blockBlob = container.GetBlockBlobReference(jObj["_hash"].Value<string>());
-                if(!blockBlob.Exists())
-                    blockBlob.UploadText(Data);
+                //always upload...
+                blobClient = container.GetBlobClient(sColl + "/" + Hash);
+                blobClient.UploadAsync(new BinaryData(Data));
             }
             else
             {
-                CloudBlockBlob blockBlob = container.GetBlockBlobReference(Hash);
-                if (!blockBlob.Exists())
-                    blockBlob.UploadText(Data);
-                else
-                {
-                    string sOLD = blockBlob.DownloadText();
-                    if(Data.Length > sOLD.Length) //only update if the new chain is larger
-                        blockBlob.UploadText(Data);
-                }
+                //only upload if not exists...
+                blobClient = container.GetBlobClient(sColl + "/" + Hash);
+                if (!blobClient.Exists())
+                    blobClient.UploadAsync(new BinaryData(Data));
             }
 
             if (ContinueAfterWrite)
@@ -136,21 +108,9 @@ namespace Plugin_AzureBlob
             {
                 Collection = Collection.ToLower();
                 string sColl = Collection;
-                switch (Collection)
-                {
-                    case "_assets":
-                        sColl = "assets";
-                        break;
-                    case "_chain":
-                        sColl = "chain";
-                        break;
-                    default:
-                        return "";
-                }
 
-                CloudBlobContainer container = blobClient.GetContainerReference(sColl);
-                CloudBlockBlob blockBlob = container.GetBlockBlobReference(Hash);
-                sResult = blockBlob.DownloadText();
+                blobClient = container.GetBlobClient(sColl + "/" + Hash);
+                sResult = blobClient.DownloadContent().Value.Content.ToString();
             }
             catch { }
             return sResult;
@@ -161,8 +121,7 @@ namespace Plugin_AzureBlob
             int iCount = -1;
             try
             {
-                CloudBlobContainer container = blobClient.GetContainerReference("_chain");
-                iCount = container.ListBlobs().Count();
+                iCount = container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain").ToList().Count;
             }
             catch { }
 
@@ -171,27 +130,34 @@ namespace Plugin_AzureBlob
 
         public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
         {
-            //paths = "*"; //Azure Blob store full assets only
-            CloudBlobContainer container = blobClient.GetContainerReference("assets");
-
-            foreach (var bAsset in container.ListBlobs())
+            foreach (var bAsset in container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_assets"))
             {
-                if (bAsset.GetType() == typeof(CloudBlockBlob))
+                blobClient = container.GetBlobClient(bAsset.Name);
+                JObject jObj = new JObject();
+
+                if (paths.Contains("*") || paths.Contains(".."))
                 {
-                    CloudBlockBlob blob = (CloudBlockBlob)bAsset;
-
-                    JObject jObj = new JObject();
-                    jObj = JObject.Parse(blob.DownloadText());
-
-                    if (jObj["_hash"] == null)
-                        jObj.Add(new JProperty("_hash", blob.Name));
-
-                    yield return jObj;
+                    try
+                    {
+                        string jRes = blobClient.DownloadContent().Value.Content.ToString();
+                        jObj = new JObject(jRes);
+                        jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                    }
+                    catch { }
                 }
                 else
                 {
-                    continue;
+                    var oAsset = await jDB.ReadHashAsync(bAsset.Name.Split('/')[1], "_assets");
+                    if (!string.IsNullOrEmpty(paths))
+                        jObj = await jDB.GetRawAsync(oAsset, paths); //load only the path
+                    else
+                        jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
                 }
+
+                if (jObj["_hash"] == null)
+                    jObj.Add(new JProperty("_hash", bAsset.Name.Split('/')[1]));
+
+                yield return jObj;
             }
         }
 
@@ -220,19 +186,10 @@ namespace Plugin_AzureBlob
         {
             List<string> lResult = new List<string>();
 
-            CloudBlobContainer container = blobClient.GetContainerReference("chain");
 
-            foreach (var oAsset in container.ListBlobs())
+            foreach (var bChain in container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain"))
             {
-                if (oAsset.GetType() == typeof(CloudBlockBlob))
-                {
-                    CloudBlockBlob blob = (CloudBlockBlob)oAsset;
-                    lResult.Add(blob.Name);
-                }
-                else
-                {
-                    continue;
-                }
+                lResult.Add(bChain.Name.Split('/')[1]);
             }
 
             return lResult;
