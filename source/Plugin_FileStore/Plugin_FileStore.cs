@@ -1,5 +1,6 @@
 ﻿using jaindb;
 using JainDBProvider;
+
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -7,7 +8,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 namespace Plugin_FileStore
 {
@@ -22,7 +22,7 @@ namespace Plugin_FileStore
         private string FilePath = "";
         private string foldername = "jaindb";
         private JObject JConfig = new JObject();
-
+        
         public string Name
         {
             get
@@ -32,15 +32,19 @@ namespace Plugin_FileStore
         }
 
         public Dictionary<string, string> Settings { get; set; }
+
         public List<string> GetAllIDs()
         {
             List<string> lResult = new List<string>();
 
             try
             {
-                foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
+                if (Directory.Exists(Path.Combine(FilePath, "_chain")))
                 {
-                    lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
+                    foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
+                    {
+                        lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
+                    }
                 }
             }
             catch { }
@@ -171,6 +175,7 @@ namespace Plugin_FileStore
             {
                 Debug.WriteLine("Error ReadHash_1: " + ex.Message.ToString());
             }
+
             return sResult;
         }
 
@@ -192,141 +197,152 @@ namespace Plugin_FileStore
 
         public bool WriteHash(string Hash, string Data, string Collection)
         {
-            Collection = Collection.ToLower();
-
-            if (bReadOnly)
-                if (ContinueAfterWrite)
-                    return false;
-                else
-                    return true;
-
-            //Remove invalid Characters in Path and Hash
-            foreach (var sChar in Path.GetInvalidPathChars())
+            try
             {
-                Collection = Collection.Replace(sChar.ToString(), "");
-                Hash = Hash.Replace(sChar.ToString(), "");
-            }
+                Collection = Collection.ToLower();
 
-            string sCol = Path.Combine(FilePath, Collection);
-            if (!Directory.Exists(sCol))
-                Directory.CreateDirectory(sCol);
+                if (bReadOnly)
+                    if (ContinueAfterWrite)
+                        return false;
+                    else
+                        return true;
 
-            switch (Collection)
-            {
-                case "_full":
+                //Remove invalid Characters in Path and Hash
+                //foreach (var sChar in Path.GetInvalidPathChars())
+                //{
+                //    Collection = Collection.Replace(sChar.ToString(), "");
+                //    Hash = Hash.Replace(sChar.ToString(), "");
+                //}
+                Collection = RemoveInvalidChars(Collection);
+                Hash = RemoveInvalidChars(Hash);
 
-                    if (!CacheFull) //exit if ChacheFull is not set
-                    {
-                        if (ContinueAfterWrite)
-                            return false;
-                        else
-                            return true;
-                    }
+                string sCol = Path.Combine(FilePath, Collection);
+                if (!Directory.Exists(sCol))
+                {
+                    Directory.CreateDirectory(sCol);
+                }
 
-                    var jObj = JObject.Parse(Data);
-                    jaindb.jDB.JSort(jObj);
+                switch (Collection)
+                {
+                    case "_full":
 
-                    string sID = jObj["#id"].ToString();
-
-                    if (!Directory.Exists(Path.Combine(FilePath, "_key")))
-                        Directory.CreateDirectory(Path.Combine(FilePath, "_key"));
-
-                    if (CacheKeys)
-                    {
-                        //Store KeyNames
-                        foreach (JProperty oSub in jObj.Properties())
+                        if (!CacheFull) //exit if ChacheFull is not set
                         {
-                            if (oSub.Name.StartsWith("#"))
+                            if (ContinueAfterWrite)
+                                return false;
+                            else
+                                return true;
+                        }
+
+                        var jObj = JObject.Parse(Data);
+                        jaindb.jDB.JSort(jObj);
+
+                        string sID = jObj["#id"].ToString();
+
+                        if (CacheKeys)
+                        {
+                            if (!Directory.Exists(Path.Combine(FilePath, "_key")))
+                                Directory.CreateDirectory(Path.Combine(FilePath, "_key"));
+
+                            //Store KeyNames
+                            foreach (JProperty oSub in jObj.Properties())
                             {
-                                if (oSub.Value.Type == JTokenType.Array)
+                                if (oSub.Name.StartsWith("#"))
                                 {
-                                    foreach (var oSubSub in oSub.Values())
+                                    if (oSub.Value.Type == JTokenType.Array)
                                     {
-                                        try
-                                        {
-                                            if (oSubSub.ToString() != sID)
-                                            {
-                                                WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
-                                                /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
-
-                                                //Remove invalid Characters in Path
-                                                foreach (var sChar in Path.GetInvalidPathChars())
-                                                {
-                                                    sDir = sDir.Replace(sChar.ToString(), "");
-                                                }
-
-                                                if (!Directory.Exists(sDir))
-                                                    Directory.CreateDirectory(sDir);
-
-                                                File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
-                                                */
-                                            }
-                                        }
-                                        catch { }
-                                    }
-
-                                }
-                                else
-                                {
-                                    if (!string.IsNullOrEmpty((string)oSub.Value))
-                                    {
-                                        if (oSub.Value.ToString() != sID)
+                                        foreach (var oSubSub in oSub.Values())
                                         {
                                             try
                                             {
-                                                WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
-                                                /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
-
-                                                //Remove invalid Characters in Path
-                                                foreach (var sChar in Path.GetInvalidPathChars())
+                                                if (oSubSub.ToString() != sID)
                                                 {
-                                                    sDir = sDir.Replace(sChar.ToString(), "");
+                                                    WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                                    /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
+
+                                                    //Remove invalid Characters in Path
+                                                    foreach (var sChar in Path.GetInvalidPathChars())
+                                                    {
+                                                        sDir = sDir.Replace(sChar.ToString(), "");
+                                                    }
+
+                                                    if (!Directory.Exists(sDir))
+                                                        Directory.CreateDirectory(sDir);
+
+                                                    File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
+                                                    */
                                                 }
-
-                                                if (!Directory.Exists(sDir))
-                                                    Directory.CreateDirectory(sDir);
-
-                                                File.WriteAllText(Path.Combine(sDir, (string)oSub.Value + ".json"), sID);
-                                                */
                                             }
                                             catch { }
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        if (!string.IsNullOrEmpty((string)oSub.Value))
+                                        {
+                                            if (oSub.Value.ToString() != sID)
+                                            {
+                                                try
+                                                {
+                                                    WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                                    /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
+
+                                                    //Remove invalid Characters in Path
+                                                    foreach (var sChar in Path.GetInvalidPathChars())
+                                                    {
+                                                        sDir = sDir.Replace(sChar.ToString(), "");
+                                                    }
+
+                                                    if (!Directory.Exists(sDir))
+                                                        Directory.CreateDirectory(sDir);
+
+                                                    File.WriteAllText(Path.Combine(sDir, (string)oSub.Value + ".json"), sID);
+                                                    */
+                                                }
+                                                catch { }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    lock (locker) //only one write operation
-                    {
-                        File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
-                    }
-                    break;
-
-                case "_chain":
-                    lock (locker) //only one write operation
-                    {
-                        File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
-                    }
-                    break;
-
-                default:
-                    if (!File.Exists(Path.Combine(FilePath, Collection, Hash + ".json"))) //We do not have to create the same hash file twice...
-                    {
                         lock (locker) //only one write operation
                         {
                             File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                         }
-                    }
-                    break;
+                        break;
+
+                    case "_chain":
+                        lock (locker) //only one write operation
+                        {
+                            File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
+                        }
+                        break;
+
+                    default:
+                        if (!File.Exists(Path.Combine(FilePath, Collection, Hash + ".json"))) //We do not have to create the same hash file twice...
+                        {
+                            lock (locker) //only one write operation
+                            {
+                                File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
+                            }
+                        }
+                        break;
+                }
+
+
+                if (ContinueAfterWrite)
+                    return false;
+                else
+                    return true;
             }
+            catch { }
 
-
-            if (ContinueAfterWrite)
-                return false;
-            else
-                return true;
+            return false;
         }
+
         public bool WriteLookupID(string name, string value, string id)
         {
             if (bReadOnly)
@@ -352,6 +368,11 @@ namespace Plugin_FileStore
             {
                 return false;
             }
+        }
+
+        public string RemoveInvalidChars(string filename)
+        {
+            return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
         }
     }
 }

@@ -15,7 +15,7 @@
     <PackageId>jaindb.storage.SQLCache</PackageId>
     <Product>jaindb.storage.SQLCache</Product>
     <Description>StorageProvider to use SQLCache as Data-Store. Note: SQLCache is not a long term storage as the items will expire after 30days (default value)</Description>
-    <Copyright>(c) 2020 by Roger Zander</Copyright>
+    <Copyright>(c) 2021 by Roger Zander</Copyright>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
@@ -42,15 +42,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Costura.Fody" Version="4.1.0" />
-    <PackageReference Include="Fody" Version="6.3.0">
+    <PackageReference Include="Costura.Fody" Version="5.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Fody" Version="6.5.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="1.2.3" />
+    <PackageReference Include="jaindb.base" Version="1.2.5" />
     <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="5.0.1">
     </PackageReference>
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.2" />
   </ItemGroup>
 

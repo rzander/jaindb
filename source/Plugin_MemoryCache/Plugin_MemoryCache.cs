@@ -4,7 +4,6 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -12,16 +11,13 @@ namespace Plugin_MemoryCache
 {
     public class Plugin_MemoryCache : IStore
     {
-        private IMemoryCache _cache;
         private bool bReadOnly = false;
-        private long SlidingExpiration = -1;
-        private bool ContinueAfterWrite = true;
         private bool CacheFull = true;
         private bool CacheKeys = true;
-
+        private bool ContinueAfterWrite = true;
         private JObject JConfig = new JObject();
-
-        public Dictionary<string, string> Settings { get; set; }
+        private long SlidingExpiration = -1;
+        private MemoryCache _cache;
 
         public string Name
         {
@@ -29,6 +25,19 @@ namespace Plugin_MemoryCache
             {
                 return Assembly.GetExecutingAssembly().ManifestModule.Name;
             }
+        }
+
+        public Dictionary<string, string> Settings { get; set; }
+        public List<string> GetAllIDs()
+        {
+            return new List<string>();
+        }
+
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        {
+            await Task.CompletedTask;
+            yield break;
+            //return null; //We cannot list objects
         }
 
         public void Init()
@@ -57,9 +66,61 @@ namespace Plugin_MemoryCache
                     JConfig = new JObject();
                 }
 
-                _cache = new MemoryCache(new MemoryCacheOptions());
+                if (_cache == null)
+                    _cache = new MemoryCache(new MemoryCacheOptions());
+
             }
             catch { }
+        }
+
+        public string LookupID(string name, string value)
+        {
+            string sResult;
+            _cache.TryGetValue("ID-" + name.ToLower() + value.ToLower(), out sResult);
+            //Check in MemoryCache
+            if (!string.IsNullOrEmpty(sResult))
+            {
+                return sResult;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public string ReadHash(string Hash, string Collection)
+        {
+            string sResult = "";
+
+            //Check if MemoryCache is initialized
+            //if (_cache == null)
+            //{
+            //    _cache = new MemoryCache(new MemoryCacheOptions());
+            //}
+
+            //Try to get value from Memory
+            if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
+            {
+                return sResult;
+            }
+            else
+            {
+                return "";
+            }
+        }
+
+        public int totalDeviceCount(string sPath = "")
+        {
+            string sCount;
+            _cache.TryGetValue("RH-totaldevicecount-", out sCount);
+
+            //Check in MemoryCache
+            if (!string.IsNullOrEmpty(sCount))
+            {
+                return int.Parse(sCount);
+            }
+
+            return -1;
         }
 
         public bool WriteHash(string Hash, string Data, string Collection)
@@ -135,10 +196,10 @@ namespace Plugin_MemoryCache
             }
 
             //Check if MemoryCache is initialized
-            if (_cache == null)
-            {
-                _cache = new MemoryCache(new MemoryCacheOptions());
-            }
+            //if (_cache == null)
+            //{
+            //    _cache = new MemoryCache(new MemoryCacheOptions());
+            //}
 
             string sResult = "";
 
@@ -172,61 +233,6 @@ namespace Plugin_MemoryCache
                 return true;
         }
 
-        public string ReadHash(string Hash, string Collection)
-        {
-            string sResult = "";
-
-            //Check if MemoryCache is initialized
-            if (_cache == null)
-            {
-                _cache = new MemoryCache(new MemoryCacheOptions());
-            }
-
-            //Try to get value from Memory
-            if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
-            {
-                return sResult;
-            }
-            else
-            {
-                return "";
-            }
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            string sCount = "";
-
-            //Check in MemoryCache
-            if (_cache.TryGetValue("RH-totaldevicecount-", out sCount))
-            {
-                return int.Parse(sCount);
-            }
-
-            return -1;
-        }
-
-        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
-        {
-            await Task.CompletedTask;
-            yield break;
-            //return null; //We cannot list objects
-        }
-
-        public string LookupID(string name, string value)
-        {
-            string sResult = null;
-            //Check in MemoryCache
-            if (_cache.TryGetValue("ID-" + name.ToLower() + value.ToLower(), out sResult))
-            {
-                return sResult;
-            }
-            else
-            {
-                return null;
-            }
-        }
-
         public bool WriteLookupID(string name, string value, string id)
         {
             if (bReadOnly)
@@ -243,11 +249,6 @@ namespace Plugin_MemoryCache
             {
                 return false;
             }
-        }
-
-        public List<string> GetAllIDs()
-        {
-            return new List<string>();
         }
     }
 

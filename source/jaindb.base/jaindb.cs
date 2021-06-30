@@ -808,6 +808,7 @@ namespace jaindb
                 PluginPath = AppDomain.CurrentDomain.BaseDirectory;
 
             _Plugins.Clear();
+
             ICollection<IStore> plugins = GenericPluginLoader<IStore>.LoadPlugins(PluginPath);
             foreach (var item in plugins)
             {
@@ -1346,8 +1347,9 @@ namespace jaindb
                     {
                         try
                         {
+                            DateTime dStart = DateTime.Now;
                             sResult = item.Value.ReadHash(Hash, Collection);
-
+                            Debug.WriteLine("ReadHash-" + item.Key + "-" + Collection + " duration:" + (DateTime.Now - dStart).TotalMilliseconds.ToString() + " ms");
                             if (!string.IsNullOrEmpty(sResult))
                             {
                                 //Write Hash to the first Plugin if the current plugin is not the first one
@@ -1477,7 +1479,7 @@ namespace jaindb
 
                 var oBlock = oChain.GetLastBlock();
 
-                if (oBlock.data != sResult)
+                if (oBlock.data != sResult) //only update chain if something has changed...
                 {
                     var oNew = await oChain.MineNewBlockAsync(oBlock, BlockType);
                     await oChain.UseBlockAsync(sResult, oNew);
@@ -1630,8 +1632,10 @@ namespace jaindb
                 {
                     try
                     {
+                        DateTime dStart = DateTime.Now;
                         if (item.Value.WriteHash(Hash, Data, Collection))
                             return true; //exit if return value is true
+                        Debug.WriteLine("WriteHash-" + item.Key + "-" + Collection + " duration:" + (DateTime.Now - dStart).TotalMilliseconds.ToString() + " ms");
                     }
                     catch { }
                 }

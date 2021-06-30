@@ -1,4 +1,6 @@
-﻿using JainDBProvider;
+﻿using Azure.Storage.Blobs;
+using jaindb;
+using JainDBProvider;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -6,25 +8,21 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-using System.Threading.Tasks;
-using jaindb;
-using Azure.Storage.Blobs;
-
 namespace Plugin_AzureBlob
 {
     public class Plugin_AzureBlob : IStore
     {
-        private bool bReadOnly = false;
-        private bool ContinueAfterWrite = true;
-        private string StorageAccount = "";
         private string AccessKey = "";
-
+        private BlobClient blobClient;
+        private bool bReadOnly = false;
+        private BlobContainerClient container;
+        private bool ContinueAfterWrite = true;
+        private bool bAssets = true;
+        private bool bBlocks = true;
+        private bool bChain = true;
+        private bool bFull = false;
         private JObject JConfig = new JObject();
-
-        public Dictionary<string, string> Settings { get; set; }
-
-        BlobClient blobClient;
-        BlobContainerClient container;
+        private string StorageAccount = "";
 
         public string Name
         {
@@ -34,98 +32,21 @@ namespace Plugin_AzureBlob
             }
         }
 
-        public void Init()
+        public Dictionary<string, string> Settings { get; set; }
+        public List<string> GetAllIDs()
         {
-            if (Settings == null)
-                Settings = new Dictionary<string, string>();
+            List<string> lResult = new List<string>();
 
-            try
+            foreach (var bChain in container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain"))
             {
-                if (!File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
+                try
                 {
-                    File.WriteAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json"), Properties.Resources.Plugin_AzureBlob);
+                    lResult.Add(bChain.Name.Split('/')[1]);
                 }
-
-                if (File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
-                {
-                    JConfig = JObject.Parse(File.ReadAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")));
-                    bReadOnly = JConfig["ReadOnly"].Value<bool>();
-                    ContinueAfterWrite = JConfig["ContinueAfterWrite"].Value<bool>();
-                    StorageAccount = JConfig["StorageAccount"].Value<string>();
-                    AccessKey = JConfig["AccessKey"].Value<string>();
-                }
-                else
-                {
-                    JConfig = new JObject();
-                }
-
-                container = new BlobContainerClient($"DefaultEndpointsProtocol=https;AccountName={ StorageAccount };AccountKey={ AccessKey };EndpointSuffix=core.windows.net", "jaindb");
-                //blobClient = container.GetBlobClient("blobName");
-                //storageAccount = new CloudStorageAccount(new Microsoft.Azure.Storage.Auth.StorageCredentials(StorageAccount, AccessKey), true);
-                //blobClient = storageAccount.CreateCloudBlobClient();
-            }
-            catch(Exception ex)
-            {
-                Console.WriteLine("AzureBlob Error: " + ex.Message);
-            }
-        }
-
-        public bool WriteHash(string Hash, string Data, string Collection)
-        {
-            if (bReadOnly)
-                return false;
-
-            if (string.IsNullOrEmpty(Data) || Data == "null")
-                return true;
-
-            Collection = Collection.ToLower();
-            string sColl = Collection;
-
-            if (sColl.StartsWith('_'))
-            {
-                //always upload...
-                blobClient = container.GetBlobClient(sColl + "/" + Hash);
-                blobClient.UploadAsync(new BinaryData(Data));
-            }
-            else
-            {
-                //only upload if not exists...
-                blobClient = container.GetBlobClient(sColl + "/" + Hash);
-                if (!blobClient.Exists())
-                    blobClient.UploadAsync(new BinaryData(Data));
+                catch { }
             }
 
-            if (ContinueAfterWrite)
-                return false;
-            else
-                return true;
-        }
-
-        public string ReadHash(string Hash, string Collection)
-        {
-            string sResult = "";
-            try
-            {
-                Collection = Collection.ToLower();
-                string sColl = Collection;
-
-                blobClient = container.GetBlobClient(sColl + "/" + Hash);
-                sResult = blobClient.DownloadContent().Value.Content.ToString();
-            }
-            catch { }
-            return sResult;
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            int iCount = -1;
-            try
-            {
-                iCount = container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain").ToList().Count;
-            }
-            catch { }
-
-            return iCount;
+            return lResult;
         }
 
         public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
@@ -161,10 +82,148 @@ namespace Plugin_AzureBlob
             }
         }
 
+        public void Init()
+        {
+            if (Settings == null)
+                Settings = new Dictionary<string, string>();
+
+            try
+            {
+                if (!File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
+                {
+                    File.WriteAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json"), Properties.Resources.Plugin_AzureBlob);
+                }
+
+                if (File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
+                {
+                    JConfig = JObject.Parse(File.ReadAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")));
+                    bReadOnly = JConfig["ReadOnly"].Value<bool>();
+                    ContinueAfterWrite = JConfig["ContinueAfterWrite"].Value<bool>();
+                    StorageAccount = JConfig["StorageAccount"].Value<string>();
+                    AccessKey = JConfig["AccessKey"].Value<string>();
+
+                    if (JConfig["Assets"] != null)
+                        bAssets = JConfig["Assets"].Value<bool>();
+
+                    if (JConfig["Blocks"] != null)
+                        bBlocks = JConfig["Blocks"].Value<bool>();
+
+                    if (JConfig["Chain"] != null)
+                        bChain = JConfig["Chain"].Value<bool>();
+
+                    if (JConfig["Full"] != null)
+                        bFull = JConfig["Full"].Value<bool>();
+                }
+                else
+                {
+                    JConfig = new JObject();
+                }
+
+                container = new BlobContainerClient($"DefaultEndpointsProtocol=https;AccountName={ StorageAccount };AccountKey={ AccessKey };EndpointSuffix=core.windows.net", "jaindb");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("AzureBlob Error: " + ex.Message);
+            }
+        }
+
         public string LookupID(string name, string value)
         {
             string sResult = null;
             return sResult;
+        }
+
+        public string ReadHash(string Hash, string Collection)
+        {
+            string sResult = "";
+            try
+            {
+                Collection = Collection.ToLower();
+
+                Collection = RemoveInvalidChars(Collection);
+                Hash = RemoveInvalidChars(Hash);
+
+                string sColl = Collection;
+
+                blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
+                sResult = blobClient.DownloadContent().Value.Content.ToString();
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public int totalDeviceCount(string sPath = "")
+        {
+            int iCount = -1;
+            try
+            {
+                iCount = container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain").ToList().Count;
+            }
+            catch { }
+
+            return iCount;
+        }
+
+        public bool WriteHash(string Hash, string Data, string Collection)
+        {
+            try
+            {
+                if (bReadOnly)
+                    return false;
+
+                if (string.IsNullOrEmpty(Data) || Data == "null")
+                    return true;
+
+                Collection = Collection.ToLower();
+                
+                Collection = RemoveInvalidChars(Collection);
+                Hash = RemoveInvalidChars(Hash);
+
+                string sColl = Collection;
+
+                if (sColl.StartsWith('_'))
+                {
+                    if (sColl == "_full" && bFull)
+                    {
+                        //always upload...
+                        blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
+                        blobClient.UploadAsync(new BinaryData(Data));
+                    }
+
+                    if (sColl == "_chain" && bChain)
+                    {
+                        //always upload...
+                        blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
+                        blobClient.UploadAsync(new BinaryData(Data));
+                    }
+
+                    if (sColl == "_assets" && bAssets)
+                    {
+                        //always upload...
+                        blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
+                        blobClient.UploadAsync(new BinaryData(Data));
+                    }
+                }
+                else
+                {
+                    if (bBlocks)
+                    {
+                        //only upload if not exists...
+                        blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
+                        if (!blobClient.Exists())
+                            blobClient.UploadAsync(new BinaryData(Data));
+                    }
+                }
+
+                if (ContinueAfterWrite)
+                    return false;
+                else
+                    return true;
+            }
+            catch { }
+
+            return false;
         }
 
         public bool WriteLookupID(string name, string value, string id)
@@ -182,20 +241,9 @@ namespace Plugin_AzureBlob
             }
         }
 
-        public List<string> GetAllIDs()
+        public string RemoveInvalidChars(string filename)
         {
-            List<string> lResult = new List<string>();
-
-
-            foreach (var bChain in container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain"))
-            {
-                lResult.Add(bChain.Name.Split('/')[1]);
-            }
-
-            return lResult;
+            return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
         }
     }
-
-
 }
-

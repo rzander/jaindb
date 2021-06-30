@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace JainDBProvider
 {
@@ -8,6 +7,7 @@ namespace JainDBProvider
     {
         string Name { get; }
         Dictionary<string, string> Settings { get; set; }
+
         List<string> GetAllIDs();
 
         IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths);
@@ -21,8 +21,7 @@ namespace JainDBProvider
         int totalDeviceCount(string sPath = "");
 
         bool WriteHash(string Hash, string Data, string Collection);
+
         bool WriteLookupID(string name, string value, string id);
     }
-
-
 }

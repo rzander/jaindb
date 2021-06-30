@@ -122,7 +122,11 @@
   "ReadOnly": false,
   "ContinueAfterWrite": true,
   "StorageAccount": "yyy",
-  "AccessKey": "xxx"
+  "AccessKey": "xxx",  
+  "Assets":  true,
+  "Blocks": true,
+  "Chain": true,
+  "Full":  false
 }</value>
   </data>
 </root>
