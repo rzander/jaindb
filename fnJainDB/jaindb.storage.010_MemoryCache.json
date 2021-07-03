@@ -1,0 +1,7 @@
+﻿{
+  "ReadOnly": false,
+  "SlidingExpiration": 172800,
+  "ContinueAfterWrite": true,
+  "CacheFull": true,
+  "CacheKeys":  true
+}
