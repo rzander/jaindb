@@ -1,10 +1,11 @@
 ﻿using JainDBProvider;
-using Microsoft.Extensions.Caching.Memory;
+//using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Runtime.Caching;
 using System.Threading.Tasks;
 
 namespace Plugin_MemoryCache
@@ -67,7 +68,7 @@ namespace Plugin_MemoryCache
                 }
 
                 if (_cache == null)
-                    _cache = new MemoryCache(new MemoryCacheOptions());
+                    _cache = new MemoryCache("JainDB");
 
             }
             catch { }
@@ -75,8 +76,8 @@ namespace Plugin_MemoryCache
 
         public string LookupID(string name, string value)
         {
-            string sResult;
-            _cache.TryGetValue("ID-" + name.ToLower() + value.ToLower(), out sResult);
+            string sResult = _cache["ID-" + name.ToLower() + value.ToLower()] as string;
+            //_cache.TryGetValue("ID-" + name.ToLower() + value.ToLower(), out sResult);
             //Check in MemoryCache
             if (!string.IsNullOrEmpty(sResult))
             {
@@ -90,7 +91,8 @@ namespace Plugin_MemoryCache
 
         public string ReadHash(string Hash, string Collection)
         {
-            string sResult = "";
+            //string sResult = "";
+            string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
 
             //Check if MemoryCache is initialized
             //if (_cache == null)
@@ -99,7 +101,8 @@ namespace Plugin_MemoryCache
             //}
 
             //Try to get value from Memory
-            if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
+            //if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
+            if (!string.IsNullOrEmpty(sResult))
             {
                 return sResult;
             }
@@ -111,8 +114,8 @@ namespace Plugin_MemoryCache
 
         public int totalDeviceCount(string sPath = "")
         {
-            string sCount;
-            _cache.TryGetValue("RH-totaldevicecount-", out sCount);
+            string sCount = _cache["RH-totaldevicecount-"] as string;
+            //_cache.TryGetValue("RH-totaldevicecount-", out sCount);
 
             //Check in MemoryCache
             if (!string.IsNullOrEmpty(sCount))
@@ -201,10 +204,11 @@ namespace Plugin_MemoryCache
             //    _cache = new MemoryCache(new MemoryCacheOptions());
             //}
 
-            string sResult = "";
+            string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
 
             //Try to get value from Memory
-            if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
+            //if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
+            if (!string.IsNullOrEmpty(sResult))
             {
                 if (sResult == Data)
                 {
@@ -218,13 +222,14 @@ namespace Plugin_MemoryCache
             //Cache Data
             if (SlidingExpiration >= 0)
             {
-                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds
-                _cache.Set("RH-" + Collection + "-" + Hash, Data, cacheEntryOptions);
+                //var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds
+                CacheItemPolicy cPol = new CacheItemPolicy() { SlidingExpiration = TimeSpan.FromSeconds(SlidingExpiration) };
+                _cache.Set("RH-" + Collection + "-" + Hash, Data, cPol);
             }
             else
             {
-                var cacheEntryOptions = new MemoryCacheEntryOptions(); //cache hash forever
-                _cache.Set("RH-" + Collection + "-" + Hash, Data, cacheEntryOptions);
+                //var cacheEntryOptions = new MemoryCacheEntryOptions(); //cache hash forever
+                _cache.Set("RH-" + Collection + "-" + Hash, Data, new CacheItemPolicy());
             }
 
             if (ContinueAfterWrite)
@@ -240,8 +245,8 @@ namespace Plugin_MemoryCache
 
             try
             {
-                var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds
-                _cache.Set("ID-" + name.ToLower() + value.ToLower(), id, cacheEntryOptions);
+                //var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds
+                _cache.Set("ID-" + name.ToLower() + value.ToLower(), id, new CacheItemPolicy() { SlidingExpiration = TimeSpan.FromSeconds(SlidingExpiration) });
 
                 return true;
             }
