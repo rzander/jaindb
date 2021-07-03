@@ -29,7 +29,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Plugin_SQLCache", "Plugin_S
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Plugin_Forwarder", "Plugin_Forwarder\Plugin_Forwarder.csproj", "{640B86B3-52B4-4FE1-B0DF-14D28B31EBA6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTestProject1", "..\UnitTestProject1\UnitTestProject1.csproj", "{6003132E-3058-4E8F-891E-2B87746AE374}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnitTestProject1", "..\UnitTestProject1\UnitTestProject1.csproj", "{6003132E-3058-4E8F-891E-2B87746AE374}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fnJainDB", "..\fnJainDB\fnJainDB.csproj", "{EB591256-6D02-4452-ADD2-EBCDDD276358}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,6 +91,10 @@ Global
 		{6003132E-3058-4E8F-891E-2B87746AE374}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6003132E-3058-4E8F-891E-2B87746AE374}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6003132E-3058-4E8F-891E-2B87746AE374}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB591256-6D02-4452-ADD2-EBCDDD276358}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB591256-6D02-4452-ADD2-EBCDDD276358}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB591256-6D02-4452-ADD2-EBCDDD276358}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB591256-6D02-4452-ADD2-EBCDDD276358}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

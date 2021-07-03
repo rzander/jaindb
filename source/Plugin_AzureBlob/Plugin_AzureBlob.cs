@@ -41,7 +41,7 @@ namespace Plugin_AzureBlob
             {
                 try
                 {
-                    lResult.Add(bChain.Name.Split('/')[1]);
+                    lResult.Add(Path.GetFileNameWithoutExtension(bChain.Name.Split('/')[1]));
                 }
                 catch { }
             }
