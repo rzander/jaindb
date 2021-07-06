@@ -69,7 +69,8 @@ namespace Plugin_AzureBlob.Properties {
         ///  &quot;Assets&quot;:  true,
         ///  &quot;Blocks&quot;: true,
         ///  &quot;Chain&quot;: true,
-        ///  &quot;Full&quot;:  false
+        ///  &quot;Full&quot;:  false,  
+        ///  &quot;BlobContainer&quot;: &quot;jaindb&quot;
         ///}.
         /// </summary>
         internal static string Plugin_AzureBlob {

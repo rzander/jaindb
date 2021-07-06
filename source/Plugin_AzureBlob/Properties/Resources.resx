@@ -126,7 +126,8 @@
   "Assets":  true,
   "Blocks": true,
   "Chain": true,
-  "Full":  false
+  "Full":  false,  
+  "BlobContainer": "jaindb"
 }</value>
   </data>
 </root>

@@ -21,6 +21,7 @@ namespace Plugin_AzureBlob
         private bool bBlocks = true;
         private bool bChain = true;
         private bool bFull = false;
+        private string blobcontainer = "jaindb";
         private JObject JConfig = new JObject();
         private string StorageAccount = "";
 
@@ -113,13 +114,16 @@ namespace Plugin_AzureBlob
 
                     if (JConfig["Full"] != null)
                         bFull = JConfig["Full"].Value<bool>();
+
+                    if (JConfig["BlobContainer"] != null)
+                        blobcontainer= JConfig["BlobContainer"].Value<string>();
                 }
                 else
                 {
                     JConfig = new JObject();
                 }
 
-                container = new BlobContainerClient($"DefaultEndpointsProtocol=https;AccountName={ StorageAccount };AccountKey={ AccessKey };EndpointSuffix=core.windows.net", "jaindb");
+                container = new BlobContainerClient($"DefaultEndpointsProtocol=https;AccountName={ StorageAccount };AccountKey={ AccessKey };EndpointSuffix=core.windows.net", blobcontainer);
             }
             catch (Exception ex)
             {
