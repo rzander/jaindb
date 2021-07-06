@@ -410,7 +410,7 @@ namespace jaindb
             return new JObject();
         }
 
-        public static async Task<JObject> GetFullAsync(string DeviceID, int Index = -1, string blockType = "")
+        public static async Task<JObject> GetFullAsync(string DeviceID, int Index = -1, string blockType = "", bool checkFullIndex = false)
         {
             try
             {
@@ -419,6 +419,7 @@ namespace jaindb
                 if (string.IsNullOrEmpty(blockType))
                     blockType = BlockType;
 
+                JObject oRaw = new JObject();
                 if (Index == -1)
                 {
                     string sFull = "";
@@ -429,18 +430,32 @@ namespace jaindb
 
                     if (!string.IsNullOrEmpty(sFull))
                     {
-                        try
+                        JObject jRes = JObject.Parse(sFull);
+                        if (checkFullIndex)
                         {
-                            return JObject.Parse(sFull);
-                        }
-                        catch(Exception ex)
+                            oRaw = await GetRawIdAsync(DeviceID, Index, blockType);
+                            if (oRaw["_index"].Value<string>() == jRes["_index"].Value<string>())
+                            {
+                                return jRes;
+                            }
+                            else
+                            {
+                                Debug.WriteLine("Full hash is not up to date, recreate it...");
+                            }
+                        } else
                         {
-                            Console.WriteLine(ex.Message);
+                            return jRes;
                         }
+                        
+                    } else
+                    {
+                        oRaw = await GetRawIdAsync(DeviceID, Index, blockType);
                     }
                 }
-
-                JObject oRaw = await GetRawIdAsync(DeviceID, Index, blockType);
+                else
+                {
+                    oRaw = await GetRawIdAsync(DeviceID, Index, blockType);
+                }
 
                 string sData = "";
                 if (blockType == BlockType)
@@ -827,6 +842,7 @@ namespace jaindb
                 }
             }
         }
+
         /// <summary>
         /// Lookup Key ID's to search for Objects based on their Key
         /// </summary>
@@ -1095,7 +1111,7 @@ namespace jaindb
             return new JArray();
         }
 
-        public static async Task<JArray> QueryAsync(string paths, string select, string exclude, string where)
+        public static async Task<JArray> QueryAsync(string paths, string select, string exclude, string where, bool fixFullIndex = false)
         {
             paths = System.Net.WebUtility.UrlDecode(paths);
             select = System.Net.WebUtility.UrlDecode(select);
@@ -1127,7 +1143,7 @@ namespace jaindb
                 bool foundData = false;
                 try
                 {
-                    var jObj = await GetFullAsync(sHash);
+                    var jObj = await GetFullAsync(sHash, -1, "INV", fixFullIndex);
 
                     //Where filter..
                     if (lWhere.Count > 0)
@@ -1287,7 +1303,11 @@ namespace jaindb
                                         }
 
                                         if (oTok.Type == JTokenType.Date)
-                                            oRes.Add(oTok.Parent);
+                                        {
+                                            if (!oRes.ContainsKey(oTok.Path))
+                                                oRes.Add(oTok.Parent);
+                                        }
+                                            
 
                                         foundData = true;
                                     }
