@@ -34,9 +34,12 @@ namespace fnJainDB
                 sQuery = "OS";
             }
             var query = QueryHelpers.ParseQuery(sQuery);
-            
+#if DEBUG
+            JArray sRes = await jDB.QueryAsync(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$where").Value, true);
+#endif
+#if RELEASE
             JArray sRes = await jDB.QueryAsync(string.Join(";", query.Where(t => string.IsNullOrEmpty(t.Value)).Select(t => t.Key).ToList()), query.FirstOrDefault(t => t.Key.ToLower() == "$select").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$exclude").Value, query.FirstOrDefault(t => t.Key.ToLower() == "$where").Value);
-
+#endif
             if (sRes != null)
                 return new OkObjectResult(sRes.ToString( Newtonsoft.Json.Formatting.None));
             else

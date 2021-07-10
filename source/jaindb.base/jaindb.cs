@@ -1777,7 +1777,7 @@ namespace jaindb
                 {
                     //dllFileNames = Directory.GetFiles(path, "plugin*.dll").OrderBy(t=>t).ToArray();
                     dllFileNames = Directory.GetFiles(path, "jaindb.storage.*.dll").OrderBy(t => t).ToList();
-                    dllFileNames.AddRange(Directory.GetFiles(path, "plugin*.dll").OrderBy(t => t).ToArray()); //old naming
+                    //dllFileNames.AddRange(Directory.GetFiles(path, "plugin*.dll").OrderBy(t => t).ToArray()); //old naming
 
                     if (dllFileNames.Count() == 0)
                     {
@@ -1789,8 +1789,8 @@ namespace jaindb
                     foreach (string dllFile in dllFileNames)
                     {
                         AssemblyName an = AssemblyName.GetAssemblyName(dllFile);
-                        //Assembly assembly = Assembly.Load(an);
-                        Assembly assembly = Assembly.LoadFile(dllFile);
+                        Assembly assembly = Assembly.Load(an); //required for fnJainDB !!!
+                        //Assembly assembly = Assembly.LoadFile(dllFile);
                         assemblies.Add(assembly);
                     }
 
