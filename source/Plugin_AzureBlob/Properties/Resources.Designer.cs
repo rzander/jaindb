@@ -70,7 +70,8 @@ namespace Plugin_AzureBlob.Properties {
         ///  &quot;Blocks&quot;: true,
         ///  &quot;Chain&quot;: true,
         ///  &quot;Full&quot;:  false,  
-        ///  &quot;BlobContainer&quot;: &quot;jaindb&quot;
+        ///  &quot;BlobContainer&quot;: &quot;jaindb&quot;,  
+        ///  &quot;InvMaxAgeDays&quot;:  120
         ///}.
         /// </summary>
         internal static string Plugin_AzureBlob {

@@ -127,7 +127,8 @@
   "Blocks": true,
   "Chain": true,
   "Full":  false,  
-  "BlobContainer": "jaindb"
+  "BlobContainer": "jaindb",  
+  "InvMaxAgeDays":  120
 }</value>
   </data>
 </root>
