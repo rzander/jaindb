@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace jaindb
 {
@@ -13,6 +14,48 @@ namespace jaindb
     {
         //Base58 Digits
         private const string Digits = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+        public enum hashType { MD5, SHA2_256, unknown } //Implemented Hash types
+
+        public static byte[] CalculateHash(string input, hashType HashType = hashType.MD5)
+        {
+            if (HashType == hashType.MD5)
+                return CalculateMD5Hash(input);
+
+            if (HashType == hashType.SHA2_256)
+                return CalculateSHA2_256Hash(input);
+
+            return null;
+        }
+
+        public static string CalculateHashString(string input, hashType HashType = hashType.MD5)
+        {
+            if (HashType == hashType.MD5)
+                return CalculateMD5HashString(input);
+
+            if (HashType == hashType.SHA2_256)
+                return CalculateSHA2_256HashString(input);
+
+            return null;
+        }
+
+        public static byte[] CalculateMD5Hash(string input)
+        {
+            MD5 md5 = System.Security.Cryptography.MD5.Create();
+            byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(input);
+            byte[] hash = md5.ComputeHash(inputBytes);
+            byte[] mhash = new byte[hash.Length + 2];
+            hash.CopyTo(mhash, 2);
+            //Add Multihash identifier
+            mhash[0] = 0xD5; //MD5
+            mhash[1] = Convert.ToByte(hash.Length); //Hash legth
+            return mhash;
+        }
+
+        public static string CalculateMD5HashString(string input)
+        {
+            return Encode58(CalculateMD5Hash(input));
+        }
 
         public static byte[] CalculateSHA2_256Hash(string input)
         {
@@ -34,22 +77,30 @@ namespace jaindb
             return Encode58(CalculateSHA2_256Hash(input));
         }
 
-        public static byte[] CalculateMD5Hash(string input)
+        public static bool checkTrailingZero(byte[] bHash, int complexity, string sGoal = "")
         {
-            MD5 md5 = System.Security.Cryptography.MD5.Create();
-            byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(input);
-            byte[] hash = md5.ComputeHash(inputBytes);
-            byte[] mhash = new byte[hash.Length + 2];
-            hash.CopyTo(mhash, 2);
-            //Add Multihash identifier
-            mhash[0] = 0xD5; //MD5
-            mhash[1] = Convert.ToByte(hash.Length); //Hash legth
-            return mhash;
-        }
+            bool bRes = false;
+            try
+            {
+                if (complexity > 0)
+                {
+                    if (string.IsNullOrEmpty(sGoal)) //create TrailingZero string if it does not exists
+                        sGoal = new string('0', complexity);
 
-        public static string CalculateMD5HashString(string input)
-        {
-            return Encode58(CalculateMD5Hash(input));
+                    //Check the last n Bits of the hash if they are 0, where n is the complexity
+                    int iBytes = 1 + (complexity / 8); //Nr of bytes we have toc get
+                    var aLast = bHash.Skip(bHash.Length - iBytes); //Get the last n Bytes
+                    string sRes = string.Join("", aLast.Select(x => Convert.ToString(x, 2).PadLeft(8, '0'))); //Convert to bit string
+
+                    if (sRes.Substring(sRes.Length - complexity) == sGoal) //do we have a match ?
+                        return true;
+                }
+                else
+                    return true;
+            }
+            catch { }
+
+            return bRes;
         }
 
         public static string Encode58(byte[] data)
@@ -79,30 +130,17 @@ namespace jaindb
             return result;
         }
 
-        public static bool checkTrailingZero(byte[] bHash, int complexity, string sGoal = "")
+        public static hashType GetHashType(string sHash)
         {
-            bool bRes = false;
-            try
+            if (!string.IsNullOrEmpty(sHash))
             {
-                if (complexity > 0)
-                {
-                    if (string.IsNullOrEmpty(sGoal)) //create TrailingZero string if it does not exists
-                        sGoal = new string('0', complexity);
-
-                    //Check the last n Bits of the hash if they are 0, where n is the complexity
-                    int iBytes = 1 + (complexity / 8); //Nr of bytes we have toc get
-                    var aLast = bHash.Skip(bHash.Length - iBytes); //Get the last n Bytes
-                    string sRes = string.Join("", aLast.Select(x => Convert.ToString(x, 2).PadLeft(8, '0'))); //Convert to bit string
-
-                    if (sRes.Substring(sRes.Length - complexity) == sGoal) //do we have a match ?
-                        return true;
-                }
-                else
-                    return true;
+                byte[] bIdentifier = Encoding.UTF8.GetBytes(sHash);
+                if (bIdentifier[0] == 0x12)
+                    return hashType.SHA2_256;
+                if (bIdentifier[0] == 0xD5)
+                    return hashType.MD5;
             }
-            catch { }
-
-            return bRes;
+            return hashType.unknown;
         }
     }
 }
