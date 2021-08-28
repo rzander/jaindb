@@ -135,9 +135,21 @@ namespace jaindb
             if (!string.IsNullOrEmpty(sHash))
             {
                 byte[] bIdentifier = Encoding.UTF8.GetBytes(sHash);
-                if (bIdentifier[0] == 0x12)
+                if (bIdentifier[0] == 0x51)
                     return hashType.SHA2_256;
-                if (bIdentifier[0] == 0xD5)
+                if (bIdentifier[0] == 0x39)
+                    return hashType.MD5;
+            }
+            return hashType.unknown;
+        }
+
+        public static hashType GetHashType(byte[] bHash)
+        {
+            if (bHash.Length > 5)
+            {
+                if (bHash[0] == 0x12)
+                    return hashType.SHA2_256;
+                if (bHash[0] == 0xD5)
                     return hashType.MD5;
             }
             return hashType.unknown;
