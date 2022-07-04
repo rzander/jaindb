@@ -1,5 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace JainDBProvider
 {
@@ -8,20 +10,20 @@ namespace JainDBProvider
         string Name { get; }
         Dictionary<string, string> Settings { get; set; }
 
-        List<string> GetAllIDs();
+        Task<List<string>> GetAllIDsAsync(CancellationToken ct);
 
-        IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths);
+        IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths, CancellationToken ct);
 
         void Init();
 
-        string LookupID(string name, string value);
+        Task<string> LookupIDAsync(string name, string value, CancellationToken ct);
 
-        string ReadHash(string Hash, string Collection);
+        Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct);
 
-        int totalDeviceCount(string sPath = "");
+        Task<int> totalDeviceCountAsync(string sPath = "", CancellationToken ct = default(CancellationToken));
 
-        bool WriteHash(string Hash, string Data, string Collection);
+        Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct);
 
-        bool WriteLookupID(string name, string value, string id);
+        Task<bool> WriteLookupIDAsync(string name, string value, string id, CancellationToken ct);
     }
 }
