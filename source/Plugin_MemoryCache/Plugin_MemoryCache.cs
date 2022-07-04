@@ -14,14 +14,13 @@ namespace Plugin_MemoryCache
 {
     public class Plugin_MemoryCache : IStore
     {
+        private MemoryCache _cache;
         private bool bReadOnly = false;
         private bool CacheFull = true;
         private bool CacheKeys = true;
         private bool ContinueAfterWrite = true;
         private JObject JConfig = new JObject();
         private long SlidingExpiration = -1;
-        private MemoryCache _cache;
-
         public string Name
         {
             get
@@ -131,7 +130,7 @@ namespace Plugin_MemoryCache
 
         public async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
         {
-            return await Task.Run(() => {
+            return await Task.Run(async () => {
                 if (bReadOnly)
                     return false;
 
@@ -159,7 +158,7 @@ namespace Plugin_MemoryCache
                             if (jObj["#id"] != null)
                             {
 
-                                jaindb.jDB.JSortAsync(jObj, false).Wait();
+                                await jaindb.jDB.JSortAsync(jObj, false, ct);
 
                                 string sID = jObj["#id"].ToString();
 

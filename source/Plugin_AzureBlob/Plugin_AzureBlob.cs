@@ -18,17 +18,17 @@ namespace Plugin_AzureBlob
     public class Plugin_AzureBlob : IStore
     {
         private string AccessKey = "";
-        private BlobClient blobClient;
-        private bool bReadOnly = false;
-        private BlobContainerClient container;
-        private bool ContinueAfterWrite = true;
         private bool bAssets = true;
         private bool bBlocks = true;
         private bool bChain = true;
         private bool bFull = false;
-        private int maxAgeDays = 90;
+        private BlobClient blobClient;
         private string blobcontainer = "jaindb";
+        private bool bReadOnly = false;
+        private BlobContainerClient container;
+        private bool ContinueAfterWrite = true;
         private JObject JConfig = new JObject();
+        private int maxAgeDays = 90;
         private string StorageAccount = "";
 
         public string Name
@@ -72,7 +72,7 @@ namespace Plugin_AzureBlob
 
         public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths, [EnumeratorCancellation] CancellationToken ct = default(CancellationToken))
         {
-            await foreach (var bAsset in container.GetBlobsAsync(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_assets", ct))
+            await foreach (var bAsset in container.GetBlobsAsync(BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_assets", ct))
             {
                 if (ct.IsCancellationRequested)
                     throw new TaskCanceledException();
@@ -80,15 +80,14 @@ namespace Plugin_AzureBlob
                 blobClient = container.GetBlobClient(bAsset.Name);
                 JObject jObj = new JObject();
 
-                if (paths.Contains("*") || paths.Contains(".."))
+                if (paths.Contains("*") || paths.Contains("..")) //?
                 {
                     try
                     {
                         var dca = await blobClient.DownloadContentAsync();
-                        
-                        string jRes = dca.Value.Content.ToString();
-                        jObj = new JObject(jRes);
-                        jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>(), "", false, ct);
+
+                        JObject jObjRaw = new JObject(dca.Value.Content.ToString());
+                        jObj = await jDB.GetFullAsync(jObjRaw["#id"].Value<string>(), jObjRaw["_index"].Value<int>(), "", false, ct);
                     }
                     catch { }
                 }
@@ -106,12 +105,6 @@ namespace Plugin_AzureBlob
 
                 yield return jObj;
             }
-
-            //foreach (JObject bAsset in container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_assets").Select(DoWork))
-            //{
-            //    yield return bAsset;
-            //}
-
         }
 
         public void Init()
@@ -167,6 +160,7 @@ namespace Plugin_AzureBlob
 
         public async Task<string> LookupIDAsync(string name, string value, CancellationToken ct = default(CancellationToken))
         {
+            await Task.CompletedTask;
             return null;
         }
 
@@ -203,10 +197,18 @@ namespace Plugin_AzureBlob
             }
             catch (Exception ex)
             {
-                ex.Message.ToString();
+                Console.WriteLine($"Error reading hash {Hash} from {Collection} .");
             }
 
             return sResult;
+        }
+
+        public string RemoveInvalidChars(string filename)
+        {
+            if (!string.IsNullOrEmpty(filename))
+                return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
+            else
+                return null;
         }
 
         public async Task<int> totalDeviceCountAsync(string sPath = "", CancellationToken ct = default(CancellationToken))
@@ -289,6 +291,7 @@ namespace Plugin_AzureBlob
 
         public async Task<bool> WriteLookupIDAsync(string name, string value, string id, CancellationToken ct = default(CancellationToken))
         {
+            await Task.CompletedTask;
             if (bReadOnly)
                 return false;
 
@@ -300,14 +303,6 @@ namespace Plugin_AzureBlob
             {
                 return false;
             }
-        }
-
-        public string RemoveInvalidChars(string filename)
-        {
-            if (!string.IsNullOrEmpty(filename))
-                return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
-            else
-                return null;
         }
     }
 }

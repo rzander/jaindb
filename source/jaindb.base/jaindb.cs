@@ -41,18 +41,15 @@ namespace jaindb
 
         public static async Task<string> CalculateHashAsync(string input, CancellationToken ct = default(CancellationToken))
         {
-            return await Task.Run(() =>
+            switch (HashType)
             {
-                switch (HashType)
-                {
-                    case hashType.MD5:
-                        return Hash.CalculateMD5HashString(input);
-                    case hashType.SHA2_256:
-                        return Hash.CalculateSHA2_256HashString(input);
-                    default:
-                        return Hash.CalculateMD5HashString(input); ;
-                }
-            }, ct);
+                case hashType.MD5:
+                    return await Hash.CalculateMD5HashStringAsync(input, ct);
+                case hashType.SHA2_256:
+                    return await Hash.CalculateSHA2_256HashStringAsync(input, ct);
+                default:
+                    return await Hash.CalculateMD5HashStringAsync(input, ct); ;
+            }
         }
 
         public static async Task<JObject> DeduplicateAsync(JObject FullObject, CancellationToken ct = default(CancellationToken))
@@ -108,6 +105,7 @@ namespace jaindb
                         continue;
 
                     WriteHash(ref tRef, ref oStatic, sName);
+
                     oChild.ToString();
                     oObj.SelectToken(oChild.Path).Replace(tRef);
                 }
@@ -210,6 +208,9 @@ namespace jaindb
             {
                 foreach (var item in _Plugins.OrderBy(t => t.Key))
                 {
+                    if (ct.IsCancellationRequested)
+                        throw new OperationCanceledException();
+
                     try
                     {
                         foreach (string sID in await item.Value.GetAllIDsAsync(ct))
@@ -229,10 +230,6 @@ namespace jaindb
                             }
                         }
 
-                        //string sFilter = ""; //only return raw data
-                        //if (dedup)
-                        //    sFilter = ""; //return full object
-
                         if (!dedup)
                         {
                             await foreach (JObject jObj in item.Value.GetRawAssetsAsync("", ct))
@@ -251,6 +248,9 @@ namespace jaindb
                         {
                             await foreach (JObject jObj in item.Value.GetRawAssetsAsync("", ct))
                             {
+                                if (ct.IsCancellationRequested)
+                                    throw new OperationCanceledException();
+
                                 if (jObj.HasValues)
                                 {
                                     //Write Hash to the first Plugin if the current plugin is not the first one
@@ -334,6 +334,9 @@ namespace jaindb
 
             foreach (var sID in await GetAllChainsAsync(ct))
             {
+                if (ct.IsCancellationRequested)
+                    throw new OperationCanceledException();
+
                 Change oRes = new Change();
                 oRes.id = sID;
                 var jObj = JObject.Parse(await ReadHashAsync(sID, "_chain", ct));
@@ -459,7 +462,7 @@ namespace jaindb
                         JObject jRes = JObject.Parse(sFull);
                         if (checkFullIndex)
                         {
-                            oRaw = await GetRawIdAsync(DeviceID, Index, blockType);
+                            oRaw = await GetRawIdAsync(DeviceID, Index, blockType, ct);
                             if ((oRaw["_index"].Value<string>() == jRes["_index"].Value<string>()) && ((jRes["_type"] ?? "").ToString() == "INV"))
                             {
                                 Debug.WriteLine("Full hash is up to date.");
@@ -478,7 +481,10 @@ namespace jaindb
                     }
                     else
                     {
-                        oRaw = await GetRawIdAsync(DeviceID, Index, blockType, ct);
+                        if (checkFullIndex)
+                            oRaw = await GetRawIdAsync(DeviceID, Index, blockType, ct);
+                        else 
+                            return null;
                     }
                 }
                 else
@@ -496,12 +502,9 @@ namespace jaindb
                 else
                     sData = await ReadHashAsync(oRaw["_hash"].ToString() + "_" + blockType, "_assets", ct);
 
-                if (ct.IsCancellationRequested)
-                    throw new TaskCanceledException();
-
                 if (!string.IsNullOrEmpty(sData))
                 {
-                    return await Task.Run(() =>
+                    return await Task.Run(async () =>
                     {
                         oInv = JObject.Parse(sData);
                         try
@@ -545,7 +548,7 @@ namespace jaindb
                                 if (aPathItems.Count > 1)
                                     sRoot = aPathItems[1].Split('[')[0];
 
-                                string sObj = ReadHashAsync(sH, sRoot).Result;
+                                string sObj = await ReadHashAsync(sH, sRoot, ct);
                                 if (!string.IsNullOrEmpty(sObj))
                                 {
                                     if (sObj.StartsWith('[')) //Check if value is an Array
@@ -650,7 +653,7 @@ namespace jaindb
                         }
                         catch { }
 
-                        JSortAsync(oInv, true, ct).Wait();
+                        await JSortAsync(oInv, true, ct);
 
                         if (Index == -1)
                         {
@@ -661,7 +664,7 @@ namespace jaindb
                             }
                         }
                         return oInv;
-                    });
+                    }, ct);
                 }
 
             }
@@ -670,7 +673,7 @@ namespace jaindb
                 Debug.WriteLine("Error GetFull_5: " + ex.Message.ToString());
             }
 
-            return new JObject();
+            return null;
         }
 
         public static async Task<JObject> GetHistoryAsync(string DeviceID, string blockType = "", CancellationToken ct = default(CancellationToken))
@@ -743,6 +746,9 @@ namespace jaindb
 
         public static async Task<JObject> GetRawAsync(string RawID, string path = "", CancellationToken ct = default(CancellationToken))
         {
+            if (ct.IsCancellationRequested)
+                throw new OperationCanceledException();
+
             JObject jResult = new JObject();
             try
             {
@@ -816,6 +822,9 @@ namespace jaindb
 
         public static async Task<JObject> GetRawIdAsync(string DeviceID, int Index = -1, string blockType = "", CancellationToken ct = default(CancellationToken))
         {
+            if (ct.IsCancellationRequested)
+                throw new OperationCanceledException();
+
             JObject jResult = new JObject();
 
             if (string.IsNullOrEmpty(blockType))
@@ -856,7 +865,7 @@ namespace jaindb
 
         public static async Task JSortAsync(JObject jObj, bool deep = false, CancellationToken ct = default(CancellationToken))
         {
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 var props = jObj.Properties().ToList();
                 foreach (var prop in props)
@@ -883,12 +892,12 @@ namespace jaindb
                             if (ct.IsCancellationRequested)
                                 throw new OperationCanceledException();
 
-                            JSortAsync(cChild, false, ct).Wait();
+                            await JSortAsync(cChild, false, ct);
                         }
                     }
 
                     if (prop.Value is JObject)
-                        JSortAsync((JObject)prop.Value, false, ct).Wait();
+                        await JSortAsync((JObject)prop.Value, false, ct);
                 }
             });
         }
@@ -1018,6 +1027,9 @@ namespace jaindb
                                 bool bWhere = false;
                                 foreach (string sWhere in lWhere)
                                 {
+                                    if (ct.IsCancellationRequested)
+                                        throw new OperationCanceledException();
+
                                     try
                                     {
                                         string sPath = sWhere;
@@ -1079,6 +1091,9 @@ namespace jaindb
 
                             foreach (string sAttrib in select.Split(';'))
                             {
+                                if (ct.IsCancellationRequested)
+                                    throw new OperationCanceledException();
+
                                 try
                                 {
                                     //var jVal = jObj[sAttrib];
@@ -1100,12 +1115,18 @@ namespace jaindb
                                 {
                                     foreach (var oRem in jObj.SelectTokens(sExclude, false).ToList())
                                     {
+                                        if (ct.IsCancellationRequested)
+                                            throw new OperationCanceledException();
+
                                         sExclPath.Add(oRem.Path);
                                     }
                                 }
 
                                 foreach (string path in paths.Split(';'))
                                 {
+                                    if (ct.IsCancellationRequested)
+                                        throw new OperationCanceledException();
+
                                     try
                                     {
                                         var oToks = jObj.SelectTokens(path.Trim(), false);
@@ -1179,6 +1200,9 @@ namespace jaindb
                                 {
                                     foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
                                     {
+                                        if (ct.IsCancellationRequested)
+                                            throw new OperationCanceledException();
+
                                         oRem.Parent.Remove();
                                         //oRes.Remove(oRem.Path);
                                     }
@@ -1237,6 +1261,9 @@ namespace jaindb
                 try
                 {
                     var jObj = await GetFullAsync(sHash, -1, "INV", fixFullIndex, ct);
+
+                    if (jObj == null)
+                        continue;
 
                     //Where filter..
                     if (lWhere.Count > 0)
@@ -1305,11 +1332,7 @@ namespace jaindb
                     }
 
                     JObject oRes = new JObject();
-                    //if(UseCosmosDB)
-                    //{
-                    //    string sID = jObj["#id"].Value<string>();
-                    //    jObj.Add("id", sID);
-                    //}
+
                     foreach (string sAttrib in select.Split(';'))
                     {
                         if (ct.IsCancellationRequested)
@@ -1444,6 +1467,9 @@ namespace jaindb
                         {
                             foreach (var oRem in oRes.SelectTokens(sExclude, false).ToList())
                             {
+                                if (ct.IsCancellationRequested)
+                                    throw new OperationCanceledException();
+
                                 oRem.Parent.Remove();
                             }
                         }
@@ -1461,8 +1487,8 @@ namespace jaindb
                 {
                     Debug.WriteLine("Error Query_5: " + ex.Message.ToString());
                 }
-            }
 
+            }
 
 
             return aRes;
@@ -1471,6 +1497,8 @@ namespace jaindb
 
         public static async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
         {
+            if (ct.IsCancellationRequested)
+                throw new OperationCanceledException();
 
             string sResult = "";
             Collection = Collection.ToLower();
@@ -1479,6 +1507,9 @@ namespace jaindb
             {
                 foreach (var item in _Plugins.OrderBy(t => t.Key))
                 {
+                    if (ct.IsCancellationRequested)
+                        throw new OperationCanceledException();
+
                     try
                     {
                         DateTime dStart = DateTime.Now;
@@ -1520,6 +1551,9 @@ namespace jaindb
 
             foreach (var item in _Plugins.OrderBy(t => t.Key))
             {
+                if (ct.IsCancellationRequested)
+                    throw new OperationCanceledException();
+
                 try
                 {
                     iCount = await item.Value.totalDeviceCountAsync("", ct);
@@ -1542,6 +1576,9 @@ namespace jaindb
 
         public static async Task<string> UploadFullAsync(string JSON, string DeviceID, string blockType = "", CancellationToken ct = default(CancellationToken))
         {
+            if (ct.IsCancellationRequested)
+                throw new OperationCanceledException();
+
             if (ReadOnly)
                 return "";
 
@@ -1555,6 +1592,9 @@ namespace jaindb
                 //Remove NULL values
                 foreach (var oTok in oObj.Descendants().Where(t => t.Parent.Type == (JTokenType.Property) && t.Type == JTokenType.Null).ToList())
                 {
+                    if (ct.IsCancellationRequested)
+                        throw new OperationCanceledException();
+
                     try
                     {
                         oTok.Parent.Remove();
@@ -1568,6 +1608,9 @@ namespace jaindb
                 //Remove empty values
                 foreach (var oTok in oObj.Descendants().Where(t => t.Type == (JTokenType.Object) && !t.HasValues).ToList())
                 {
+                    if (ct.IsCancellationRequested)
+                        throw new OperationCanceledException();
+
                     try
                     {
                         if (oTok.Parent.Type == JTokenType.Property)
@@ -1601,7 +1644,7 @@ namespace jaindb
                 JObject jTemp = oObj.ToObject<JObject>();
 
                 //Load BlockChain
-                Blockchain oChain = await GetChainAsync(DeviceID);
+                Blockchain oChain = await GetChainAsync(DeviceID, ct);
 
                 await JSortAsync(oObj, false, ct);
                 //JSort(oStatic);
@@ -1618,10 +1661,10 @@ namespace jaindb
 
                 if (oBlock.data != sResult) //only update chain if something has changed...
                 {
-                    var oNew = await oChain.MineNewBlockAsync(oBlock, BlockType);
-                    await oChain.UseBlockAsync(sResult, oNew);
+                    var oNew = await oChain.MineNewBlockAsync(oBlock, BlockType, ct);
+                    await oChain.UseBlockAsync(sResult, oNew, ct);
 
-                    if (await oChain.ValidateChainAsync(false))
+                    if (await oChain.ValidateChainAsync(false, ct))
                     {
                         //Console.WriteLine(JsonConvert.SerializeObject(tChain));
                         if (oNew.index == 1)
@@ -1633,7 +1676,7 @@ namespace jaindb
                             Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " - update " + DeviceID);
                         }
 
-                        await WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_chain");
+                        await WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_chain", ct);
 
                         //Add missing attributes
                         if (oStatic["_date"] == null)
@@ -1658,9 +1701,9 @@ namespace jaindb
 
 
                         if (blockType == BlockType)
-                            await WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full");
+                            await WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full", ct);
                         else
-                            await WriteHashAsync(DeviceID + "_" + blockType, jTemp.ToString(Formatting.None), "_full");
+                            await WriteHashAsync(DeviceID + "_" + blockType, jTemp.ToString(Formatting.None), "_full", ct);
 
                     }
                     else
@@ -1710,6 +1753,8 @@ namespace jaindb
         public static void WriteHash(ref JToken oRoot, ref JObject oStatic, string Collection, CancellationToken ct = default(CancellationToken))
         {
             //Collection = Collection.ToLower(); do NOT change to lowercase to prevent duplicate JSON entries
+            if (ct.IsCancellationRequested)
+                throw new OperationCanceledException();
 
             if (ReadOnly)
                 return;
@@ -1758,6 +1803,9 @@ namespace jaindb
 
         public static async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
         {
+            if (ct.IsCancellationRequested)
+                throw new OperationCanceledException();
+
             Collection = Collection.ToLower();
 
             if (ReadOnly)
@@ -1767,6 +1815,9 @@ namespace jaindb
             {
                 foreach (var item in _Plugins.OrderBy(t => t.Key))
                 {
+                    if (ct.IsCancellationRequested)
+                        throw new OperationCanceledException();
+
                     try
                     {
                         DateTime dStart = DateTime.Now;
@@ -1785,89 +1836,6 @@ namespace jaindb
                 return false;
             }
         }
-        /*      /// <summary>
-                /// Convert Topic /Key/Key/[0]/val to JSON Path format Key.Key[0].val
-                /// </summary>
-                /// <param name="Topic"></param>
-                /// <returns></returns>
-                public static string Topic2JPath(string Topic)
-                {
-                    try
-                    {
-                        string sPath = "";
-                        List<string> lItems = Topic.Split('/').ToList();
-                        for (int i = 0; i < lItems.Count(); i++)
-                        {
-                            bool bArray = false;
-                            int iVal = -1;
-                            if (i + 1 < lItems.Count())
-                            {
-                                if (lItems[i + 1].Contains("[") && int.TryParse(lItems[i + 1].TrimStart('[').TrimEnd(']'), out iVal))
-                                    bArray = true;
-                                else
-                                    bArray = false;
-                            }
-                            if (!bArray)
-                                sPath += lItems[i] + ".";
-                            else
-                            {
-                                sPath += lItems[i] + "[" + iVal.ToString() + "].";
-                                i++;
-                            }
-                        }
-
-                        return sPath.TrimEnd('.');
-                    }
-                    catch { }
-
-                    return "";
-                }
-                */
-
-        //class TopicComparer : IComparer<string>
-        //{
-        //    public int Compare(string x, string y)
-        //    {
-        //        if (x == y)
-        //            return 0;
-
-        //        List<string> lx = x.Split('/').ToList();
-        //        List<string> ly = y.Split('/').ToList();
-
-        //        if (lx.Count > ly.Count)
-        //            return 1; //y is smaller
-        //        if (lx.Count < ly.Count)
-        //            return -1; //x is smaller
-
-        //        int i = 0;
-        //        foreach (string s in lx)
-        //        {
-        //            if (s == ly[i])
-        //            {
-        //                i++;
-        //                continue;
-        //            }
-
-        //            if (s.StartsWith("[") && s.EndsWith("]") && ly[i].StartsWith("[") && ly[i].EndsWith("]"))
-        //            {
-        //                try
-        //                {
-        //                    int ix = int.Parse(s.TrimStart('[').TrimEnd(']'));
-        //                    int iy = int.Parse(ly[i].TrimStart('[').TrimEnd(']'));
-        //                    if (ix == iy)
-        //                        return 0;
-        //                    if (ix < iy)
-        //                        return -1;
-        //                    else
-        //                        return 1;
-        //                }
-        //                catch { }
-        //            }
-
-        //            int iRes = string.Compare(s, ly[i]);
-
-        //            return iRes;
-        //        }
 
         public static class GenericPluginLoader<T>
         {
