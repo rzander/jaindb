@@ -7,6 +7,8 @@ using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace jaindb
 {
@@ -39,6 +41,17 @@ namespace jaindb
             return null;
         }
 
+        public static async Task<string> CalculateHashStringAsync(string input, hashType HashType = hashType.MD5, CancellationToken ct = default(CancellationToken))
+        {
+            if (HashType == hashType.MD5)
+                return await CalculateMD5HashStringAsync(input, ct);
+
+            if (HashType == hashType.SHA2_256)
+                return await CalculateSHA2_256HashStringAsync(input, ct);
+
+            return null;
+        }
+
         public static byte[] CalculateMD5Hash(string input)
         {
             MD5 md5 = System.Security.Cryptography.MD5.Create();
@@ -52,9 +65,19 @@ namespace jaindb
             return mhash;
         }
 
+        public static async Task<byte[]> CalculateMD5HashAsync(string input, CancellationToken ct = default(CancellationToken))
+        {
+            return await Task.Run(() => CalculateMD5Hash(input), ct);
+        }
+
         public static string CalculateMD5HashString(string input)
         {
             return Encode58(CalculateMD5Hash(input));
+        }
+
+        public static async Task<string> CalculateMD5HashStringAsync(string input, CancellationToken ct = default(CancellationToken))
+        {
+            return await Task.Run(() => CalculateMD5HashString(input), ct);
         }
 
         public static byte[] CalculateSHA2_256Hash(string input)
@@ -72,9 +95,19 @@ namespace jaindb
             return mhash;
         }
 
+        public static async Task<byte[]> CalculateSHA2_256HashAsync(string input, CancellationToken ct = default(CancellationToken))
+        {
+            return await Task.Run(() => CalculateSHA2_256Hash(input), ct);
+        }
+
         public static string CalculateSHA2_256HashString(string input)
         {
             return Encode58(CalculateSHA2_256Hash(input));
+        }
+
+        public static async Task<string> CalculateSHA2_256HashStringAsync(string input, CancellationToken ct = default(CancellationToken))
+        {
+            return await Task.Run(() => CalculateSHA2_256HashString(input), ct);
         }
 
         public static bool checkTrailingZero(byte[] bHash, int complexity, string sGoal = "")
