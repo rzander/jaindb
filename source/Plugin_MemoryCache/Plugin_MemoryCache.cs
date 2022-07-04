@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Caching;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Plugin_MemoryCache
@@ -29,12 +31,14 @@ namespace Plugin_MemoryCache
         }
 
         public Dictionary<string, string> Settings { get; set; }
-        public List<string> GetAllIDs()
+
+        public async Task<List<string>> GetAllIDsAsync(CancellationToken ct)
         {
+            await Task.CompletedTask;
             return new List<string>();
         }
 
-        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths, [EnumeratorCancellation] CancellationToken ct)
         {
             await Task.CompletedTask;
             yield break;
@@ -74,186 +78,188 @@ namespace Plugin_MemoryCache
             catch { }
         }
 
-        public string LookupID(string name, string value)
+        public async Task<string> LookupIDAsync(string name, string value, CancellationToken ct = default(CancellationToken))
         {
-            string sResult = _cache["ID-" + name.ToLower() + value.ToLower()] as string;
-            //_cache.TryGetValue("ID-" + name.ToLower() + value.ToLower(), out sResult);
-            //Check in MemoryCache
-            if (!string.IsNullOrEmpty(sResult))
+            return await Task.Run(() =>
             {
-                return sResult;
-            }
-            else
-            {
-                return null;
-            }
-        }
+                string sResult = _cache["ID-" + name.ToLower() + value.ToLower()] as string;
 
-        public string ReadHash(string Hash, string Collection)
-        {
-            //string sResult = "";
-            string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
-
-            //Check if MemoryCache is initialized
-            //if (_cache == null)
-            //{
-            //    _cache = new MemoryCache(new MemoryCacheOptions());
-            //}
-
-            //Try to get value from Memory
-            //if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
-            if (!string.IsNullOrEmpty(sResult))
-            {
-                return sResult;
-            }
-            else
-            {
-                return "";
-            }
-        }
-
-        public int totalDeviceCount(string sPath = "")
-        {
-            string sCount = _cache["RH-totaldevicecount-"] as string;
-            //_cache.TryGetValue("RH-totaldevicecount-", out sCount);
-
-            //Check in MemoryCache
-            if (!string.IsNullOrEmpty(sCount))
-            {
-                return int.Parse(sCount);
-            }
-
-            return -1;
-        }
-
-        public bool WriteHash(string Hash, string Data, string Collection)
-        {
-            if (bReadOnly)
-                return false;
-
-            if (string.IsNullOrEmpty(Data) || Data == "null")
-                return true;
-
-            Collection = Collection.ToLower();
-
-            if (Collection == "_full")
-            {
-                if (!CacheFull) //exit if ChacheFull is not set
+                //Check in MemoryCache
+                if (!string.IsNullOrEmpty(sResult))
                 {
-                    if (ContinueAfterWrite)
-                        return false;
-                    else
-                        return true;
+                    return sResult;
+                }
+                else
+                {
+                    return null;
+                }
+            });
+        }
+
+        public async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
+        {
+            return await Task.Run(() =>
+            {
+                string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
+
+                if (!string.IsNullOrEmpty(sResult))
+                {
+                    return sResult;
+                }
+                else
+                {
+                    return "";
+                }
+            }, ct);
+        }
+
+        public async Task<int> totalDeviceCountAsync(string sPath = "", CancellationToken ct = default(CancellationToken))
+        {
+            return await Task.Run(() =>
+            {
+                string sCount = _cache["RH-totaldevicecount-"] as string; 
+
+                //Check in MemoryCache
+                if (!string.IsNullOrEmpty(sCount))
+                {
+                    return int.Parse(sCount);
                 }
 
-                if (CacheKeys)
+                return -1;
+            });
+        }
+
+        public async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
+        {
+            return await Task.Run(() => {
+                if (bReadOnly)
+                    return false;
+
+                if (string.IsNullOrEmpty(Data) || Data == "null")
+                    return true;
+
+                Collection = Collection.ToLower();
+
+                if (Collection == "_full")
                 {
-                    try
+                    if (!CacheFull) //exit if ChacheFull is not set
                     {
-                        var jObj = JObject.Parse(Data);
-                        jaindb.jDB.JSort(jObj);
+                        if (ContinueAfterWrite)
+                            return false;
+                        else
+                            return true;
+                    }
 
-                        string sID = jObj["#id"].ToString();
-
-                        //Store KeyNames
-                        foreach (JProperty oSub in jObj.Properties())
+                    if (CacheKeys)
+                    {
+                        try
                         {
-                            if (oSub.Name.StartsWith("#"))
-                            {
-                                if (oSub.Value.Type == JTokenType.Array)
-                                {
-                                    foreach (var oSubSub in oSub.Values())
-                                    {
-                                        try
-                                        {
-                                            if (oSubSub.ToString() != sID)
-                                            {
-                                                WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
-                                            }
-                                        }
-                                        catch { }
-                                    }
+                            var jObj = JObject.Parse(Data);
 
-                                }
-                                else
+                            if (jObj["#id"] != null)
+                            {
+
+                                jaindb.jDB.JSortAsync(jObj, false).Wait();
+
+                                string sID = jObj["#id"].ToString();
+
+                                //Store KeyNames
+                                foreach (JProperty oSub in jObj.Properties())
                                 {
-                                    if (!string.IsNullOrEmpty((string)oSub.Value))
+                                    if (oSub.Name.StartsWith("#"))
                                     {
-                                        if (oSub.Value.ToString() != sID)
+                                        if (oSub.Value.Type == JTokenType.Array)
                                         {
-                                            try
+                                            foreach (var oSubSub in oSub.Values())
                                             {
-                                                WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
+                                                try
+                                                {
+                                                    if (oSubSub.ToString() != sID)
+                                                    {
+                                                        _ = WriteLookupIDAsync(oSub.Name.ToLower(), (string)oSub.Value, sID, ct);
+                                                    }
+                                                }
+                                                catch { }
                                             }
-                                            catch { }
+
+                                        }
+                                        else
+                                        {
+                                            if (!string.IsNullOrEmpty((string)oSub.Value))
+                                            {
+                                                if (oSub.Value.ToString() != sID)
+                                                {
+                                                    try
+                                                    {
+                                                        _ = WriteLookupIDAsync(oSub.Name.ToLower(), (string)oSub.Value, sID, ct);
+                                                    }
+                                                    catch { }
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }catch(Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                        }
                     }
                 }
-            }
 
-            //Check if MemoryCache is initialized
-            //if (_cache == null)
-            //{
-            //    _cache = new MemoryCache(new MemoryCacheOptions());
-            //}
+                //Try to get value from Memory
+                string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
 
-            string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
-
-            //Try to get value from Memory
-            //if (_cache.TryGetValue("RH-" + Collection + "-" + Hash, out sResult))
-            if (!string.IsNullOrEmpty(sResult))
-            {
-                if (sResult == Data)
+                if (!string.IsNullOrEmpty(sResult))
                 {
-                    if (ContinueAfterWrite)
-                        return false;
-                    else
-                        return true;
+                    if (sResult == Data)
+                    {
+                        if (ContinueAfterWrite)
+                            return false;
+                        else
+                            return true;
+                    }
                 }
-            }
 
-            //Cache Data
-            if (SlidingExpiration >= 0)
-            {
-                //var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds
-                CacheItemPolicy cPol = new CacheItemPolicy() { SlidingExpiration = TimeSpan.FromSeconds(SlidingExpiration) };
-                _cache.Set("RH-" + Collection + "-" + Hash, Data, cPol);
-            }
-            else
-            {
-                //var cacheEntryOptions = new MemoryCacheEntryOptions(); //cache hash forever
-                _cache.Set("RH-" + Collection + "-" + Hash, Data, new CacheItemPolicy());
-            }
+                //Cache Data
+                if (SlidingExpiration >= 0)
+                {
+                    CacheItemPolicy cPol = new CacheItemPolicy() { SlidingExpiration = TimeSpan.FromSeconds(SlidingExpiration) };
+                    _cache.Set("RH-" + Collection + "-" + Hash, Data, cPol);
+                }
+                else
+                {
+                    //var cacheEntryOptions = new MemoryCacheEntryOptions(); //cache hash forever
+                    _cache.Set("RH-" + Collection + "-" + Hash, Data, new CacheItemPolicy());
+                }
 
-            if (ContinueAfterWrite)
-                return false;
-            else
-                return true;
+                if (ContinueAfterWrite)
+                    return false;
+                else
+                    return true;
+            }, ct);
         }
 
-        public bool WriteLookupID(string name, string value, string id)
+        public async Task<bool> WriteLookupIDAsync(string name, string value, string id, CancellationToken ct = default(CancellationToken))
         {
-            if (bReadOnly)
-                return false;
-
-            try
+            return await Task.Run(() =>
             {
-                //var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds
-                _cache.Set("ID-" + name.ToLower() + value.ToLower(), id, new CacheItemPolicy() { SlidingExpiration = TimeSpan.FromSeconds(SlidingExpiration) });
+                if (bReadOnly)
+                    return false;
 
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+                try
+                {
+                    //var cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(SlidingExpiration)); //cache hash for x Seconds
+                    _cache.Set("ID-" + name.ToLower() + value.ToLower(), id, new CacheItemPolicy() { SlidingExpiration = TimeSpan.FromSeconds(SlidingExpiration) });
+
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            });
         }
     }
 

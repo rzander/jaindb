@@ -1,4 +1,5 @@
 ﻿using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using jaindb;
 using JainDBProvider;
 using Newtonsoft.Json.Linq;
@@ -7,6 +8,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Plugin_AzureBlob
 {
@@ -21,6 +26,7 @@ namespace Plugin_AzureBlob
         private bool bBlocks = true;
         private bool bChain = true;
         private bool bFull = false;
+        private int maxAgeDays = 90;
         private string blobcontainer = "jaindb";
         private JObject JConfig = new JObject();
         private string StorageAccount = "";
@@ -34,26 +40,43 @@ namespace Plugin_AzureBlob
         }
 
         public Dictionary<string, string> Settings { get; set; }
-        public List<string> GetAllIDs()
+
+        public async Task<List<string>> GetAllIDsAsync(CancellationToken ct = default(CancellationToken))
         {
             List<string> lResult = new List<string>();
 
-            foreach (var bChain in container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain"))
+            DateTime dStart = DateTime.Now;
+
+            await foreach (BlobItem bChain in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, "_chain", ct))
             {
                 try
                 {
-                    lResult.Add(Path.GetFileNameWithoutExtension(bChain.Name.Split('/')[1]));
+                    if (maxAgeDays > 0)
+                    {
+                        if ((DateTimeOffset.Now - ((DateTimeOffset)bChain.Properties.LastModified)).TotalDays <= maxAgeDays)
+                            lResult.Add(Path.GetFileNameWithoutExtension(bChain.Name.Split('/')[1]));
+                    }
+                    else
+                    {
+                        lResult.Add(Path.GetFileNameWithoutExtension(bChain.Name.Split('/')[1]));
+                    }
                 }
                 catch { }
             }
 
+            DateTime dEnd = DateTime.Now;
+            Console.WriteLine("Loading " + lResult.Count + " ID's duration: " + (dEnd - dStart).TotalMilliseconds.ToString());
+
             return lResult;
         }
 
-        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths, [EnumeratorCancellation] CancellationToken ct = default(CancellationToken))
         {
-            foreach (var bAsset in container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_assets"))
+            await foreach (var bAsset in container.GetBlobsAsync(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_assets", ct))
             {
+                if (ct.IsCancellationRequested)
+                    throw new TaskCanceledException();
+
                 blobClient = container.GetBlobClient(bAsset.Name);
                 JObject jObj = new JObject();
 
@@ -61,17 +84,19 @@ namespace Plugin_AzureBlob
                 {
                     try
                     {
-                        string jRes = blobClient.DownloadContent().Value.Content.ToString();
+                        var dca = await blobClient.DownloadContentAsync();
+                        
+                        string jRes = dca.Value.Content.ToString();
                         jObj = new JObject(jRes);
-                        jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                        jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>(), "", false, ct);
                     }
                     catch { }
                 }
                 else
                 {
-                    var oAsset = await jDB.ReadHashAsync(bAsset.Name.Split('/')[1], "_assets");
+                    var oAsset = await jDB.ReadHashAsync(bAsset.Name.Split('/')[1], "_assets", ct);
                     if (!string.IsNullOrEmpty(paths))
-                        jObj = await jDB.GetRawAsync(oAsset, paths); //load only the path
+                        jObj = await jDB.GetRawAsync(oAsset, paths, ct); //load only the path
                     else
                         jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
                 }
@@ -81,6 +106,12 @@ namespace Plugin_AzureBlob
 
                 yield return jObj;
             }
+
+            //foreach (JObject bAsset in container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_assets").Select(DoWork))
+            //{
+            //    yield return bAsset;
+            //}
+
         }
 
         public void Init()
@@ -116,14 +147,17 @@ namespace Plugin_AzureBlob
                         bFull = JConfig["Full"].Value<bool>();
 
                     if (JConfig["BlobContainer"] != null)
-                        blobcontainer= JConfig["BlobContainer"].Value<string>();
+                        blobcontainer = JConfig["BlobContainer"].Value<string>();
+
+                    if (JConfig["InvMaxAgeDays"] != null)
+                        maxAgeDays = JConfig["InvMaxAgeDays"].Value<int>();
                 }
                 else
                 {
                     JConfig = new JObject();
                 }
 
-                container = new BlobContainerClient($"DefaultEndpointsProtocol=https;AccountName={ StorageAccount };AccountKey={ AccessKey };EndpointSuffix=core.windows.net", blobcontainer);
+                container = new BlobContainerClient($"DefaultEndpointsProtocol=https;AccountName={StorageAccount};AccountKey={AccessKey};EndpointSuffix=core.windows.net", blobcontainer);
             }
             catch (Exception ex)
             {
@@ -131,15 +165,16 @@ namespace Plugin_AzureBlob
             }
         }
 
-        public string LookupID(string name, string value)
+        public async Task<string> LookupIDAsync(string name, string value, CancellationToken ct = default(CancellationToken))
         {
-            string sResult = null;
-            return sResult;
+            return null;
         }
 
-        public string ReadHash(string Hash, string Collection)
+        public async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
         {
             string sResult = "";
+            if (string.IsNullOrEmpty(Hash))
+                return null;
             try
             {
                 Collection = Collection.ToLower();
@@ -150,37 +185,60 @@ namespace Plugin_AzureBlob
                 string sColl = Collection;
 
                 blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                sResult = blobClient.DownloadContent().Value.Content.ToString();
+                if (blobClient != null)
+                {
+                    var oRes = await blobClient.DownloadContentAsync();
+                    if (oRes != null)
+                    {
+                        if (oRes.Value.Content.GetType() == typeof(BinaryData))
+                        {
+                            sResult = Encoding.ASCII.GetString(oRes.Value.Content);
+                        }
+                        else
+                        {
+                            sResult = oRes.Value.Content.ToString();
+                        }
+                    }
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                ex.Message.ToString();
+            }
 
             return sResult;
         }
 
-        public int totalDeviceCount(string sPath = "")
+        public async Task<int> totalDeviceCountAsync(string sPath = "", CancellationToken ct = default(CancellationToken))
         {
-            int iCount = -1;
-            try
-            {
-                iCount = container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain").ToList().Count;
-            }
-            catch { }
+            return await Task.Run(() => {
+                int iCount = -1;
+                try
+                {
+                    var blobs = container.GetBlobs(Azure.Storage.Blobs.Models.BlobTraits.None, Azure.Storage.Blobs.Models.BlobStates.None, "_chain", ct);
+                    iCount = blobs.Count();
+                }
+                catch { }
 
-            return iCount;
+                return iCount;
+            });
         }
 
-        public bool WriteHash(string Hash, string Data, string Collection)
+        public async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
         {
             try
             {
                 if (bReadOnly)
                     return false;
 
+                if (ct.IsCancellationRequested)
+                    return false;
+
                 if (string.IsNullOrEmpty(Data) || Data == "null")
                     return true;
 
                 Collection = Collection.ToLower();
-                
+
                 Collection = RemoveInvalidChars(Collection);
                 Hash = RemoveInvalidChars(Hash);
 
@@ -192,22 +250,21 @@ namespace Plugin_AzureBlob
                     {
                         //always upload...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        blobClient.UploadAsync(new BinaryData(Data), true);
+                        await blobClient.UploadAsync(new BinaryData(Data), true, ct);
                     }
 
                     if (sColl == "_chain" && bChain)
                     {
                         //always upload...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        blobClient.UploadAsync(new BinaryData(Data), true);
+                        await blobClient.UploadAsync(new BinaryData(Data), true, ct);
                     }
 
                     if (sColl == "_assets" && bAssets)
                     {
                         //only upload if not exists...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        if(!blobClient.Exists())
-                            blobClient.UploadAsync(new BinaryData(Data), false);
+                        await blobClient.UploadAsync(new BinaryData(Data), false, ct);
                     }
                 }
                 else
@@ -216,8 +273,7 @@ namespace Plugin_AzureBlob
                     {
                         //only upload if not exists...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        if (!blobClient.Exists())
-                            blobClient.UploadAsync(new BinaryData(Data), false);
+                        await blobClient.UploadAsync(new BinaryData(Data), false, ct);
                     }
                 }
 
@@ -231,7 +287,7 @@ namespace Plugin_AzureBlob
             return false;
         }
 
-        public bool WriteLookupID(string name, string value, string id)
+        public async Task<bool> WriteLookupIDAsync(string name, string value, string id, CancellationToken ct = default(CancellationToken))
         {
             if (bReadOnly)
                 return false;
@@ -248,7 +304,10 @@ namespace Plugin_AzureBlob
 
         public string RemoveInvalidChars(string filename)
         {
-            return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
+            if (!string.IsNullOrEmpty(filename))
+                return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
+            else
+                return null;
         }
     }
 }
