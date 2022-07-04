@@ -9,6 +9,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace jaindb
@@ -152,7 +153,7 @@ namespace jaindb
             public byte[] signature { get; set; }
             public long timestamp { get; set; }
 
-            public static async Task<byte[]> GetHashAsync(string input)
+            public static async Task<byte[]> GetHashAsync(string input, CancellationToken ct = default(CancellationToken))
             {
                 return await Task.Run(() =>
                 {
@@ -162,16 +163,16 @@ namespace jaindb
                     }
 
                     return null;
-                });
+                }, ct);
             }
 
-            public async Task calc_hashAsync()
+            public async Task calc_hashAsync(CancellationToken ct = default(CancellationToken))
             {
                 try
                 {
                     string sData = index.ToString() + timestamp.ToString() + previous_hash.ToString() + data.ToString() + nonce.ToString() + blocktype;
 
-                    byte[] bHash = await GetHashAsync(sData);
+                    byte[] bHash = await GetHashAsync(sData, ct);
 
                     //Do a ProofOfWork if complexity is > 0
                     bool DoWork = true;
@@ -191,7 +192,7 @@ namespace jaindb
                                 }
                                 nonce++;
 
-                                bHash = await Block.GetHashAsync(index.ToString() + timestamp.ToString() + previous_hash.ToString() + data.ToString() + nonce.ToString() + blocktype);
+                                bHash = await Block.GetHashAsync(index.ToString() + timestamp.ToString() + previous_hash.ToString() + data.ToString() + nonce.ToString() + blocktype, ct);
                             } while (!Hash.checkTrailingZero(bHash, _complexity, sGoal));
                         }
                     }
@@ -203,37 +204,17 @@ namespace jaindb
                 catch { }
             }
 
-            public async Task<bool> validateAsync(long Previous_nonce = 0)
+            public async Task<bool> validateAsync(long Previous_nonce = 0, CancellationToken ct = default(CancellationToken))
             {
                 if (data != null)
                 {
-                    /*if (signature == null)
-                        return false;*/
-
                     if (hash == null)
                         return false;
 
                     //Check hash
-                    byte[] bHash = await GetHashAsync(index.ToString() + timestamp.ToString() + previous_hash.ToString() + data.ToString() + nonce.ToString() + blocktype);
+                    byte[] bHash = await GetHashAsync(index.ToString() + timestamp.ToString() + previous_hash.ToString() + data.ToString() + nonce.ToString() + blocktype, ct);
                     if (Convert.ToBase64String(bHash) != Convert.ToBase64String(hash))
                         return false;
-
-                    //Check signature
-                    /*X509Store my = new X509Store(StoreName.My, StoreLocation.CurrentUser);
-                    my.Open(OpenFlags.ReadOnly);
-                    foreach (X509Certificate2 cert in my.Certificates)
-                    {
-                        if (cert.Subject.Contains("xxx"))
-                        {
-                            using (var key = cert.GetRSAPublicKey())
-                            {
-                                if (!key.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))
-                                {
-                                    return false;
-                                }
-                            }
-                        }
-                    }*/
                 }
 
                 if (index > 0)
@@ -278,7 +259,7 @@ namespace jaindb
         {
             private static int _complexity = 0;
 
-            public Blockchain(string Data, string Blocktype = "root", int complexity = 0)
+            public Blockchain(string Data, string Blocktype = "root", int complexity = 0, CancellationToken ct = default(CancellationToken))
             {
                 _complexity = complexity;
                 Block._complexity = complexity;
@@ -298,8 +279,8 @@ namespace jaindb
                 Block oGenesis = Chain.First();
                 if (string.IsNullOrEmpty(Data))
                     oGenesis.data = "";
-                oGenesis.nonce = MineAsync(0, Blocktype, new byte[0]).Result;
-                oGenesis.calc_hashAsync().Wait();
+                oGenesis.nonce = MineAsync(0, Blocktype, new byte[0], ct).Result;
+                oGenesis.calc_hashAsync(ct).Wait();
             }
 
             public List<Block> Chain { get; set; }
@@ -338,7 +319,7 @@ namespace jaindb
                 }
             }
 
-            public async Task<Block> MineNewBlockAsync(Block ParentBlock, string Blocktype = "")
+            public async Task<Block> MineNewBlockAsync(Block ParentBlock, string Blocktype = "", CancellationToken ct = default(CancellationToken))
             {
                 if (string.IsNullOrEmpty(Blocktype)) //Use ParentBlock.blocktype if Blocktype is empty
                     Blocktype = ParentBlock.blocktype;
@@ -353,7 +334,7 @@ namespace jaindb
                         timestamp = DateTime.Now.ToUniversalTime().Ticks,
                         previous_hash = ParentBlock.hash,
                         blocktype = Blocktype,
-                        nonce = await MineAsync(ParentBlock.nonce, Blocktype, ParentBlock.hash)
+                        nonce = await MineAsync(ParentBlock.nonce, Blocktype, ParentBlock.hash, ct)
                     };
 
                     Chain.Add(oNew);
@@ -369,9 +350,9 @@ namespace jaindb
             /// </summary>
             /// <param name="otherChain"></param>
             /// <returns>true = Chain replaced ; false = keep current Chain</returns>
-            public async Task<bool> resolve_conflictsAsync(Blockchain otherChain)
+            public async Task<bool> resolve_conflictsAsync(Blockchain otherChain, CancellationToken ct = default(CancellationToken))
             {
-                if (await otherChain.ValidateChainAsync()) //Check if Chain is valid
+                if (await otherChain.ValidateChainAsync(false, ct)) //Check if Chain is valid
                 {
                     if (otherChain.Chain.Count() > this.Chain.Count()) //Check if Chain is longer than the current
                     {
@@ -382,7 +363,7 @@ namespace jaindb
                 return false;
             }
 
-            public async Task<Block> UseBlockAsync(string Data, Block FreeBlock)
+            public async Task<Block> UseBlockAsync(string Data, Block FreeBlock, CancellationToken ct = default(CancellationToken))
             {
                 /*if(!validateChain()) //Chain not Valid
                     return FreeBlock;*/
@@ -409,7 +390,7 @@ namespace jaindb
                 //FreeBlock.index = oParent.index + 1;
                 FreeBlock.data = Data;
                 FreeBlock.timestamp = DateTime.Now.ToUniversalTime().Ticks;
-                await FreeBlock.calc_hashAsync();
+                await FreeBlock.calc_hashAsync(ct);
 
                 return FreeBlock;
             }
@@ -418,10 +399,13 @@ namespace jaindb
             /// Check all hashes from bottom to top
             /// </summary>
             /// <returns>true = all fine; false = something is wrong</returns>
-            public async Task<bool> ValidateChainAsync(bool DeepCheck = false)
+            public async Task<bool> ValidateChainAsync(bool DeepCheck = false, CancellationToken ct = default(CancellationToken))
             {
                 foreach (Block bCheck in Chain.OrderByDescending(t => t.timestamp))
                 {
+                    if (ct.IsCancellationRequested)
+                        throw new TaskCanceledException();
+
                     if (bCheck.blocktype == "root")
                         continue;
 
@@ -433,7 +417,7 @@ namespace jaindb
 
                     if (DeepCheck) //DeepCheck will validate every block in the chain
                     {
-                        if (!await bCheck.validateAsync(Previous_nonce))
+                        if (!await bCheck.validateAsync(Previous_nonce, ct))
                             return false;
                     }
                 }
@@ -457,7 +441,7 @@ namespace jaindb
                 return oNew;
             }*/
 
-            private async Task<long> MineAsync(long Previos_noonce, string Blocktype, byte[] Previous_Hash)
+            private async Task<long> MineAsync(long Previos_noonce, string Blocktype, byte[] Previous_Hash, CancellationToken ct = default(CancellationToken))
             {
                 byte[] bHash = new byte[0];
 
@@ -473,6 +457,9 @@ namespace jaindb
 
                     do
                     {
+                        if (ct.IsCancellationRequested)
+                            throw (new TaskCanceledException());
+
                         if (nonce >= 9223372036854775807) //check overflow
                         {
                             nonce = 0; //reset nonce
@@ -480,7 +467,7 @@ namespace jaindb
 
                         nonce++;
 
-                        bHash = await Block.GetHashAsync((Previos_noonce + nonce).ToString() + Blocktype + Convert.ToBase64String(Previous_Hash));
+                        bHash = await Block.GetHashAsync((Previos_noonce + nonce).ToString() + Blocktype + Convert.ToBase64String(Previous_Hash), ct);
                     } while (!Hash.checkTrailingZero(bHash, _complexity, sGoal));
                 }
                 else
