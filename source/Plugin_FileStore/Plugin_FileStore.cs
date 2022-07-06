@@ -8,6 +8,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Plugin_FileStore
 {
@@ -33,26 +36,32 @@ namespace Plugin_FileStore
 
         public Dictionary<string, string> Settings { get; set; }
 
-        public List<string> GetAllIDs()
+        public async Task<List<string>> GetAllIDsAsync(CancellationToken ct = default(CancellationToken))
         {
-            List<string> lResult = new List<string>();
-
-            try
+            return await Task.Run(() =>
             {
-                if (Directory.Exists(Path.Combine(FilePath, "_chain")))
+                List<string> lResult = new List<string>();
+
+                try
                 {
-                    foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
+                    if (Directory.Exists(Path.Combine(FilePath, "_chain")))
                     {
-                        lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
+                        foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_chain")).GetFiles("*.json"))
+                        {
+                            if (ct.IsCancellationRequested)
+                                throw new TaskCanceledException();
+
+                            lResult.Add(System.IO.Path.GetFileNameWithoutExtension(oFile.Name));
+                        }
                     }
                 }
-            }
-            catch { }
+                catch { }
 
-            return lResult;
+                return lResult;
+            });
         }
 
-        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths, [EnumeratorCancellation] CancellationToken ct = default(CancellationToken))
         {
             foreach (var oFile in new DirectoryInfo(Path.Combine(FilePath, "_assets")).GetFiles("*.json"))
             {
@@ -63,16 +72,16 @@ namespace Plugin_FileStore
                     try
                     {
                         //tbv
-                        jObj = new JObject(File.ReadAllText(oFile.FullName));
-                        jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                        jObj =  new JObject(await File.ReadAllTextAsync(oFile.FullName), ct);
+                        jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>(), "", false, ct);
                     }
                     catch { }
                 }
                 else
                 {
-                    var oAsset = await jDB.ReadHashAsync(oFile.FullName.Replace(oFile.Extension, ""), "_assets");
+                    var oAsset = await jDB.ReadHashAsync(oFile.FullName.Replace(oFile.Extension, ""), "_assets", ct);
                     if (!string.IsNullOrEmpty(paths))
-                        jObj = await jDB.GetRawAsync(oAsset, paths); //load only the path
+                        jObj = await jDB.GetRawAsync(oAsset, paths, ct); //load only the path
                     else
                         jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
                 }
@@ -117,19 +126,19 @@ namespace Plugin_FileStore
                 Directory.CreateDirectory(FilePath);
         }
 
-        public string LookupID(string name, string value)
+        public async Task<string> LookupIDAsync(string name, string value, CancellationToken ct = default(CancellationToken))
         {
             string sResult = "";
             try
             {
-                sResult = File.ReadAllText(Path.Combine(FilePath, "_key", name.TrimStart('#', '@'), value + ".json"));
+                sResult = await File.ReadAllTextAsync(Path.Combine(FilePath, "_key", name.TrimStart('#', '@'), value + ".json"), ct);
             }
             catch { }
 
             return sResult;
         }
-
-        public string ReadHash(string Hash, string Collection)
+                
+        public async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
         {
             string sResult = "";
             if (bWriteOnly)
@@ -148,28 +157,7 @@ namespace Plugin_FileStore
                 if (!File.Exists(Path.Combine(FilePath, Coll2, Hash + ".json")))
                     return "";
 
-                sResult = File.ReadAllText(Path.Combine(FilePath, Coll2, Hash + ".json"));
-
-
-                //Check if hashes are valid...
-                //if (Collection != "_full" && Collection != "_chain" && Collection != "_assets")
-                //{
-                //    var jData = JObject.Parse(sResult);
-                //    /*if (jData["#id"] != null)
-                //        jData.Remove("#id");*/
-                //    if (jData["_date"] != null)
-                //        jData.Remove("_date");
-                //    if (jData["_index"] != null)
-                //        jData.Remove("_index");
-
-                //    string s1 = jaindb.jDB.CalculateHash(jData.ToString(Newtonsoft.Json.Formatting.None));
-                //    if (Hash != s1)
-                //    {
-                //        s1.ToString();
-                //        return "";
-                //    }
-                //}
-
+                sResult = await File.ReadAllTextAsync(Path.Combine(FilePath, Coll2, Hash + ".json"), ct);
             }
             catch (Exception ex)
             {
@@ -179,23 +167,31 @@ namespace Plugin_FileStore
             return sResult;
         }
 
-        public int totalDeviceCount(string sPath = "")
+        public string RemoveInvalidChars(string filename)
         {
-            int iCount = -1;
-            try
-            {
-                if (string.IsNullOrEmpty(sPath))
-                    sPath = Path.Combine(FilePath, "_chain");
-
-                if (Directory.Exists(sPath))
-                    iCount = Directory.GetFiles(sPath).Count(); //count Blockchain Files
-            }
-            catch { }
-
-            return iCount;
+            return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
         }
 
-        public bool WriteHash(string Hash, string Data, string Collection)
+        public async Task<int> totalDeviceCountAsync(string sPath = "", CancellationToken ct = default(CancellationToken))
+        {
+            return await Task.Run(() =>
+            {
+                int iCount = -1;
+                try
+                {
+                    if (string.IsNullOrEmpty(sPath))
+                        sPath = Path.Combine(FilePath, "_chain");
+
+                    if (Directory.Exists(sPath))
+                        iCount = Directory.GetFiles(sPath).Count(); //count Blockchain Files
+                }
+                catch { }
+
+                return iCount;
+            });
+        }
+
+        public async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
         {
             try
             {
@@ -207,12 +203,6 @@ namespace Plugin_FileStore
                     else
                         return true;
 
-                //Remove invalid Characters in Path and Hash
-                //foreach (var sChar in Path.GetInvalidPathChars())
-                //{
-                //    Collection = Collection.Replace(sChar.ToString(), "");
-                //    Hash = Hash.Replace(sChar.ToString(), "");
-                //}
                 Collection = RemoveInvalidChars(Collection);
                 Hash = RemoveInvalidChars(Hash);
 
@@ -235,7 +225,7 @@ namespace Plugin_FileStore
                         }
 
                         var jObj = JObject.Parse(Data);
-                        jaindb.jDB.JSort(jObj);
+                        await jDB.JSortAsync(jObj, false, ct);
 
                         string sID = jObj["#id"].ToString();
 
@@ -257,20 +247,7 @@ namespace Plugin_FileStore
                                             {
                                                 if (oSubSub.ToString() != sID)
                                                 {
-                                                    WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
-                                                    /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
-
-                                                    //Remove invalid Characters in Path
-                                                    foreach (var sChar in Path.GetInvalidPathChars())
-                                                    {
-                                                        sDir = sDir.Replace(sChar.ToString(), "");
-                                                    }
-
-                                                    if (!Directory.Exists(sDir))
-                                                        Directory.CreateDirectory(sDir);
-
-                                                    File.WriteAllText(Path.Combine(sDir, oSubSub.ToString() + ".json"), sID);
-                                                    */
+                                                    _ = WriteLookupIDAsync(oSub.Name.ToLower(), (string)oSub.Value, sID, ct);
                                                 }
                                             }
                                             catch { }
@@ -285,20 +262,7 @@ namespace Plugin_FileStore
                                             {
                                                 try
                                                 {
-                                                    WriteLookupID(oSub.Name.ToLower(), (string)oSub.Value, sID);
-                                                    /*string sDir = Path.Combine(FilePath, "_key", oSub.Name.ToLower().TrimStart('#'));
-
-                                                    //Remove invalid Characters in Path
-                                                    foreach (var sChar in Path.GetInvalidPathChars())
-                                                    {
-                                                        sDir = sDir.Replace(sChar.ToString(), "");
-                                                    }
-
-                                                    if (!Directory.Exists(sDir))
-                                                        Directory.CreateDirectory(sDir);
-
-                                                    File.WriteAllText(Path.Combine(sDir, (string)oSub.Value + ".json"), sID);
-                                                    */
+                                                    _ = WriteLookupIDAsync(oSub.Name.ToLower(), (string)oSub.Value, sID, ct);
                                                 }
                                                 catch { }
                                             }
@@ -310,14 +274,14 @@ namespace Plugin_FileStore
 
                         lock (locker) //only one write operation
                         {
-                            File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
+                            File.WriteAllTextAsync(Path.Combine(FilePath, Collection, Hash + ".json"), Data, ct);
                         }
                         break;
 
                     case "_chain":
                         lock (locker) //only one write operation
                         {
-                            File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
+                            File.WriteAllTextAsync(Path.Combine(FilePath, Collection, Hash + ".json"), Data, ct);
                         }
                         break;
 
@@ -326,7 +290,7 @@ namespace Plugin_FileStore
                         {
                             lock (locker) //only one write operation
                             {
-                                File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
+                                File.WriteAllTextAsync(Path.Combine(FilePath, Collection, Hash + ".json"), Data, ct);
                             }
                         }
                         break;
@@ -343,7 +307,7 @@ namespace Plugin_FileStore
             return false;
         }
 
-        public bool WriteLookupID(string name, string value, string id)
+        public async Task<bool> WriteLookupIDAsync(string name, string value, string id, CancellationToken ct = default(CancellationToken))
         {
             if (bReadOnly)
                 return false;
@@ -361,18 +325,13 @@ namespace Plugin_FileStore
                 if (!Directory.Exists(sDir))
                     Directory.CreateDirectory(sDir);
 
-                File.WriteAllText(Path.Combine(sDir, value + ".json"), id);
+                await File.WriteAllTextAsync(Path.Combine(sDir, value + ".json"), id, ct);
                 return true;
             }
             catch
             {
                 return false;
             }
-        }
-
-        public string RemoveInvalidChars(string filename)
-        {
-            return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
         }
     }
 }
