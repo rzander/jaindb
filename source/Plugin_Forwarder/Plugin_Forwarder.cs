@@ -8,7 +8,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Plugin_Forwarder
@@ -32,15 +34,24 @@ namespace Plugin_Forwarder
         }
 
         public Dictionary<string, string> Settings { get; set; }
+
         public List<string> GetAllIDs()
         {
             List<string> lResult = new List<string>();
             return lResult;
         }
 
-        public IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        public async Task<List<string>> GetAllIDsAsync(CancellationToken ct = default(CancellationToken))
         {
-            return null;
+            await Task.CompletedTask;
+            List<string> lResult = new List<string>();
+            return lResult;
+        }
+
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths, [EnumeratorCancellation] CancellationToken ct = default(CancellationToken))
+        {
+            await Task.CompletedTask;
+            yield break;
         }
 
         public void Init()
@@ -76,10 +87,11 @@ namespace Plugin_Forwarder
                 bReadOnly = true;
         }
 
-        public string LookupID(string name, string value)
+
+        public async Task<string> LookupIDAsync(string name, string value, CancellationToken ct = default(CancellationToken))
         {
-            string sResult = "";
-            return sResult;
+            await Task.CompletedTask;
+            return "";
         }
 
         public string ReadHash(string Hash, string Collection)
@@ -118,17 +130,51 @@ namespace Plugin_Forwarder
             return sResult;
         }
 
-        public int totalDeviceCount(string sPath = "")
+        public async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
         {
+            string sResult = "";
+            try
+            {
+                Collection = Collection.ToLower();
+                switch (Collection)
+                {
+                    case "_full":
+                        using (HttpClient oClient = new HttpClient())
+                        {
+                            oClient.DefaultRequestHeaders.Clear();
+                            if (!string.IsNullOrEmpty(reportuser))
+                            {
+                                var byteArray = Encoding.ASCII.GetBytes(reportuser + ":" + reportpassword);
+                                oClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+                            }
+                            oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                            var response = await oClient.GetStringAsync(jaindburl + "/full?id=" + Hash, ct);
+
+                            return response;
+                        }
+                    default:
+                        return "";
+                }
+
+            }
+            catch { }
+
+            return sResult;
+        }
+
+        public async Task<int> totalDeviceCountAsync(string sPath = "", CancellationToken ct = default(CancellationToken))
+        {
+            await Task.CompletedTask;
             int iCount = -1;
             return iCount;
         }
 
-        public bool WriteHash(string Hash, string Data, string Collection)
+
+        public async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
         {
             Collection = Collection.ToLower();
 
-            if(bReadOnly)
+            if (bReadOnly)
                 if (ContinueAfterWrite)
                     return false;
                 else
@@ -145,17 +191,14 @@ namespace Plugin_Forwarder
                     {
                         oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                         HttpContent oCont = new StringContent(Data);
-                        var response = oClient.PostAsync((jaindburl + "/upload/" + Hash), oCont);
-                        response.Wait(180000);
-                        if (response.IsCompleted)
+                        var response = await oClient.PostAsync((jaindburl + "/upload/" + Hash), oCont, ct);
+
+                        if (!string.IsNullOrEmpty(await response.Content.ReadAsStringAsync(ct)))
                         {
-                            if(!string.IsNullOrEmpty(response.Result.Content.ReadAsStringAsync().Result));
-                            {
-                                if (ContinueAfterWrite)
-                                    return false;
-                                else
-                                    return true;
-                            }
+                            if (ContinueAfterWrite)
+                                return false;
+                            else
+                                return true;
                         }
                     }
                     return false;
@@ -163,8 +206,10 @@ namespace Plugin_Forwarder
                     return false;
             }
         }
-        public bool WriteLookupID(string name, string value, string id)
+
+        public async Task<bool> WriteLookupIDAsync(string name, string value, string id, CancellationToken ct = default(CancellationToken))
         {
+            await Task.CompletedTask;
             return false;
         }
     }
