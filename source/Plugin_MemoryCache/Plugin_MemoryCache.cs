@@ -208,18 +208,18 @@ namespace Plugin_MemoryCache
                 }
 
                 //Try to get value from Memory
-                string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
+                //string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
 
-                if (!string.IsNullOrEmpty(sResult))
-                {
-                    if (sResult == Data)
-                    {
-                        if (ContinueAfterWrite)
-                            return false;
-                        else
-                            return true;
-                    }
-                }
+                //if (!string.IsNullOrEmpty(sResult))
+                //{
+                //    if (sResult == Data)
+                //    {
+                //        if (ContinueAfterWrite)
+                //            return false;
+                //        else
+                //            return true;
+                //    }
+                //}
 
                 //Cache Data
                 if (SlidingExpiration >= 0)
