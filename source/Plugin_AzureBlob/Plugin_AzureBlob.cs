@@ -252,21 +252,21 @@ namespace Plugin_AzureBlob
                     {
                         //always upload...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        await blobClient.UploadAsync(new BinaryData(Data), true, ct);
+                        _ = blobClient.UploadAsync(new BinaryData(Data), true, ct);
                     }
 
                     if (sColl == "_chain" && bChain)
                     {
                         //always upload...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        await blobClient.UploadAsync(new BinaryData(Data), true, ct);
+                        _ = blobClient.UploadAsync(new BinaryData(Data), true, ct);
                     }
 
                     if (sColl == "_assets" && bAssets)
                     {
                         //only upload if not exists...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        await blobClient.UploadAsync(new BinaryData(Data), false, ct);
+                        _ = blobClient.UploadAsync(new BinaryData(Data), false, ct);
                     }
                 }
                 else
@@ -275,7 +275,7 @@ namespace Plugin_AzureBlob
                     {
                         //only upload if not exists...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        await blobClient.UploadAsync(new BinaryData(Data), false, ct);
+                        _ = blobClient.UploadAsync(new BinaryData(Data), false, ct);
                     }
                 }
 
