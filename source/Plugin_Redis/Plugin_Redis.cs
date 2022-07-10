@@ -7,6 +7,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Plugin_Redis
 {
@@ -26,6 +29,8 @@ namespace Plugin_Redis
         private bool RedisEnabled = false;
         private int SlidingExpiration = -1;
         private IServer srv;
+        private ConnectionMultiplexer redis;
+
         public string Name
         {
             get
@@ -35,7 +40,8 @@ namespace Plugin_Redis
         }
 
         public Dictionary<string, string> Settings { get; set; }
-        public List<string> GetAllIDs()
+
+        public async Task<List<string>> GetAllIDsAsync(CancellationToken ct = default(CancellationToken))
         {
             if (!RedisEnabled)
                 return new List<string>();
@@ -44,7 +50,7 @@ namespace Plugin_Redis
 
             try
             {
-                foreach (var oObj in srv.Keys(3, "*"))
+                await foreach (var oObj in srv.KeysAsync(3, "*"))
                 {
                     lResult.Add(oObj.ToString());
                 }
@@ -54,29 +60,28 @@ namespace Plugin_Redis
             return lResult;
         }
 
-        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths)
+        public async IAsyncEnumerable<JObject> GetRawAssetsAsync(string paths, [EnumeratorCancellation] CancellationToken ct = default(CancellationToken))
         {
             if (RedisEnabled)
             {
                 foreach (var oObj in srv.Keys(4, "*"))
                 {
-                    var oAsset = await jDB.ReadHashAsync(oObj, "_assets"); //get raw asset
+                    var oAsset = await jDB.ReadHashAsync(oObj, "_assets", ct); //get raw asset
 
                     JObject jObj = new JObject();
-
 
                     if (paths.Contains("*") || paths.Contains(".."))
                     {
                         try
                         {
-                            jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>());
+                            jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>(), "", false, ct);
                         }
                         catch { }
                     }
                     else
                     {
                         if (!string.IsNullOrEmpty(paths))
-                            jObj = await jDB.GetRawAsync(oAsset, paths); //load only the path
+                            jObj = await jDB.GetRawAsync(oAsset, paths, ct); //load only the path
                         else
                             jObj = JObject.Parse(oAsset); //if not paths, we only return the raw data
                     }
@@ -118,19 +123,29 @@ namespace Plugin_Redis
 
                 try
                 {
-                    RedisConnectorHelper.ConnectionString = RedisConnectionString;
+                    redis = ConnectionMultiplexer.Connect(RedisConnectionString);
 
-                    if (cache0 == null)
-                    {
-                        cache0 = RedisConnectorHelper.Connection.GetDatabase(0);
-                        cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
-                        cache2 = RedisConnectorHelper.Connection.GetDatabase(2);
-                        cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
-                        cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
+                    cache0 =  redis.GetDatabase(0);
+                    cache1 = redis.GetDatabase(1);
+                    cache2 = redis.GetDatabase(2);
+                    cache3 = redis.GetDatabase(3);
+                    cache4 = redis.GetDatabase(4);
+
+                    //RedisConnectorHelper.ConnectionString = RedisConnectionString;
+
+                    //if (cache0 == null)
+                    //{
+                    //    cache0 = RedisConnectorHelper.Connection.GetDatabase(0);
+                    //    cache1 = RedisConnectorHelper.Connection.GetDatabase(1);
+                    //    cache2 = RedisConnectorHelper.Connection.GetDatabase(2);
+                    //    cache3 = RedisConnectorHelper.Connection.GetDatabase(3);
+                    //    cache4 = RedisConnectorHelper.Connection.GetDatabase(4);
+                    //}
+
+                    if (srv == null) {
+                        srv = redis.GetServer(redis.GetEndPoints(true)[0]);
+                        //srv = RedisConnectorHelper.Connection.GetServer(RedisConnectorHelper.Connection.GetEndPoints(true)[0]);
                     }
-
-                    if (srv == null)
-                        srv = RedisConnectorHelper.Connection.GetServer(RedisConnectorHelper.Connection.GetEndPoints(true)[0]);
 
                     RedisEnabled = true;
                 }
@@ -144,7 +159,7 @@ namespace Plugin_Redis
             catch { }
         }
 
-        public string LookupID(string name, string value)
+        public async Task<string> LookupIDAsync(string name, string value, CancellationToken ct = default(CancellationToken))
         {
             if (!RedisEnabled)
                 return "";
@@ -152,14 +167,14 @@ namespace Plugin_Redis
             string sResult = null;
             try
             {
-                sResult = cache1.StringGet(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
+                sResult = await cache1.StringGetAsync(name.ToLower().TrimStart('#', '@') + "/" + value.ToLower());
             }
             catch { }
 
             return sResult;
         }
 
-        public string ReadHash(string Hash, string Collection)
+        public async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
         {
             if (!RedisEnabled)
                 return "";
@@ -173,16 +188,16 @@ namespace Plugin_Redis
                 switch (Collection)
                 {
                     case "_full":
-                        return cache0.StringGet(Hash);
+                        return await cache0.StringGetAsync(Hash);
 
                     case "_chain":
-                        return cache3.StringGet(Hash);
+                        return await cache3.StringGetAsync(Hash);
 
                     case "_assets":
-                        return cache4.StringGet(Hash);
+                        return await cache4.StringGetAsync(Hash);
 
                     default:
-                        sResult = cache2.StringGet(Hash);
+                        sResult = await cache2.StringGetAsync(Hash);
                         return sResult;
                 }
             }
@@ -191,26 +206,29 @@ namespace Plugin_Redis
             return sResult;
         }
 
-        public int totalDeviceCount(string sPath = "")
+        public async Task<int> totalDeviceCountAsync(string sPath = "", CancellationToken ct = default(CancellationToken))
         {
             if (!RedisEnabled)
                 return -1;
 
             try
             {
-                return srv.Keys(3, "*").Count();
+                return await srv.KeysAsync(3, "*").CountAsync();
             }
             catch { }
 
             return -1;
         }
 
-        public bool WriteHash(string Hash, string Data, string Collection)
+        public async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default)
         {
             if (!RedisEnabled)
                 return false;
 
             if (bReadOnly)
+                return false;
+
+            if (string.IsNullOrEmpty(Hash))
                 return false;
 
             if (string.IsNullOrEmpty(Data) || Data == "null")
@@ -221,9 +239,7 @@ namespace Plugin_Redis
                     return true;
             }
 
-            Collection = Collection.ToLower();
-
-            switch (Collection)
+            switch (Collection.ToLower())
             {
                 case "_full":
                     JObject jObj = new JObject();
@@ -231,7 +247,7 @@ namespace Plugin_Redis
                     {
                         //DB 0 = Full Inv
                         jObj = JObject.Parse(Data);
-                        jaindb.jDB.JSort(jObj);
+                        //await jDB.JSortAsync(jObj, false, ct);
 
                         if (jObj["#id"] == null)
                             jObj.Add("#id", Hash);
@@ -239,9 +255,9 @@ namespace Plugin_Redis
                         string sID = jObj["#id"].ToString();
 
                         if (SlidingExpiration <= 0)
-                            cache0.StringSetAsync(sID, jObj.ToString(Newtonsoft.Json.Formatting.None));
+                            _ = cache0.StringSetAsync(sID, jObj.ToString(Newtonsoft.Json.Formatting.None));
                         else
-                            cache0.StringSetAsync(sID, jObj.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(0, 0, 0, SlidingExpiration));
+                            _ = cache0.StringSetAsync(sID, jObj.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(0, 0, 0, SlidingExpiration));
                     }
 
                     if (CacheKeys)
@@ -258,7 +274,7 @@ namespace Plugin_Redis
                                     {
                                         if (oSubSub.ToString() != sID)
                                         {
-                                            WriteLookupID(oSub.Name.ToLower(), oSubSub.ToString().ToLower(), sID);
+                                            _ = WriteLookupIDAsync(oSub.Name.ToLower(), oSubSub.ToString().ToLower(), sID, ct);
                                         }
                                     }
                                 }
@@ -268,7 +284,7 @@ namespace Plugin_Redis
                                     {
                                         if (oSub.Value.ToString() != sID)
                                         {
-                                            WriteLookupID(oSub.Name.ToLower(), oSub.Value.ToString().ToLower(), sID);
+                                            _ = WriteLookupIDAsync(oSub.Name.ToLower(), oSub.Value.ToString().ToLower(), sID, ct);
                                         }
                                     }
                                 }
@@ -276,44 +292,48 @@ namespace Plugin_Redis
                         }
                     }
                     break;
-
                 case "_chain":
                     var jObj3 = JObject.Parse(Data);
-                    jaindb.jDB.JSort(jObj3);
+                    //await jDB.JSortAsync(jObj3, false, ct);
 
-                    if(SlidingExpiration <= 0)
-                        cache3.StringSetAsync(Hash, jObj3.ToString(Newtonsoft.Json.Formatting.None));
+                    if (SlidingExpiration <= 0)
+                        _ = cache3.StringSetAsync(Hash, jObj3.ToString(Newtonsoft.Json.Formatting.None));
                     else
-                        cache3.StringSetAsync(Hash, jObj3.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(0, 0, 0, SlidingExpiration));
+                        _ = cache3.StringSetAsync(Hash, jObj3.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(0, 0, 0, SlidingExpiration));
                     break;
 
                 case "_assets":
                     var jObj4 = JObject.Parse(Data);
-                    jaindb.jDB.JSort(jObj4);
+                    //await jDB.JSortAsync(jObj4, false, ct);
 
                     if (SlidingExpiration <= 0)
-                        cache4.StringSetAsync(Hash, jObj4.ToString(Newtonsoft.Json.Formatting.None));
+                        _ = cache4.StringSetAsync(Hash, jObj4.ToString(Newtonsoft.Json.Formatting.None));
                     else
-                        cache4.StringSetAsync(Hash, jObj4.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(0, 0, 0, SlidingExpiration));
+                        _ = cache4.StringSetAsync(Hash, jObj4.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(0, 0, 0, SlidingExpiration));
                     break;
 
                 default:
-                    var jObj2 = JObject.Parse(Data);
-                    jaindb.jDB.JSort(jObj2);
+                    //var jObj2 = JObject.Parse(Data);
+                    //await jDB.JSortAsync(jObj2, false, ct);
 
                     if (SlidingExpiration <= 0)
-                        cache2.StringSetAsync(Hash, jObj2.ToString(Newtonsoft.Json.Formatting.None));
+                        _ = cache2.StringSetAsync(Hash, Data);
                     else
-                        cache2.StringSetAsync(Hash, jObj2.ToString(Newtonsoft.Json.Formatting.None), new TimeSpan(0, 0, 0, SlidingExpiration));
+                        _ = cache2.StringSetAsync(Hash, Data, new TimeSpan(0, 0, 0, SlidingExpiration));
                     break;
             }
+
+            await Task.CompletedTask;
 
             if (ContinueAfterWrite)
                 return false;
             else
                 return true;
+
+            //return true;
         }
-        public bool WriteLookupID(string name, string value, string id)
+
+        public async Task<bool> WriteLookupIDAsync(string name, string value, string id, CancellationToken ct = default(CancellationToken))
         {
             if (bReadOnly)
                 return false;
@@ -322,12 +342,14 @@ namespace Plugin_Redis
                 return false;
 
             if (SlidingExpiration <= 0)
-                cache1.StringSetAsync(name.ToLower().TrimStart('#') + "/" + value.ToLower(), id);
+                _ = cache1.StringSetAsync(name.ToLower().TrimStart('#') + "/" + value.ToLower(), id);
             else
-                cache1.StringSetAsync(name.ToLower().TrimStart('#') + "/" + value.ToLower(), id, new TimeSpan(0, 0, 0, SlidingExpiration));
+                _ = cache1.StringSetAsync(name.ToLower().TrimStart('#') + "/" + value.ToLower(), id, new TimeSpan(0, 0, 0, SlidingExpiration));
 
+            await Task.CompletedTask;
             return false;
         }
+
         public class RedisConnectorHelper
         {
             //public static string RedisServer = "localhost";
@@ -347,10 +369,8 @@ namespace Plugin_Redis
                     return ConnectionMultiplexer.Connect(ConnectionString);
                 });
             }
+
             public static ConnectionMultiplexer Connection => lazyConnection.Value;
         }
     }
-
-
 }
-
