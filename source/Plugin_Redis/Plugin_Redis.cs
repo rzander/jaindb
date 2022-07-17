@@ -16,6 +16,8 @@ namespace Plugin_Redis
     public class Plugin_Redis : IStore
     {
         private bool bReadOnly = false;
+        private bool bWriteOnly = false;
+        private bool bWriteChainOnly = false;
         private IDatabase cache0;
         private IDatabase cache1;
         private IDatabase cache2;
@@ -110,6 +112,8 @@ namespace Plugin_Redis
                 {
                     JConfig = JObject.Parse(File.ReadAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")));
                     bReadOnly = JConfig["ReadOnly"].Value<bool>();
+                    bWriteOnly = JConfig["WriteOnly"].Value<bool>();
+                    bWriteChainOnly = JConfig["WriteChainOnly"].Value<bool>();
                     SlidingExpiration = JConfig["SlidingExpiration"].Value<int>();
                     ContinueAfterWrite = JConfig["ContinueAfterWrite"].Value<bool>();
                     CacheFull = JConfig["CacheFull"].Value<bool>();
@@ -176,13 +180,15 @@ namespace Plugin_Redis
 
         public async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
         {
-            if (!RedisEnabled)
-                return "";
-
             string sResult = "";
 
             try
             {
+                if (!RedisEnabled)
+                    return "";
+                if(bWriteOnly)
+                    return "";
+
                 Collection = Collection.ToLower();
 
                 switch (Collection)
@@ -191,14 +197,16 @@ namespace Plugin_Redis
                         return await cache0.StringGetAsync(Hash);
 
                     case "_chain":
-                        return await cache3.StringGetAsync(Hash);
+                        if (bWriteChainOnly)
+                            return "";
+                        else
+                            return await cache3.StringGetAsync(Hash);
 
                     case "_assets":
                         return await cache4.StringGetAsync(Hash);
 
                     default:
-                        sResult = await cache2.StringGetAsync(Hash);
-                        return sResult;
+                        return  await cache2.StringGetAsync(Hash);
                 }
             }
             catch { }
@@ -350,27 +358,5 @@ namespace Plugin_Redis
             return false;
         }
 
-        public class RedisConnectorHelper
-        {
-            //public static string RedisServer = "localhost";
-            //public static int RedisPort = 6379;
-            public static string ConnectionString = "";
-
-            private static Lazy<ConnectionMultiplexer> lazyConnection;
-
-            static RedisConnectorHelper()
-            {
-                RedisConnectorHelper.lazyConnection = new Lazy<ConnectionMultiplexer>(() =>
-                {
-                    //ConfigurationOptions oOpt = new ConfigurationOptions();
-                    //oOpt.EndPoints.Add(RedisServer + ":" + RedisPort.ToString());
-                    //oOpt.AbortOnConnectFail = true;
-
-                    return ConnectionMultiplexer.Connect(ConnectionString);
-                });
-            }
-
-            public static ConnectionMultiplexer Connection => lazyConnection.Value;
-        }
     }
 }

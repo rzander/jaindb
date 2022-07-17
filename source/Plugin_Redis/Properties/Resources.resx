@@ -124,7 +124,9 @@
   "ContinueAfterWrite": true,
   "CacheFull": true,
   "CacheKeys": true,
-  "RedisConnectionString":  "localhost:6379"
+  "RedisConnectionString":  "localhost:6379",
+  "WriteOnly": false,
+  "WriteChainOnly": false
 }</value>
   </data>
 </root>
