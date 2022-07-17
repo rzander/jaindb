@@ -1497,14 +1497,14 @@ namespace jaindb
 
         public static async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
         {
-            if (ct.IsCancellationRequested)
-                throw new OperationCanceledException();
-
             string sResult = "";
-            Collection = Collection.ToLower();
-
             try
             {
+                if (ct.IsCancellationRequested)
+                    throw new OperationCanceledException();
+
+                Collection = Collection.ToLower();
+
                 foreach (var item in _Plugins.OrderBy(t => t.Key))
                 {
                     if (ct.IsCancellationRequested)
@@ -1531,7 +1531,10 @@ namespace jaindb
                             return sResult;
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        ex.Message.ToString();
+                    }
                 }
 
                 return sResult;
@@ -1803,16 +1806,16 @@ namespace jaindb
 
         public static async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
         {
-            if (ct.IsCancellationRequested)
-                throw new OperationCanceledException();
-
-            Collection = Collection.ToLower();
-
-            if (ReadOnly)
-                return false;
-
             try
             {
+                if (ct.IsCancellationRequested)
+                    throw new OperationCanceledException();
+
+                Collection = Collection.ToLower();
+
+                if (ReadOnly)
+                    return false;
+
                 foreach (var item in _Plugins.OrderBy(t => t.Key))
                 {
                     if (ct.IsCancellationRequested)

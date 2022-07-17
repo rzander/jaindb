@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <SignAssembly>false</SignAssembly>
     <UseNETCoreGenerator>true</UseNETCoreGenerator>
     <ApplicationIcon />
@@ -22,15 +22,15 @@
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Title>JainDB Azure Blob Storage Provider</Title>
-    <Version>2.0.0.0</Version>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
-    <FileVersion>2.0.0.0</FileVersion>
+    <Version>2.0.0.1</Version>
+    <AssemblyVersion>2.0.0.1</AssemblyVersion>
+    <FileVersion>2.0.0.1</FileVersion>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.12.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.13.0" />
     <PackageReference Include="Costura.Fody" Version="5.7.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -39,7 +39,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="2.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
@@ -66,6 +65,10 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\jaindb.base\jaindb.base.csproj" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
