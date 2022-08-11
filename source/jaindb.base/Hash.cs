@@ -16,6 +16,7 @@ namespace jaindb
     {
         //Base58 Digits
         private const string Digits = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+        private static int[] _indexes = new int[128];
 
         public enum hashType { MD5, SHA2_256, unknown } //Implemented Hash types
 
@@ -160,6 +161,31 @@ namespace jaindb
                 result = '1' + result;
             }
 
+            return result;
+        }
+
+        //Source https://gist.github.com/CodesInChaos/3175971
+        public static byte[] Decode58(string data)
+        {
+            // Decode Base58 string to BigInteger 
+            BigInteger intData = 0;
+            for (int i = 0; i < data.Length; i++)
+            {
+                int digit = Digits.IndexOf(data[i]); //Slow
+                if (digit < 0)
+                    throw new FormatException(string.Format("Invalid Base58 character `{0}` at position {1}", data[i], i));
+                intData = intData * 58 + digit;
+            }
+
+            // Encode BigInteger to byte[]
+            // Leading zero bytes get encoded as leading `1` characters
+            int leadingZeroCount = data.TakeWhile(c => c == '1').Count();
+            var leadingZeros = Enumerable.Repeat((byte)0, leadingZeroCount);
+            var bytesWithoutLeadingZeros =
+                intData.ToByteArray()
+                .Reverse()// to big endian
+                .SkipWhile(b => b == 0);//strip sign byte
+            var result = leadingZeros.Concat(bytesWithoutLeadingZeros).ToArray();
             return result;
         }
 

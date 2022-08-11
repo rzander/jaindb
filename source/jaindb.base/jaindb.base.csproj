@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <Authors>Roger Zander</Authors>
     <Company>Zander Tools</Company>
     <Copyright>(c) 2022 by Roger Zander</Copyright>
@@ -12,9 +12,9 @@
     <PackageIconUrl></PackageIconUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseUrl></PackageLicenseUrl>
-    <Version>2.0.0.1</Version>
-    <FileVersion>2.0.0.1</FileVersion>
-    <AssemblyVersion>2.0.0.1</AssemblyVersion>
+    <Version>2.0.0.2</Version>
+    <FileVersion>2.0.0.2</FileVersion>
+    <AssemblyVersion>2.0.0.2</AssemblyVersion>
     <Title>JainDB base library</Title>
     <PackageReleaseNotes />
     <PackageIcon>jaindb_128.png</PackageIcon>

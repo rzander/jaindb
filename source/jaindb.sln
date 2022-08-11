@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30406.217
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32602.215
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "jaindb", "jaindb\jaindb.csproj", "{74406AC6-8586-48E2-9C1D-9C8E946772D8}"
 EndProject
@@ -31,7 +31,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Plugin_Forwarder", "Plugin_
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnitTestProject1", "..\UnitTestProject1\UnitTestProject1.csproj", "{6003132E-3058-4E8F-891E-2B87746AE374}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fnJainDB", "..\fnJainDB\fnJainDB.csproj", "{EB591256-6D02-4452-ADD2-EBCDDD276358}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "fnJainDB", "..\fnJainDB\fnJainDB.csproj", "{EB591256-6D02-4452-ADD2-EBCDDD276358}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fnJainDB6", "..\fnJainDB6\fnJainDB6.csproj", "{70F3F030-AB52-4CA2-9B00-94F8AE32A6D6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -95,6 +97,10 @@ Global
 		{EB591256-6D02-4452-ADD2-EBCDDD276358}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EB591256-6D02-4452-ADD2-EBCDDD276358}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EB591256-6D02-4452-ADD2-EBCDDD276358}.Release|Any CPU.Build.0 = Release|Any CPU
+		{70F3F030-AB52-4CA2-9B00-94F8AE32A6D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70F3F030-AB52-4CA2-9B00-94F8AE32A6D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70F3F030-AB52-4CA2-9B00-94F8AE32A6D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70F3F030-AB52-4CA2-9B00-94F8AE32A6D6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
