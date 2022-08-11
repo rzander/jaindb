@@ -213,7 +213,8 @@ namespace Plugin_AzureBlob
 
         public async Task<int> totalDeviceCountAsync(string sPath = "", CancellationToken ct = default(CancellationToken))
         {
-            return await Task.Run(() => {
+            return await Task.Run(() =>
+            {
                 int iCount = -1;
                 try
                 {
@@ -266,7 +267,8 @@ namespace Plugin_AzureBlob
                     {
                         //only upload if not exists...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        _ = blobClient.UploadAsync(new BinaryData(Data), false, ct);
+                        if(!blobClient.Exists(ct))
+                             _ = blobClient.UploadAsync(new BinaryData(Data), false, ct);
                     }
                 }
                 else
@@ -275,10 +277,12 @@ namespace Plugin_AzureBlob
                     {
                         //only upload if not exists...
                         blobClient = container.GetBlobClient(sColl + "/" + Hash + ".json");
-                        _ = blobClient.UploadAsync(new BinaryData(Data), false, ct);
+                        if (!blobClient.Exists(ct))
+                            _ = blobClient.UploadAsync(new BinaryData(Data), false, ct);
                     }
                 }
 
+                await Task.CompletedTask;
                 if (ContinueAfterWrite)
                     return false;
                 else
