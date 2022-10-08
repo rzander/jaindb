@@ -16,7 +16,6 @@ namespace jaindb
     {
         //Base58 Digits
         private const string Digits = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-        private static int[] _indexes = new int[128];
 
         public enum hashType { MD5, SHA2_256, unknown } //Implemented Hash types
 

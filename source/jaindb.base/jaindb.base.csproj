@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
@@ -12,9 +12,9 @@
     <PackageIconUrl></PackageIconUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageLicenseUrl></PackageLicenseUrl>
-    <Version>2.0.0.2</Version>
-    <FileVersion>2.0.0.2</FileVersion>
-    <AssemblyVersion>2.0.0.2</AssemblyVersion>
+    <Version>2.0.0.3</Version>
+    <FileVersion>2.0.0.3</FileVersion>
+    <AssemblyVersion>2.0.0.3</AssemblyVersion>
     <Title>JainDB base library</Title>
     <PackageReleaseNotes />
     <PackageIcon>jaindb_128.png</PackageIcon>
@@ -34,7 +34,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="&quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;Sectigo RSA Code Signing CA&quot; /n &quot;Zander - Tools&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot;" />
+    <Exec Command="&quot;C:\tools\SignTool.exe&quot; sign /i &quot;Sectigo RSA Code Signing CA&quot; /n &quot;Zander - Tools&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot;" />
   </Target>
 
 </Project>

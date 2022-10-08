@@ -1,5 +1,5 @@
 ﻿// ************************************************************************************
-//          jaindb (c) Copyright 2018 by Roger Zander
+//          jaindb (c) Copyright 2022 by Roger Zander
 // ************************************************************************************
 
 using JainDBProvider;
@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using static jaindb.BlockChain;
@@ -32,6 +33,8 @@ namespace jaindb
         public static bool ReadOnly = false;
 
         public static string wwwPath = "wwwroot";
+
+        public static string CosmosPartitionKeyId = Environment.GetEnvironmentVariable("CosmosPartitionKeyId");
 
         internal static Dictionary<string, IStore> _Plugins = new Dictionary<string, IStore>();
 
@@ -306,12 +309,19 @@ namespace jaindb
             return lResult;
         }
 
-        public static async Task<Blockchain> GetChainAsync(string DeviceID, CancellationToken ct = default(CancellationToken))
+        public static async Task<Blockchain> GetChainAsync(string DeviceID, CancellationToken ct = default(CancellationToken), string partitionkey = "")
         {
             Blockchain oChain;
             string sData = "";
 
-            sData = await ReadHashAsync(DeviceID, "_chain", ct);
+            string Collection = "_chain";
+            
+            if (!string.IsNullOrEmpty(partitionkey))
+            {
+                DeviceID = DeviceID + ";" + partitionkey;
+            }
+
+            sData = await ReadHashAsync(DeviceID, Collection, ct);
 
             if (string.IsNullOrEmpty(sData))
             {
@@ -1647,7 +1657,7 @@ namespace jaindb
                 JObject jTemp = oObj.ToObject<JObject>();
 
                 //Load BlockChain
-                Blockchain oChain = await GetChainAsync(DeviceID, ct);
+                Blockchain oChain = await GetChainAsync(DeviceID, ct, oObj[CosmosPartitionKeyId]?.Value<string>() ?? "");
 
                 await JSortAsync(oObj, false, ct);
                 //JSort(oStatic);
@@ -1679,8 +1689,6 @@ namespace jaindb
                             Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " - update " + DeviceID);
                         }
 
-                        await WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_chain", ct);
-
                         //Add missing attributes
                         if (oStatic["_date"] == null)
                             oStatic.AddFirst(new JProperty("_date", new DateTime(oNew.timestamp).ToUniversalTime()));
@@ -1702,9 +1710,28 @@ namespace jaindb
                         if (jTemp["#id"] == null)
                             jTemp.AddFirst(new JProperty("#id", DeviceID));
 
+                        JObject jChainheader = new JObject();
+                        //AddOn for e.g. CosmosDB
+                        try
+                        {
+                            jChainheader.Add("customerid", oObj[CosmosPartitionKeyId]?.Value<string>() ?? "");
+                            jChainheader.Add("modifydate", jTemp["_date"].Value<DateTime>());
+                            jChainheader.Add("index", oChain.GetLastBlock().index);
+                            jChainheader.Add("assetid", oChain.GetLastBlock().data);
+                            JArray jKeys = new JArray();
+                            JObject jKey = new JObject();
+                            jKey.Add("name", oObj["#Name"]?.Value<string>() ?? "");
+                            jKey.Add("serial", oObj["#SerialNumber"]?.Value<string>() ?? "");
+                            jKey.Add("uuid", oObj["#UUID"]?.Value<string>() ?? "");
+                            jKeys.Add(jKey);
+                            jChainheader.Add("keys", jKeys);
+                        }
+                        catch { }
+
+                        await WriteHashAsync(DeviceID, JsonConvert.SerializeObject(oChain), "_chain", ct, jChainheader);
 
                         if (blockType == BlockType)
-                            await WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full", ct);
+                            await WriteHashAsync(DeviceID, jTemp.ToString(Formatting.None), "_full", ct, PartitionKey: jTemp[CosmosPartitionKeyId]?.Value<string>() ?? "");
                         else
                             await WriteHashAsync(DeviceID + "_" + blockType, jTemp.ToString(Formatting.None), "_full", ct);
 
@@ -1804,7 +1831,7 @@ namespace jaindb
             }
         }
 
-        public static async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
+        public static async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken), JObject Extensiondata = null, string PartitionKey = "")
         {
             try
             {
@@ -1823,6 +1850,16 @@ namespace jaindb
 
                     try
                     {
+                        if(Extensiondata != null && Extensiondata.HasValues && item.Key.Contains("CosmosDB", StringComparison.OrdinalIgnoreCase))
+                        {
+                            JObject jData = JObject.Parse(Data);
+                            jData.Merge(Extensiondata);
+                            Data = jData.ToString(Formatting.None);
+                        }
+                        if(!String.IsNullOrEmpty(PartitionKey))
+                        {
+                            Hash = Hash + ";" + PartitionKey;
+                        }
                         DateTime dStart = DateTime.Now;
                         var write = await item.Value.WriteHashAsync(Hash, Data, Collection, ct);
                         Debug.WriteLine("WriteHashAsync-" + item.Key + "-" + Collection + " duration:" + (DateTime.Now - dStart).TotalMilliseconds.ToString() + " ms");
