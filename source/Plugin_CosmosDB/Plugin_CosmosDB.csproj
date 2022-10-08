@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <SignAssembly>false</SignAssembly>
     <UseNETCoreGenerator>true</UseNETCoreGenerator>
     <ApplicationIcon />
@@ -15,31 +15,31 @@
     <PackageId>jaindb.storage.CosmosDB</PackageId>
     <Description>StorageProvider to store Data on CosmosDB.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Copyright>(c) 2020 by Roger Zander</Copyright>
+    <Copyright>(c) 2022 by Roger Zander</Copyright>
     <PackageLicenseUrl></PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <Title>JainDB CosmosDB Storage Provider</Title>
-    <Version>1.2.3</Version>
-    <AssemblyVersion>1.2.3.0</AssemblyVersion>
-    <FileVersion>1.2.3.0</FileVersion>
+    <Version>2.0.0.3</Version>
+    <AssemblyVersion>2.0.0.3</AssemblyVersion>
+    <FileVersion>2.0.0.3</FileVersion>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Costura.Fody" Version="5.3.0">
+    <PackageReference Include="Costura.Fody" Version="5.7.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Fody" Version="6.5.1">
+    <PackageReference Include="Fody" Version="6.6.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="1.2.5" />
-    <PackageReference Include="Microsoft.Azure.DocumentDB.Core" Version="2.13.1" />
+    <PackageReference Include="jaindb.base" Version="2.0.0.3" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.31.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
@@ -69,7 +69,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if &quot;$(ConfigurationName)&quot;==&quot;Debug&quot; GOTO  end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;:end&#xD;&#xA; &quot;C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\Bin\SignTool.exe&quot; sign /i &quot;COMODO RSA Code Signing CA&quot; /n &quot;Roger Zander&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot; &#xD;&#xA;" />
+    <Exec Command="&quot;C:\tools\SignTool.exe&quot; sign /i &quot;Sectigo RSA Code Signing CA&quot; /n &quot;Zander - Tools&quot; /t &quot;http://timestamp.comodoca.com/authenticode&quot; /q &quot;$(TargetPath)&quot;&#xD;&#xA;" />
   </Target>
 
 </Project>
