@@ -144,6 +144,14 @@ namespace Plugin_FileStore
             if (bWriteOnly)
                 return sResult;
 
+            string PartitionKey = "";
+
+            if (Hash.Contains(';'))
+            {
+                PartitionKey = Hash.Split(';')[1];
+                Hash = Hash.Split(';')[0];
+            }
+
             try
             {
                 string Coll2 = Collection;
@@ -203,8 +211,18 @@ namespace Plugin_FileStore
                     else
                         return true;
 
+                string PartitionKey = "";
+
+                if (Hash.Contains(';'))
+                {
+                    PartitionKey = Hash.Split(';')[1];
+                    Hash = Hash.Split(';')[0];
+                }
+
                 Collection = RemoveInvalidChars(Collection);
                 Hash = RemoveInvalidChars(Hash);
+
+
 
                 string sCol = Path.Combine(FilePath, Collection);
                 if (!Directory.Exists(sCol))

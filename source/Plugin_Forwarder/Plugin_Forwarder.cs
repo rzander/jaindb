@@ -99,6 +99,14 @@ namespace Plugin_Forwarder
             string sResult = "";
             try
             {
+                string PartitionKey = "";
+
+                if (Hash.Contains(';'))
+                {
+                    PartitionKey = Hash.Split(';')[1];
+                    Hash = Hash.Split(';')[0];
+                }
+
                 Collection = Collection.ToLower();
                 switch (Collection)
                 {
@@ -135,6 +143,14 @@ namespace Plugin_Forwarder
             string sResult = "";
             try
             {
+                string PartitionKey = "";
+
+                if (Hash.Contains(';'))
+                {
+                    PartitionKey = Hash.Split(';')[1];
+                    Hash = Hash.Split(';')[0];
+                }
+
                 Collection = Collection.ToLower();
                 switch (Collection)
                 {
@@ -172,6 +188,14 @@ namespace Plugin_Forwarder
 
         public async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
         {
+            string PartitionKey = "";
+
+            if (Hash.Contains(';'))
+            {
+                PartitionKey = Hash.Split(';')[1];
+                Hash = Hash.Split(';')[0];
+            }
+
             Collection = Collection.ToLower();
 
             if (bReadOnly)

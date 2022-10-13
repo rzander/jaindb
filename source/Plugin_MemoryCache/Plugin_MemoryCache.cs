@@ -97,6 +97,14 @@ namespace Plugin_MemoryCache
 
         public async Task<string> ReadHashAsync(string Hash, string Collection, CancellationToken ct = default(CancellationToken))
         {
+            string PartitionKey = "";
+
+            if (Hash.Contains(';'))
+            {
+                PartitionKey = Hash.Split(';')[1];
+                Hash = Hash.Split(';')[0];
+            }
+
             return await Task.Run(() =>
             {
                 string sResult = _cache["RH-" + Collection + "-" + Hash] as string;
@@ -130,6 +138,14 @@ namespace Plugin_MemoryCache
 
         public async Task<bool> WriteHashAsync(string Hash, string Data, string Collection, CancellationToken ct = default(CancellationToken))
         {
+            string PartitionKey = "";
+
+            if (Hash.Contains(';'))
+            {
+                PartitionKey = Hash.Split(';')[1];
+                Hash = Hash.Split(';')[0];
+            }
+
             return await Task.Run(async () => {
                 if (bReadOnly)
                     return false;
