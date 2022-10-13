@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Policy;
 using System.Threading;
 using System.Threading.Tasks;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace Plugin_CosmosDB
 {
@@ -24,6 +25,7 @@ namespace Plugin_CosmosDB
         public string endpointUrl;
         private static readonly object locker = new object();
         private bool bReadOnly = false;
+        private bool CacheAsset = true;
         private bool CacheFull = true;
         private bool CacheKeys = true;
         private bool ContinueAfterWrite = true;
@@ -94,14 +96,15 @@ namespace Plugin_CosmosDB
                 if (File.Exists(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")))
                 {
                     JConfig = JObject.Parse(File.ReadAllText(Assembly.GetExecutingAssembly().Location.Replace(".dll", ".json")));
-                    bReadOnly = JConfig["ReadOnly"].Value<bool>();
-                    SlidingExpiration = JConfig["SlidingExpiration"].Value<int>();
-                    ContinueAfterWrite = JConfig["ContinueAfterWrite"].Value<bool>();
-                    CacheFull = JConfig["CacheFull"].Value<bool>();
-                    CacheKeys = JConfig["CacheKeys"].Value<bool>();
-                    databaseId = JConfig["databaseId"].Value<string>();
-                    endpointUrl = JConfig["endpointUrl"].Value<string>();
-                    authorizationKey = JConfig["authorizationKey"].Value<string>();
+                    bReadOnly = JConfig["ReadOnly"]?.Value<bool>() ?? false;
+                    SlidingExpiration = JConfig["SlidingExpiration"]?.Value<int>() ?? 0;
+                    ContinueAfterWrite = JConfig["ContinueAfterWrite"]?.Value<bool>() ?? true; 
+                    CacheAsset = JConfig["CacheAssets"]?.Value<bool>() ?? true;
+                    CacheFull = JConfig["CacheFull"]?.Value<bool>() ?? true;
+                    CacheKeys = JConfig["CacheKeys"]?.Value<bool>() ?? false;
+                    databaseId = JConfig["databaseId"]?.Value<string>() ?? "jaindb";
+                    endpointUrl = JConfig["endpointUrl"]?.Value<string>() ?? "";
+                    authorizationKey = JConfig["authorizationKey"]?.Value<string>() ?? "";
 
                     CosmosDB = new CosmosClient(endpointUrl, authorizationKey);
                     database = CosmosDB.CreateDatabaseIfNotExistsAsync(databaseId).Result;
@@ -195,6 +198,26 @@ namespace Plugin_CosmosDB
             //    iCount = oAssets.ToList().Count();
             //}
             //catch { }
+
+            try
+            {
+                Container container = (database.CreateContainerIfNotExistsAsync("chain", "/customerid").Result).Container;
+                using FeedIterator<int> feedCount = container.GetItemQueryIterator<int>(new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
+
+
+                while (feedCount.HasMoreResults)
+                {
+                    FeedResponse<int> response = await feedCount.ReadNextAsync();
+
+                    // Iterate query results
+                    foreach (int item in response)
+                    {
+                        iCount = item;
+                    }
+                }
+            }
+            catch { }
+
             await Task.CompletedTask;
             return iCount;
         }
@@ -329,49 +352,53 @@ namespace Plugin_CosmosDB
                             }
                         }
 
-                        try
+                        if (CacheAsset)
                         {
-                            //var oItem = await container.ReadItemAsync<JObject>(jObj["_hash"].Value<string>(), new PartitionKey(CustomerID), new ItemRequestOptions() { }, cancellationToken: ct);
-                            //Console.WriteLine("RU charge read:" + oItem.RequestCharge);
+                            try
+                            {
+                                //var oItem = await container.ReadItemAsync<JObject>(jObj["_hash"].Value<string>(), new PartitionKey(CustomerID), new ItemRequestOptions() { }, cancellationToken: ct);
+                                //Console.WriteLine("RU charge read:" + oItem.RequestCharge);
 
-                            lock (locker) //only one write operation
-                            {
-                                //Console.WriteLine("RU charge asset:" + container.CreateItemAsync(jObj, new PartitionKey(CustomerID)).Result.RequestCharge);
-                                //Console.WriteLine("RU charge asset:" + container.ReplaceItemAsync(jAsset, jObj["_hash"].Value<string>(), new PartitionKey(CustomerID)).Result.RequestCharge);
-                                Console.WriteLine("RU charge asset:" + container.UpsertItemAsync(jAsset, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                lock (locker) //only one write operation
+                                {
+                                    Console.WriteLine("RU charge asset:" + container.CreateItemAsync(jObj, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                    //Console.WriteLine("RU charge asset:" + container.ReplaceItemAsync(jAsset, jObj["_hash"].Value<string>(), new PartitionKey(CustomerID)).Result.RequestCharge);
+                                    //Console.WriteLine("RU charge asset:" + container.UpsertItemAsync(jAsset, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                }
                             }
-                        }
-                        catch
-                        {
-                            lock (locker) //only one write operation
+                            catch
                             {
-                                Console.WriteLine("RU charge asset:" + container.CreateItemAsync(jAsset, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                //lock (locker) //only one write operation
+                                //{
+                                //    Console.WriteLine("RU charge asset:" + container.CreateItemAsync(jAsset, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                //}
                             }
                         }
 
                         jObj["id"] =  Hash;
-                        Container full = (database.CreateContainerIfNotExistsAsync("full", "/customerid").Result).Container;
-                        try
+                        if (CacheFull)
                         {
-                            //var oItem = await full.ReadItemAsync<JObject>(Hash, new PartitionKey(CustomerID), new ItemRequestOptions() { }, cancellationToken: ct);
-                            //Console.WriteLine("RU charge read:" + oItem.RequestCharge);
-
-                            lock (locker) //only one write operation
+                            Container full = (database.CreateContainerIfNotExistsAsync("full", "/customerid").Result).Container;
+                            try
                             {
-                                //Console.WriteLine("RU charge full:" + full.CreateItemAsync(jObj, new PartitionKey(CustomerID)).Result.RequestCharge);
-                                //Console.WriteLine("RU charge full:" + full.ReplaceItemAsync(jObj, Hash, new PartitionKey(CustomerID)).Result.RequestCharge);
-                                Console.WriteLine("RU charge full:" + full.UpsertItemAsync(jObj, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                //var oItem = await full.ReadItemAsync<JObject>(Hash, new PartitionKey(CustomerID), new ItemRequestOptions() { }, cancellationToken: ct);
+                                //Console.WriteLine("RU charge read:" + oItem.RequestCharge);
+
+                                lock (locker) //only one write operation
+                                {
+                                    //Console.WriteLine("RU charge full:" + full.CreateItemAsync(jObj, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                    //Console.WriteLine("RU charge full:" + full.ReplaceItemAsync(jObj, Hash, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                    Console.WriteLine("RU charge full:" + full.UpsertItemAsync(jObj, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                }
+                            }
+                            catch
+                            {
+                                lock (locker) //only one write operation
+                                {
+                                    Console.WriteLine("RU charge full:" + full.CreateItemAsync(jObj, new PartitionKey(CustomerID)).Result.RequestCharge);
+                                }
                             }
                         }
-                        catch
-                        {
-                            lock (locker) //only one write operation
-                            {
-                                Console.WriteLine("RU charge full:" + full.CreateItemAsync(jObj, new PartitionKey(CustomerID)).Result.RequestCharge);
-                            }
-                        }
-
-
 
                         //var cUri = UriFactory.CreateDocumentCollectionUri(databaseId, sColl);
                         //Console.WriteLine("RU charge:" + CosmosDB.CreateDocumentAsync(cUri, jObj).Result.ResponseHeaders["x-ms-request-charge"]);

@@ -2,6 +2,7 @@
   "ReadOnly": false,
   "SlidingExpiration": 0,
   "ContinueAfterWrite": true,
+  "CacheAssets": true,
   "CacheFull": true,
   "CacheKeys": true,
   "endpointUrl": "https://localhost:8081",
