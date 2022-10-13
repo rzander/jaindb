@@ -171,6 +171,14 @@ namespace Plugin_AzureBlob
                 return null;
             try
             {
+                string PartitionKey = "";
+
+                if (Hash.Contains(';'))
+                {
+                    PartitionKey = Hash.Split(';')[1];
+                    Hash = Hash.Split(';')[0];
+                }
+
                 Collection = Collection.ToLower();
 
                 Collection = RemoveInvalidChars(Collection);
@@ -239,6 +247,14 @@ namespace Plugin_AzureBlob
 
                 if (string.IsNullOrEmpty(Data) || Data == "null")
                     return true;
+
+                string PartitionKey = "";
+
+                if (Hash.Contains(';'))
+                {
+                    PartitionKey = Hash.Split(';')[1];
+                    Hash = Hash.Split(';')[0];
+                }
 
                 Collection = Collection.ToLower();
 

@@ -1,6 +1,12 @@
 ﻿{
   "ReadOnly": false,
   "ContinueAfterWrite": true,
-  "StorageAccount": "rzander",
-  "AccessKey": "zzz"
+  "StorageAccount": "stoemajaindb",
+  "AccessKey": "istZ5IMG6Soh1mTJwrzELai9cTmBuKLlbaiQXpPl2RrkyOTiKV5S6ajs9PaF2jajECmnFa83zIfMkDT0vjYfYQ==",
+  "Assets": true,
+  "Blocks": true,
+  "Chain": true,
+  "Full": false,
+  "BlobContainer": "jaindb",
+  "InvMaxAgeDays": 120
 }
