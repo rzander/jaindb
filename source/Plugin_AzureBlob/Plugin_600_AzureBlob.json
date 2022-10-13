@@ -1,8 +1,8 @@
 ﻿{
   "ReadOnly": false,
   "ContinueAfterWrite": true,
-  "StorageAccount": "stoemajaindb",
-  "AccessKey": "istZ5IMG6Soh1mTJwrzELai9cTmBuKLlbaiQXpPl2RrkyOTiKV5S6ajs9PaF2jajECmnFa83zIfMkDT0vjYfYQ==",
+  "StorageAccount": "test",
+  "AccessKey": "xxxx",
   "Assets": true,
   "Blocks": true,
   "Chain": true,
