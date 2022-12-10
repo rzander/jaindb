@@ -1,13 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
     <SignAssembly>false</SignAssembly>
     <UseNETCoreGenerator>true</UseNETCoreGenerator>
     <ApplicationIcon />
     <OutputType>Library</OutputType>
     <StartupObject />
-    <AssemblyName>jaindb.storage.300_CosmosDB</AssemblyName>
+    <AssemblyName>jaindb.storage.550_CosmosDB</AssemblyName>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Authors>Roger Zander</Authors>
     <Company>Zander Tools</Company>
@@ -22,11 +21,12 @@
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <Title>JainDB CosmosDB Storage Provider</Title>
-    <Version>2.0.0.4</Version>
-    <AssemblyVersion>2.0.0.4</AssemblyVersion>
-    <FileVersion>2.0.0.4</FileVersion>
+    <Version>2.0.0.6</Version>
+    <AssemblyVersion>2.0.0.6</AssemblyVersion>
+    <FileVersion>2.0.0.6</FileVersion>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,9 +38,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="2.0.0.3" />
-    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.31.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="jaindb.base" Version="2.0.0.6" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.31.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
   </ItemGroup>
 
   <ItemGroup>

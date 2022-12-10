@@ -154,8 +154,8 @@ namespace Plugin_CosmosDB
                         return "";
                 }
 
-                Container container = (database.CreateContainerIfNotExistsAsync(sColl, "/customerid").Result).Container;
-                var oRes = await container.ReadItemAsync<JObject>(Hash, new PartitionKey(PartitionKey));
+                Container container = (await database.CreateContainerIfNotExistsAsync(sColl, "/customerid")).Container;
+                var oRes = await container.ReadItemAsync<JObject>(Hash, new PartitionKey(PartitionKey), cancellationToken: ct);
                 Console.WriteLine("RU charge read:" + oRes.RequestCharge);
 
                 JObject jRes = oRes.Resource;
@@ -258,7 +258,7 @@ namespace Plugin_CosmosDB
 
             try
             {
-                Container container = (database.CreateContainerIfNotExistsAsync(sColl, "/customerid").Result).Container;
+                Container container = (await database.CreateContainerIfNotExistsAsync(sColl, "/customerid")).Container;
 
                 //string sJ = "{ \"Id\" : \"" + Hash + "\"," + Data.TrimStart('{');
                 var jObj = JObject.Parse(Data);
@@ -378,7 +378,7 @@ namespace Plugin_CosmosDB
                         jObj["id"] =  Hash;
                         if (CacheFull)
                         {
-                            Container full = (database.CreateContainerIfNotExistsAsync("full", "/customerid").Result).Container;
+                            Container full = (await database.CreateContainerIfNotExistsAsync("full", "/customerid")).Container;
                             try
                             {
                                 //var oItem = await full.ReadItemAsync<JObject>(Hash, new PartitionKey(CustomerID), new ItemRequestOptions() { }, cancellationToken: ct);
