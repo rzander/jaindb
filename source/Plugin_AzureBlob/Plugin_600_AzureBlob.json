@@ -1,8 +1,8 @@
 ﻿{
   "ReadOnly": false,
   "ContinueAfterWrite": true,
-  "StorageAccount": "test",
-  "AccessKey": "xxxx",
+  "StorageAccount": "rzander",
+  "AccessKey": "zzz",
   "Assets": true,
   "Blocks": true,
   "Chain": true,
