@@ -54,7 +54,7 @@
     <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="5.0.1">
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.8.2" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.5" />
   </ItemGroup>
 
   <ItemGroup>
