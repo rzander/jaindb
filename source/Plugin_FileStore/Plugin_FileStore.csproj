@@ -20,10 +20,10 @@
     <PackageIconUrl></PackageIconUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json database warehouse store</PackageTags>
-    <AssemblyVersion>2.0.0.3</AssemblyVersion>
+    <AssemblyVersion>2.0.0.6</AssemblyVersion>
     <Title>JainDB File-System Storage Provider</Title>
-    <Version>2.0.0.3</Version>
-    <FileVersion>2.0.0.3</FileVersion>
+    <Version>2.0.0.6</Version>
+    <FileVersion>2.0.0.6</FileVersion>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
@@ -37,8 +37,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="2.0.0.3" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="jaindb.base" Version="2.0.0.6" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
   </ItemGroup>
 
   <ItemGroup>
