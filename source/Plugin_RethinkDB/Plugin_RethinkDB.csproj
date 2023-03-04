@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <SignAssembly>false</SignAssembly>
     <UseNETCoreGenerator>true</UseNETCoreGenerator>
     <ApplicationIcon />
@@ -14,7 +14,7 @@
     <Product>jaindb.storage.RethinkDB</Product>
     <PackageId>jaindb.storage.RethinkDB</PackageId>
     <Description>StorageProvider to store Data on RethinkDB.</Description>
-    <Copyright>(c) 2020 by Roger Zander</Copyright>
+    <Copyright>(c) 2022 by Roger Zander</Copyright>
     <PackageLicenseUrl></PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>
@@ -22,22 +22,22 @@
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Title>JainDB RethinkDB Storage Provider</Title>
-    <Version>1.2.3</Version>
+    <Version>1.2.3.5</Version>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Costura.Fody" Version="5.3.0">
+    <PackageReference Include="Costura.Fody" Version="5.7.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Fody" Version="6.5.1">
+    <PackageReference Include="Fody" Version="6.6.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="1.2.5" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="jaindb.base" Version="2.0.0.6" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
   </ItemGroup>
 
