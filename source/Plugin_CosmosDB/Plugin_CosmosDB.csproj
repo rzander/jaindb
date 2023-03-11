@@ -14,16 +14,16 @@
     <PackageId>jaindb.storage.CosmosDB</PackageId>
     <Description>StorageProvider to store Data on CosmosDB.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Copyright>(c) 2022 by Roger Zander</Copyright>
+    <Copyright>(c) 2023 by Roger Zander</Copyright>
     <PackageLicenseUrl></PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json database warehouse store redis nosql</PackageTags>
     <Title>JainDB CosmosDB Storage Provider</Title>
-    <Version>2.0.0.6</Version>
-    <AssemblyVersion>2.0.0.6</AssemblyVersion>
-    <FileVersion>2.0.0.6</FileVersion>
+    <Version>2.0.0.7</Version>
+    <AssemblyVersion>2.0.0.7</AssemblyVersion>
+    <FileVersion>2.0.0.7</FileVersion>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <TargetFramework>net6.0</TargetFramework>
@@ -38,7 +38,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="2.0.0.6" />
+    <PackageReference Include="jaindb.base" Version="2.0.0.7" />
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.32.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>

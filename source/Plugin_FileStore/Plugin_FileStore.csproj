@@ -15,15 +15,15 @@
     <PackageId>jaindb.storage.FileStore</PackageId>
     <Product>jaindb.storage.FileStore</Product>
     <Description>StorageProvider to use FileSystem as Data-Store.</Description>
-    <Copyright>(c) 2022 by Roger Zander</Copyright>
+    <Copyright>(c) 2023 by Roger Zander</Copyright>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json database warehouse store</PackageTags>
-    <AssemblyVersion>2.0.0.6</AssemblyVersion>
+    <AssemblyVersion>2.0.0.7</AssemblyVersion>
     <Title>JainDB File-System Storage Provider</Title>
-    <Version>2.0.0.6</Version>
-    <FileVersion>2.0.0.6</FileVersion>
+    <Version>2.0.0.7</Version>
+    <FileVersion>2.0.0.7</FileVersion>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
@@ -37,7 +37,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="2.0.0.6" />
+    <PackageReference Include="jaindb.base" Version="2.0.0.7" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
