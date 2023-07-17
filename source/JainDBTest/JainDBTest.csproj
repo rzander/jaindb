@@ -1,13 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
 
     <IsPackable>false</IsPackable>
 
     <Authors>Roger Zander</Authors>
 
-    <Copyright>Copyright (c) 2018 by Roger Zander</Copyright>
+    <Copyright>Copyright (c) 2023 by Roger Zander</Copyright>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
