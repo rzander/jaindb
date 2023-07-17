@@ -14,7 +14,7 @@
     <Product>jaindb.storage.RethinkDB</Product>
     <PackageId>jaindb.storage.RethinkDB</PackageId>
     <Description>StorageProvider to store Data on RethinkDB.</Description>
-    <Copyright>(c) 2022 by Roger Zander</Copyright>
+    <Copyright>(c) 2023 by Roger Zander</Copyright>
     <PackageLicenseUrl></PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <PackageIconUrl></PackageIconUrl>
@@ -32,12 +32,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Fody" Version="6.6.4">
+    <PackageReference Include="Fody" Version="6.8.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="2.0.0.6" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <PackageReference Include="jaindb.base" Version="2.0.0.7" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="RethinkDb.Driver" Version="2.3.150" />
   </ItemGroup>
 
