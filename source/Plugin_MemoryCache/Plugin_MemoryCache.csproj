@@ -22,11 +22,11 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Product>jaindb.storage.Memory</Product>
     <Title>JainDB Memory Storage Provider</Title>
-    <Version>2.0.0.8</Version>
+    <Version>2.0.0.9</Version>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <AssemblyVersion>2.0.0.8</AssemblyVersion>
-    <FileVersion>2.0.0.8</FileVersion>
+    <AssemblyVersion>2.0.0.9</AssemblyVersion>
+    <FileVersion>2.0.0.9</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,7 +38,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="jaindb.base" Version="2.0.0.8" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Runtime.Caching" Version="7.0.0" />
   </ItemGroup>

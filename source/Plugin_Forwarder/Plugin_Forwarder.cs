@@ -2,9 +2,7 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -17,7 +15,8 @@ namespace Plugin_Forwarder
 {
     public class Plugin_Forwarder : IStore
     {
-        private static readonly object locker = new object();
+        //private static readonly object locker = new object();
+        private static readonly HttpClient oClientRH = new HttpClient();
         private bool bReadOnly = false;
         private bool ContinueAfterWrite = true;
         private string FilePath = "";
@@ -111,21 +110,18 @@ namespace Plugin_Forwarder
                 switch (Collection)
                 {
                     case "_full":
-                        using (HttpClient oClient = new HttpClient())
+                        oClientRH.DefaultRequestHeaders.Clear();
+                        if (!string.IsNullOrEmpty(reportuser))
                         {
-                            oClient.DefaultRequestHeaders.Clear();
-                            if (!string.IsNullOrEmpty(reportuser))
-                            {
-                                var byteArray = Encoding.ASCII.GetBytes(reportuser + ":" + reportpassword);
-                                oClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-                            }
-                            oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                            var response = oClient.GetStringAsync(jaindburl + "/full?id=" + Hash);
-                            response.Wait(180000);
-                            if (response.IsCompleted)
-                            {
-                                return response.Result;
-                            }
+                            var byteArray = Encoding.ASCII.GetBytes(reportuser + ":" + reportpassword);
+                            oClientRH.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+                        }
+                        oClientRH.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                        var response = oClientRH.GetStringAsync(jaindburl + "/full?id=" + Hash);
+                        response.Wait(180000);
+                        if (response.IsCompleted)
+                        {
+                            return response.Result;
                         }
                         break;
                     default:
@@ -155,19 +151,17 @@ namespace Plugin_Forwarder
                 switch (Collection)
                 {
                     case "_full":
-                        using (HttpClient oClient = new HttpClient())
+                        oClientRH.DefaultRequestHeaders.Clear();
+                        if (!string.IsNullOrEmpty(reportuser))
                         {
-                            oClient.DefaultRequestHeaders.Clear();
-                            if (!string.IsNullOrEmpty(reportuser))
-                            {
-                                var byteArray = Encoding.ASCII.GetBytes(reportuser + ":" + reportpassword);
-                                oClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-                            }
-                            oClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                            var response = await oClient.GetStringAsync(jaindburl + "/full?id=" + Hash, ct);
-
-                            return response;
+                            var byteArray = Encoding.ASCII.GetBytes(reportuser + ":" + reportpassword);
+                            oClientRH.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
                         }
+                        oClientRH.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                        var response = await oClientRH.GetStringAsync(jaindburl + "/full?id=" + Hash, ct);
+
+                        return response;
+
                     default:
                         return "";
                 }

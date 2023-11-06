@@ -1,5 +1,5 @@
 ﻿// ************************************************************************************
-//          jaindb (c) Copyright 2022 by Roger Zander
+//          jaindb (c) Copyright 2023 by Roger Zander
 // ************************************************************************************
 
 using JainDBProvider;
@@ -10,9 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using static jaindb.BlockChain;
@@ -34,7 +32,7 @@ namespace jaindb
 
         public static string wwwPath = "wwwroot";
 
-        public static string CosmosPartitionKeyId = Environment.GetEnvironmentVariable("CosmosPartitionKeyId");
+        public static string CosmosPartitionKeyId = Environment.GetEnvironmentVariable("CosmosPartitionKeyId") ?? "ROMAWOCustomerID";
 
         internal static Dictionary<string, IStore> _Plugins = new Dictionary<string, IStore>();
 
