@@ -67,12 +67,12 @@ namespace Plugin_FileStore
             {
                 JObject jObj = new JObject();
 
-                if (paths.Contains("*") || paths.Contains(".."))
+                if (paths.Contains('*') || paths.Contains(".."))
                 {
                     try
                     {
                         //tbv
-                        jObj =  new JObject(await File.ReadAllTextAsync(oFile.FullName), ct);
+                        jObj =  new JObject(await File.ReadAllTextAsync(oFile.FullName, ct));
                         jObj = await jDB.GetFullAsync(jObj["#id"].Value<string>(), jObj["_index"].Value<int>(), "", false, ct);
                     }
                     catch { }
@@ -144,11 +144,11 @@ namespace Plugin_FileStore
             if (bWriteOnly)
                 return sResult;
 
-            string PartitionKey = "";
+            //string PartitionKey = "";
 
             if (Hash.Contains(';'))
             {
-                PartitionKey = Hash.Split(';')[1];
+                //PartitionKey = Hash.Split(';')[1];
                 Hash = Hash.Split(';')[0];
             }
 
@@ -175,7 +175,7 @@ namespace Plugin_FileStore
             return sResult;
         }
 
-        public string RemoveInvalidChars(string filename)
+        public static string RemoveInvalidChars(string filename)
         {
             return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
         }
@@ -292,14 +292,14 @@ namespace Plugin_FileStore
 
                         lock (locker) //only one write operation
                         {
-                            File.WriteAllTextAsync(Path.Combine(FilePath, Collection, Hash + ".json"), Data, ct);
+                            File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                         }
                         break;
 
                     case "_chain":
                         lock (locker) //only one write operation
                         {
-                            File.WriteAllTextAsync(Path.Combine(FilePath, Collection, Hash + ".json"), Data, ct);
+                            File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                         }
                         break;
 
@@ -308,7 +308,7 @@ namespace Plugin_FileStore
                         {
                             lock (locker) //only one write operation
                             {
-                                File.WriteAllTextAsync(Path.Combine(FilePath, Collection, Hash + ".json"), Data, ct);
+                                File.WriteAllText(Path.Combine(FilePath, Collection, Hash + ".json"), Data);
                             }
                         }
                         break;
@@ -343,7 +343,7 @@ namespace Plugin_FileStore
                 if (!Directory.Exists(sDir))
                     Directory.CreateDirectory(sDir);
 
-                await File.WriteAllTextAsync(Path.Combine(sDir, value + ".json"), id, ct);
+                File.WriteAllText(Path.Combine(sDir, value + ".json"), id);
                 return true;
             }
             catch

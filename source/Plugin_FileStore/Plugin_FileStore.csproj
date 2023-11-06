@@ -20,10 +20,10 @@
     <PackageIconUrl></PackageIconUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <PackageTags>blockchain json database warehouse store</PackageTags>
-    <AssemblyVersion>2.0.0.8</AssemblyVersion>
+    <AssemblyVersion>2.0.0.9</AssemblyVersion>
     <Title>JainDB File-System Storage Provider</Title>
-    <Version>2.0.0.8</Version>
-    <FileVersion>2.0.0.8</FileVersion>
+    <Version>2.0.0.9</Version>
+    <FileVersion>2.0.0.9</FileVersion>
     <PackageIcon>jaindb_128.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
