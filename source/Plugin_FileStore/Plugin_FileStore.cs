@@ -1,6 +1,5 @@
 ﻿using jaindb;
 using JainDBProvider;
-
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -344,6 +343,8 @@ namespace Plugin_FileStore
                     Directory.CreateDirectory(sDir);
 
                 File.WriteAllText(Path.Combine(sDir, value + ".json"), id);
+
+                await Task.CompletedTask;
                 return true;
             }
             catch
