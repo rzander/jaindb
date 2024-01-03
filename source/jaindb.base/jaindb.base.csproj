@@ -3,8 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <Authors>Roger Zander</Authors>
-    <Company>Zander Tools</Company>
-    <Copyright>(c) 2023 by Roger Zander</Copyright>
+    <Company>Zander - Tools</Company>
+    <Copyright>(c) 2024 by Roger Zander</Copyright>
     <PackageProjectUrl>https://github.com/rzander/jaindb</PackageProjectUrl>
     <RepositoryUrl>https://github.com/rzander/jaindb</RepositoryUrl>
     <Description>jaindb base library to generate blockchain. Additional Storage-Providers are required</Description>
