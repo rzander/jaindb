@@ -305,18 +305,12 @@ namespace jaindb
 
             public Block GetLastBlock(string blockType = "")
             {
-                if (string.IsNullOrEmpty(blockType))
-                    return Chain.FirstOrDefault(t => Chain.Count(q => ByteArrayToString(q.previous_hash) == ByteArrayToString(t.hash)) == 0);
-                else
-                {
-                    var oBlock = Chain.FirstOrDefault(t => Chain.Count(q => ByteArrayToString(q.previous_hash) == ByteArrayToString(t.hash)) == 0 && (t.blocktype == blockType));
+                var lastBlock = string.IsNullOrEmpty(blockType)
+                    ? Chain.LastOrDefault(t => !Chain.Any(q => ByteArrayToString(q.previous_hash) == ByteArrayToString(t.hash)))
+                    : Chain.LastOrDefault(t => !Chain.Any(q => ByteArrayToString(q.previous_hash) == ByteArrayToString(t.hash)) && t.blocktype == blockType);
 
-                    //return genesis block if no other block was found
-                    if (oBlock == null)
-                        return GetBlock(0, "root");
-                    else
-                        return oBlock;
-                }
+                // Return genesis block if no other block was found
+                return lastBlock ?? GetBlock(0, "root");
             }
 
             public async Task<Block> MineNewBlockAsync(Block ParentBlock, string Blocktype = "", CancellationToken ct = default(CancellationToken))
